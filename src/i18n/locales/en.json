@@ -361,7 +361,6 @@
     "cancel": "Cancel",
     "historyEmpty": "Your conversations will appear here.",
     "emptyGreeting": "How can I help with your chart today?",
-    "emptySubtitle": "Ask anything about your placements, timing, or life themes.",
     "composerPlaceholder": "Message AstroSaathi",
     "attach": "Attach",
     "stop": "Stop generating",
@@ -379,20 +378,6 @@
       "today": "Today",
       "yesterday": "Yesterday",
       "previous7": "Previous 7 days"
-    },
-    "suggestions": {
-      "careerTitle": "Career & Success",
-      "careerBody": "What does my chart say about my career path?",
-      "relationshipsTitle": "Relationships & Love",
-      "relationshipsBody": "What patterns do I bring into relationships?",
-      "dashaTitle": "Dasha & Life Phase",
-      "dashaBody": "How is my current Vimshottari Dasha affecting me?",
-      "timingTitle": "Timing & Transits",
-      "timingBody": "Is this a good window for a new beginning?",
-      "remediesTitle": "Gemstones & Remedies",
-      "remediesBody": "Which gemstones or spiritual remedies suit my chart?",
-      "todayTitle": "Today's Guidance",
-      "todayBody": "What should I keep in mind today?"
     },
     "history": {
       "t1": "Saturn return, next steps",

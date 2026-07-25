@@ -15,20 +15,15 @@ import remarkGfm from "remark-gfm";
 import {
   ArrowDown,
   ArrowUp,
-  Briefcase,
   Check,
-  Clock3,
   Copy,
-  Heart,
   Menu,
   MessageSquarePlus,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
-  ShieldAlert,
   Sparkles,
-  Sun,
   Trash2,
   X,
 } from "lucide-react";
@@ -153,17 +148,6 @@ export const Route = createFileRoute("/chat")({
   }),
   component: ChatPage,
 });
-
-const SUGGESTIONS = ["career", "relationships", "dasha", "timing", "remedies", "today"] as const;
-
-const SUGGESTION_ICONS: Record<(typeof SUGGESTIONS)[number], typeof Sun> = {
-  career: Briefcase,
-  relationships: Heart,
-  dasha: Clock3,
-  timing: Sparkles,
-  remedies: ShieldAlert,
-  today: Sun,
-};
 
 const SIDEBAR_STORAGE_KEY = "astrosaathi:chat:sidebar";
 
@@ -735,27 +719,16 @@ function ChatPage() {
                 }}
               />
               <div className="motion-fade-up relative flex w-full max-w-2xl flex-col items-center gap-8">
-                <div className="flex flex-col items-center gap-3 text-center">
+                <div className="flex flex-col items-center gap-4 text-center">
                   <div
                     aria-hidden="true"
                     className="relative grid h-16 w-16 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/30 shadow-[var(--shadow-glow-gold)]"
                   >
                     <BrandMark withWordmark={false} />
                   </div>
-                  <h1 className="mt-1 font-display text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
+                  <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
                     {t("chat.emptyGreeting")}
                   </h1>
-                  <p className="max-w-md text-sm leading-relaxed text-muted-foreground md:text-base">
-                    {t("chat.emptySubtitle")}
-                  </p>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3.5 py-1 text-xs font-medium text-accent-foreground">
-                    <Sparkles size={13} className="text-accent" />
-                    <span>
-                      {profileName
-                        ? `Context Active: ${profileName}'s Birth Chart & Current Transits`
-                        : "Vedic Chart Analysis Context Active"}
-                    </span>
-                  </div>
                 </div>
                 <div className="w-full">
                   <Composer
@@ -767,41 +740,6 @@ function ChatPage() {
                     textareaRef={textareaRef}
                     inline
                   />
-                </div>
-                <div className="w-full">
-                  <div className="mb-3 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    <Sparkles size={12} aria-hidden="true" className="text-accent" />
-                    {t("chat.suggestionsHeading", "Try asking")}
-                  </div>
-                  <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
-                    {SUGGESTIONS.map((k, i) => {
-                      const Icon = SUGGESTION_ICONS[k];
-                      return (
-                        <button
-                          key={k}
-                          type="button"
-                          onClick={() => {
-                            setInput(t(`chat.suggestions.${k}Body`) as string);
-                            textareaRef.current?.focus();
-                          }}
-                          style={{ animationDelay: `${i * 60}ms` }}
-                          className="tap-press motion-fade-up group flex items-start gap-3 rounded-2xl border border-border/70 bg-card/60 p-4 text-left shadow-[var(--shadow-soft)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:bg-card hover:shadow-[var(--shadow-glow-gold)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent transition-colors group-hover:bg-accent/20">
-                            <Icon size={16} aria-hidden="true" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-medium text-foreground">
-                              {t(`chat.suggestions.${k}Title`)}
-                            </span>
-                            <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-                              {t(`chat.suggestions.${k}Body`)}
-                            </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
               </div>
             </div>

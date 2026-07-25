@@ -8,7 +8,6 @@ import {
   Grid,
   Grid3x3,
   Hash,
-  MessageCircle,
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
@@ -65,8 +64,6 @@ function HomePage() {
   }, []);
   const name = profile?.name?.split(" ")[0] ?? "AstroSaathi";
   const [tab, setTab] = useState<TabKey>("charts");
-  const planetsQuery = usePlanets();
-  const moonPlanet = planetsQuery.data?.planets?.find((p) => p.key === "moon") ?? null;
   const isProfileIncomplete = !profile || !profile.dob;
 
   return (
@@ -78,11 +75,7 @@ function HomePage() {
         </h1>
       </header>
 
-      {isProfileIncomplete ? (
-        <IncompleteProfileHeroCard />
-      ) : (
-        <TodayInsightHeroCard moonPlanet={moonPlanet} />
-      )}
+      {isProfileIncomplete && <IncompleteProfileHeroCard />}
 
       <Tabs current={tab} onChange={setTab} />
 
@@ -95,53 +88,6 @@ function HomePage() {
         {tab === "loshu" && <LoShuSection />}
       </div>
     </section>
-  );
-}
-
-function TodayInsightHeroCard({ moonPlanet }: { moonPlanet: NormalizedPlanet | null }) {
-  const { t } = useTranslation();
-  const todayDateStr = new Date().toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-accent/30 bg-accent/[0.05] p-5 sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-medium text-accent">
-            <Sparkles size={15} aria-hidden="true" />
-            <span className="uppercase tracking-wider">{t("home.todayHeroTitle")}</span>
-            <span>·</span>
-            <span className="text-muted-foreground">{todayDateStr}</span>
-          </div>
-          <h2 className="font-display text-[21px] font-semibold text-foreground">
-            {t("home.insightBody")}
-          </h2>
-          {moonPlanet && (
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card/80 px-2.5 py-1 text-foreground">
-                🌙 {t("home.colSign")}:{" "}
-                {moonPlanet.signKey ? t(`signs.${moonPlanet.signKey}`) : moonPlanet.signName}
-              </span>
-              {moonPlanet.nakshatraName && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card/80 px-2.5 py-1 text-foreground">
-                  ✨ {moonPlanet.nakshatraName}{" "}
-                  {moonPlanet.nakshatraPada ? `(Pada ${moonPlanet.nakshatraPada})` : ""}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        <Button variant="primary" asChild className="shrink-0 min-h-[44px] w-full sm:w-auto">
-          <Link to="/chat" className="flex items-center gap-2">
-            <MessageCircle size={16} aria-hidden="true" />
-            <span>{t("home.askToday")}</span>
-          </Link>
-        </Button>
-      </div>
-    </div>
   );
 }
 

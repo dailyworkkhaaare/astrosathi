@@ -142,16 +142,10 @@
   },
   "home": {
     "title": "Your chart",
-    "todayHeroTitle": "Today's Guidance",
-    "todayRhythm": "Celestial Rhythm",
-    "askToday": "Ask about today's transits",
     "completeProfileTitle": "Complete Your Birth Profile",
     "completeProfileBody": "Enter your date, time, and place of birth to unlock your Vedic Rashi chart, divisional charts, Vimshottari Dasha, and personalized guidance.",
     "completeProfileCta": "Set Up Birth Details",
     "chartSetupBadge": "Vedic Chart Setup",
-    "insightTitle": "Today's insight",
-    "insightBody": "A calm mind will attract the right opportunities today. Take a moment to breathe before decisions.",
-    "openChat": "Ask about my chart",
     "greeting": "Namaste, {{name}}",
     "comingSoon": {
       "title": "Coming soon",

@@ -662,7 +662,9 @@ function ChatPage() {
         />
 
         <div className="relative flex flex-1 flex-col overflow-hidden">
-          {hasMessages ? (
+          {!initialLoadDone ? (
+            <div className="flex-1" aria-hidden="true" />
+          ) : hasMessages ? (
             <>
               <div className="relative flex-1 overflow-hidden">
                 <div

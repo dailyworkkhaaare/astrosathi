@@ -179,12 +179,23 @@ function ChatPage() {
   const name = profileName?.split(" ")[0] ?? t("chat.friend");
 
   // Sidebar state (persisted on desktop; drawer on mobile is always closed at start).
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  // Computed synchronously in the initializer — not via a post-mount effect —
+  // so the first paint already matches the real viewport. Deriving it later
+  // caused a visible flash: the desktop-open sidebar would render inline for
+  // one frame, then snap into the fixed, off-canvas mobile position once the
+  // effect caught up (seen as "sidebar opens, then swipes away" on Home→Chat).
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
+  );
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    if (window.matchMedia("(max-width: 767px)").matches) return false;
+    const stored = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return stored ? stored === "open" : true;
+  });
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 767px)");
     const sync = () => setIsMobile(mql.matches);
-    sync();
     mql.addEventListener("change", sync);
     return () => mql.removeEventListener("change", sync);
   }, []);
@@ -345,15 +356,22 @@ function ChatPage() {
     setPinnedToBottom(true);
   }, []);
 
-  // Initial mount: fetch conversations, open most recent if any.
+  // Initial mount: fetch conversations, open the most recent one only if it
+  // was active in the last 15 minutes. After a longer gap the user is most
+  // likely here to ask something new, so land on the empty composer instead
+  // of resuming a stale conversation — still browsable from the sidebar.
+  const RESUME_WINDOW_MS = 15 * 60 * 1000;
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const list = await refetchConversations();
       if (cancelled) return;
-      if (list[0]) {
-        await loadConversation(list[0].id);
+      const mostRecent = list[0];
+      const lastActiveMs = mostRecent ? new Date(mostRecent.updated_at).getTime() : NaN;
+      const isRecent = Number.isFinite(lastActiveMs) && Date.now() - lastActiveMs < RESUME_WINDOW_MS;
+      if (mostRecent && isRecent) {
+        await loadConversation(mostRecent.id);
       }
       if (!cancelled) setInitialLoadDone(true);
     })();

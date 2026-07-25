@@ -7,7 +7,7 @@ import mr from "./locales/mr.json";
 
 export const SUPPORTED_LANGUAGES = ["mr", "hi", "en"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
-export const DEFAULT_LANGUAGE: SupportedLanguage = "mr";
+export const DEFAULT_LANGUAGE: SupportedLanguage = "en";
 export const LANG_STORAGE_KEY = "astrosaathi.lang";
 
 if (!i18n.isInitialized) {

@@ -1,0 +1,6 @@
+{
+  "name": "AstroSathi",
+  "description": "Vedic astrology, Kundli, Ashtakavarga, Dasha, and numerology application",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

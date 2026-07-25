@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(npm install *)",
+      "Bash(git check-ignore *)",
+      "Bash(mkdir -p .claude)",
+      "Bash(curl -sS -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000 --max-time 5)",
+      "Bash(timeout 20 npm run dev)",
+      "Bash(npm run *)",
+      "Bash(echo \"PID: $!\")",
+      "Read(//tmp/**)",
+      "Bash(pkill -f \"vite dev\")",
+      "Bash(pkill -f \"npm run dev\")",
+      "Bash(curl -sS -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000 --max-time 8)",
+      "Bash(grep -E '^\\\\.env\\($|\\\\.\\)')",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"http://localhost:3000/src/routes/chat.tsx?tsr-split=component\")"
+    ]
+  }
+}

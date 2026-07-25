@@ -1,0 +1,757 @@
+{
+  "common": {
+    "continue": "Continue",
+    "back": "Back",
+    "language": "Language",
+    "tagline": "Vedic astrology guidance, in your language.",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+  "nav": {
+    "home": "Home",
+    "chat": "Chat",
+    "settings": "Settings"
+  },
+  "languages": {
+    "mr": "मराठी",
+    "hi": "हिन्दी",
+    "en": "English"
+  },
+  "landing": {
+    "title": "Discover your path with Vedic wisdom",
+    "subtitle": "Personalized guidance rooted in tradition — kundli, daily insights, and one-to-one chat.",
+    "cta": "Get started",
+    "signInPrompt": "Already have an account?",
+    "signIn": "Sign in",
+    "howTitle": "How it works",
+    "step1Title": "Choose your language",
+    "step1Body": "Marathi, Hindi, or English — pick what feels closest to home.",
+    "step2Title": "Enter your birth details",
+    "step2Body": "Date, time, and place of birth to build your kundli accurately.",
+    "step3Title": "Get your chart & guidance",
+    "step3Body": "See your chart, daily insights, and chat with an astrologer.",
+    "trustAge": "For ages 18 and above.",
+    "trustDisclaimer": "Guidance is offered for reflection and is not a substitute for professional medical, legal, or financial advice."
+  },
+  "language": {
+    "title": "Choose your language",
+    "subtitle": "You can change this anytime in Settings."
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Enter your phone number to receive an OTP.",
+    "phone": "Phone number",
+    "otp": "One-time password",
+    "sendOtp": "Send OTP",
+    "verify": "Verify",
+    "signInTab": "Sign in",
+    "signUpTab": "Sign up",
+    "signInTitle": "Welcome back",
+    "signInSubtitle": "Sign in to continue your journey.",
+    "signUpTitle": "Create your account",
+    "signUpSubtitle": "A few details to personalize your guidance.",
+    "name": "Full name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "signInCta": "Sign in",
+    "signUpCta": "Create account",
+    "forgotLink": "Forgot password?",
+    "forgotTitle": "Reset your password",
+    "forgotSubtitle": "We'll send a reset link to your email.",
+    "sendReset": "Send reset link",
+    "resetSent": "If an account exists for this email, a reset link has been sent.",
+    "backToSignIn": "Back to sign in",
+    "loading": "Please wait…",
+    "errors": {
+      "nameRequired": "Please enter your name.",
+      "emailRequired": "Email is required.",
+      "invalidEmail": "Please enter a valid email address.",
+      "passwordRequired": "Password is required.",
+      "passwordShort": "Password must be at least 8 characters.",
+      "confirmMismatch": "Passwords do not match.",
+      "invalidCredentials": "Invalid email or password.",
+      "emailTaken": "An account with this email already exists.",
+      "generic": "Something went wrong. Please try again.",
+      "emailNotConfirmed": "Please confirm your email address before signing in."
+    },
+    "continueWithGoogle": "Continue with Google",
+    "orDivider": "or",
+    "confirmEmailTitle": "Check your email to confirm",
+    "confirmEmailBody": "We sent a confirmation link to {{email}}. Click it to activate your account, then sign in.",
+    "callback": {
+      "loading": "Signing you in…"
+    },
+    "reset": {
+      "title": "Set a new password",
+      "subtitle": "Choose a new password for your AstroSaathi account.",
+      "newPassword": "New password",
+      "cta": "Update password",
+      "done": "Password updated. Taking you to your chart…"
+    },
+    "privacyNote": "Your details stay private — used only to cast your chart."
+  },
+  "consent": {
+    "title": "Your privacy matters",
+    "body": "We use your birth details only to generate your kundli and insights. Nothing is shared without your permission.",
+    "agree": "I agree to the terms and privacy policy",
+    "ageTitle": "Age confirmation",
+    "ageLabel": "I confirm that I am 18 years of age or older.",
+    "requiredTitle": "Required agreements",
+    "termsLabel": "I agree to the Terms of Service.",
+    "termsSummary": "You agree to use AstroSaathi respectfully, not to misuse the service, and that guidance is provided as-is.",
+    "termsLink": "Read full Terms of Service",
+    "privacyLabel": "I agree to the Privacy Policy.",
+    "privacySummary": "We use your birth details only to generate your chart and insights. We do not sell your data. You can delete your account at any time.",
+    "privacyLink": "Read full Privacy Policy",
+    "optionalTitle": "Personalization (optional)",
+    "memoryLabel": "Let AstroSaathi remember our past conversations to personalize guidance.",
+    "memoryHelp": "You can turn this off any time in Settings. Off by default.",
+    "disclosureTitle": "A gentle note",
+    "disclosureBody": "Guidance is offered for reflection and self-understanding. It is not a substitute for professional medical, legal, or financial advice.",
+    "readMore": "Read more",
+    "readLess": "Read less"
+  },
+  "birth": {
+    "title": "Your birth details",
+    "subtitle": "Accurate details give a more precise chart.",
+    "name": "Full name",
+    "date": "Date of birth",
+    "time": "Time of birth",
+    "place": "Place of birth",
+    "gender": "Gender",
+    "genderMale": "Male",
+    "genderFemale": "Female",
+    "genderOther": "Other",
+    "genderPreferNotToSay": "Prefer not to say",
+    "genderHelp": "Used for your Feng Shui Kua directions.",
+    "timeUnknown": "I don't know my birth time",
+    "placeHelp": "Tip: English or romanized place names work best (e.g. \"Pune, Maharashtra\").",
+    "reassurance": "Birth time can be approximate — you can update it later in Settings.",
+    "timeUnknownNote": "Some time-sensitive details (like ascendant and moon-timing) may be limited.",
+    "errors": {
+      "nameRequired": "Please enter your name.",
+      "genderRequired": "Please select an option.",
+      "dobRequired": "Please enter your date of birth.",
+      "dobFuture": "Date of birth cannot be in the future.",
+      "timeRequired": "Please enter your birth time, or turn on \"I don't know my birth time\".",
+      "placeRequired": "Please enter your place of birth."
+    },
+    "castingTitle": "Casting your chart…",
+    "castingSubtitle": "Reading the sky over {{place}}, {{date}}"
+  },
+  "home": {
+    "title": "Your chart",
+    "todayHeroTitle": "Today's Guidance",
+    "todayRhythm": "Celestial Rhythm",
+    "askToday": "Ask about today's transits",
+    "completeProfileTitle": "Complete Your Birth Profile",
+    "completeProfileBody": "Enter your date, time, and place of birth to unlock your Vedic Rashi chart, divisional charts, Vimshottari Dasha, and personalized guidance.",
+    "completeProfileCta": "Set Up Birth Details",
+    "chartSetupBadge": "Vedic Chart Setup",
+    "insightTitle": "Today's insight",
+    "insightBody": "A calm mind will attract the right opportunities today. Take a moment to breathe before decisions.",
+    "openChat": "Ask about my chart",
+    "greeting": "Namaste, {{name}}",
+    "comingSoon": {
+      "title": "Coming soon",
+      "body": "This section will be available in a future update."
+    },
+    "noPlanetData": "No planet data available.",
+    "chartErrors": {
+      "not_authenticated": "Please sign in again.",
+      "birth_profile_incomplete": "Finish your birth details to see your chart.",
+      "place_not_resolved": "We couldn't locate your birth place — please re-enter it.",
+      "provider_error": "The chart service is temporarily unavailable. Please try again.",
+      "finishBirth": "Finish birth details"
+    },
+    "chartTitle": "Rashi chart (D1)",
+    "chartCaption": "North-Indian style — houses are fixed, signs rotate with the ascendant.",
+    "planetsTitle": "Planets",
+    "colPlanet": "Planet",
+    "colSign": "Sign",
+    "colHouse": "House",
+    "colNakshatra": "Nakshatra",
+    "colSignLord": "Sign lord",
+    "colNakshatraLord": "Nakshatra lord",
+    "nakshatraLordLabel": "Lord",
+    "housesTitle": "Houses",
+    "houseLabel": "House {{n}}",
+    "nakshatraTitle": "Birth nakshatra",
+    "padaLabel": "Pada",
+    "mangalTitle": "Mangal Dosha",
+    "mangalStatus": "Not present",
+    "mangalBody": "Based on the sample placement of Mars, no dosha is indicated.",
+    "yogasTitle": "Yogas",
+    "settingsLink": "Open Settings",
+    "planets": {
+      "sun": "Sun",
+      "moon": "Moon",
+      "mars": "Mars",
+      "mercury": "Mercury",
+      "jupiter": "Jupiter",
+      "venus": "Venus",
+      "saturn": "Saturn",
+      "rahu": "Rahu",
+      "ketu": "Ketu"
+    },
+    "yogas": {
+      "gajakesariName": "Gaja-Kesari Yoga",
+      "gajakesariBody": "Moon and Jupiter in kendra — often linked with wisdom and reputation.",
+      "budhaadityaName": "Budha-Aditya Yoga",
+      "budhaadityaBody": "Sun and Mercury together — often linked with intellect and communication."
+    },
+    "tabs": {
+      "charts": "Kundli & charts",
+      "details": "Predictions",
+      "doshas": "Doshas",
+      "numerology": "Numerology",
+      "loshu": "Lo Shu grid",
+      "ashtakavarga": "Ashtakavarga"
+    },
+    "varga": {
+      "pickerLabel": "Divisional chart",
+      "d1": "D1 — Rashi (birth)",
+      "d2": "D2 — Hora (wealth)",
+      "d3": "D3 — Drekkana (siblings)",
+      "d4": "D4 — Chaturthamsa (fortune, home)",
+      "d7": "D7 — Saptamsa (children)",
+      "d9": "D9 — Navamsa",
+      "d10": "D10 — Dashamsha",
+      "d12": "D12 — Dwadasamsa (parents)",
+      "d16": "D16 — Shodasamsa (vehicles, comforts)",
+      "d20": "D20 — Vimsamsa (spiritual practice)",
+      "d24": "D24 — Chaturvimsamsa (learning)",
+      "d27": "D27 — Saptavimsamsa (strength)",
+      "d30": "D30 — Trimsamsa (challenges)",
+      "d40": "D40 — Khavedamsa (maternal legacy)",
+      "d45": "D45 — Akshavedamsa (character)",
+      "d60": "D60 — Shashtyamsa (overall karma)"
+    },
+    "chartStyle": {
+      "pickerLabel": "Chart style",
+      "north": "North Indian",
+      "south": "South Indian",
+      "east": "East Indian"
+    },
+    "chartStyleCaption": {
+      "north": "North-Indian style — houses are fixed, signs rotate with the ascendant.",
+      "south": "South-Indian style — signs are fixed to cells; planets sit in their sign.",
+      "east": "East-Indian style — signs are fixed; ascendant sign is highlighted."
+    },
+    "ascShort": "Asc",
+    "colRetro": "Motion",
+    "colStates": "Dignity & states",
+    "colLord": "Lord",
+    "motionDirect": "Direct",
+    "motionRetro": "Retrograde",
+    "retroShort": "R",
+    "housesSubtitle": "Sign and traditional lord in each bhava.",
+    "dasha": {
+      "title": "Vimshottari Dasha",
+      "subtitle": "Current maha and antar periods.",
+      "mahadasha": "Mahadasha",
+      "antardasha": "Antardasha",
+      "window": "{{start}} — {{end}}",
+      "sequence": "Upcoming mahadasha sequence",
+      "years": "{{n}} yrs"
+    },
+    "doshas": {
+      "title": "Doshas",
+      "names": {
+        "mangal": "Mangal Dosha",
+        "kaalSarp": "Kaal Sarp Dosha",
+        "sadeSati": "Shani Sade-Sati",
+        "papasamyam": "Papa Samyam"
+      },
+      "status": {
+        "notPresent": "Not present",
+        "partial": "Partial",
+        "present": "Present"
+      },
+      "body": {
+        "mangal": "No dosha indicated in this sample placement of Mars.",
+        "kaalSarp": "Some planets sit on one side of the Rahu-Ketu axis — partial effect.",
+        "sadeSati": "Saturn's transit does not overlap the moon sign right now.",
+        "papasamyam": "Malefic influence on marriage houses is within normal range."
+      }
+    },
+    "ashtakavarga": {
+      "title": "Ashtakavarga (Sarvashtakavarga)",
+      "subtitle": "Bindus per house — higher usually means more support.",
+      "houseShort": "H{{n}}",
+      "total": "Total bindus"
+    },
+    "numerology": {
+      "title": "Core numbers",
+      "subtitle": "Pythagorean system, derived from your birth date and name.",
+      "system": "Pythagorean",
+      "noName": "Add a romanized name in Birth details to see name-based numbers.",
+      "items": {
+        "lifePathName": "Life Path",
+        "lifePathBody": "Your overall theme and life direction.",
+        "destinyName": "Destiny (Expression)",
+        "destinyBody": "What you are here to build in the world.",
+        "soulUrgeName": "Soul Urge",
+        "soulUrgeBody": "The inner motivations that drive your choices.",
+        "personalityName": "Personality",
+        "personalityBody": "How others tend to experience you first.",
+        "birthdayName": "Birthday",
+        "birthdayBody": "A gift or natural talent tied to your birth day."
+      }
+    },
+    "loshu": {
+      "title": "Lo Shu grid",
+      "subtitle": "A 3x3 magic square from Chinese numerology, built from your date of birth.",
+      "presentLabel": "Present numbers",
+      "missingLabel": "Missing numbers",
+      "strengthsTitle": "Strengths",
+      "focusTitle": "Focus areas",
+      "none": "None",
+      "meaning": {
+        "1": "Communication and self-expression",
+        "2": "Sensitivity, cooperation, intuition",
+        "3": "Imagination and mental clarity",
+        "4": "Order, patience, practical work",
+        "5": "Balance, willpower, adaptability",
+        "6": "Home, care, creativity",
+        "7": "Learning through experience",
+        "8": "Discipline, focus, organization",
+        "9": "Ambition, memory, big-picture thinking"
+      }
+    },
+    "askAnything": "Ask your chart anything",
+    "chatExample": "Why do I feel stuck in my career this year?"
+  },
+  "signs": {
+    "aries": "Aries",
+    "taurus": "Taurus",
+    "gemini": "Gemini",
+    "cancer": "Cancer",
+    "leo": "Leo",
+    "virgo": "Virgo",
+    "libra": "Libra",
+    "scorpio": "Scorpio",
+    "sagittarius": "Sagittarius",
+    "capricorn": "Capricorn",
+    "aquarius": "Aquarius",
+    "pisces": "Pisces"
+  },
+  "chat": {
+    "title": "Chat",
+    "placeholder": "Type your question…",
+    "send": "Send",
+    "back": "Back to chart",
+    "friend": "friend",
+    "opening": "Namaste {{name}}. I can see your chart — with Moon in Cancer and Jupiter in Sagittarius, this is a thoughtful, expansive time. What would you like to explore today?",
+    "typing": "Consulting your chart",
+    "disclaimer": "Guidance is for reflection, not a substitute for professional advice.",
+    "mockReplies": {
+      "career": "In your chart, Saturn in the 10th house asks for patience and steady effort — big leaps rarely help here. Focus on a craft you can practise daily; recognition tends to follow quietly.",
+      "relationships": "Venus in the 2nd and Moon in the 4th suggest you value warmth and a settled home. Honest, gentle conversations bring you closer than grand gestures right now.",
+      "timing": "With Jupiter strong in the 9th, the coming weeks favour learning and long-term planning over sudden moves. Start small; the door opens as you walk toward it.",
+      "general": "Your chart shows a balanced mix of fire and water — courage guided by feeling. Trust your quieter instincts today, and revisit this question after a night's rest."
+    },
+    "assistantName": "AstroSaathi",
+    "newChat": "New chat",
+    "searchPlaceholder": "Search chats",
+    "openSidebar": "Open sidebar",
+    "closeSidebar": "Close sidebar",
+    "toggleSidebar": "Toggle sidebar",
+    "userMenu": "Account menu",
+    "conversationOptions": "Chat options",
+    "rename": "Rename",
+    "renameInputLabel": "Conversation title",
+    "delete": "Delete",
+    "deleteConfirmPrompt": "Delete this chat?",
+    "cancel": "Cancel",
+    "historyEmpty": "Your conversations will appear here.",
+    "emptyGreeting": "How can I help with your chart today?",
+    "emptySubtitle": "Ask anything about your placements, timing, or life themes.",
+    "composerPlaceholder": "Message AstroSaathi",
+    "attach": "Attach",
+    "stop": "Stop generating",
+    "regenerate": "Regenerate",
+    "scrollToBottom": "Scroll to latest",
+    "copy": "Copy",
+    "copied": "Copied",
+    "good": "Good response",
+    "bad": "Bad response",
+    "edit": "Edit message",
+    "retry": "Retry",
+    "errorGeneric": "Something went wrong reaching AstroSaathi. Please try again.",
+    "disclaimerLong": "AstroSaathi can make mistakes. Guidance is for reflection, not professional advice.",
+    "groups": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "previous7": "Previous 7 days"
+    },
+    "suggestions": {
+      "careerTitle": "Career & Success",
+      "careerBody": "What does my chart say about my career path?",
+      "relationshipsTitle": "Relationships & Love",
+      "relationshipsBody": "What patterns do I bring into relationships?",
+      "dashaTitle": "Dasha & Life Phase",
+      "dashaBody": "How is my current Vimshottari Dasha affecting me?",
+      "timingTitle": "Timing & Transits",
+      "timingBody": "Is this a good window for a new beginning?",
+      "remediesTitle": "Gemstones & Remedies",
+      "remediesBody": "Which gemstones or spiritual remedies suit my chart?",
+      "todayTitle": "Today's Guidance",
+      "todayBody": "What should I keep in mind today?"
+    },
+    "history": {
+      "t1": "Saturn return, next steps",
+      "t2": "Reading my Moon sign",
+      "y1": "Career timing questions",
+      "y2": "Mangal dosha, is it real?",
+      "w1": "Rahu in the 7th house",
+      "w2": "Best day to start a business",
+      "w3": "Understanding my nakshatra",
+      "w4": "Compatibility with a Leo partner"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "languageLabel": "Language",
+    "about": "About AstroSaathi",
+    "aboutBody": "A calm, trustworthy companion for Vedic astrology guidance.",
+    "back": "Back to home",
+    "version": "Version {{v}}",
+    "profile": {
+      "title": "Your profile",
+      "emailLabel": "Email",
+      "nameFallback": "Guest",
+      "emailFallback": "not signed in",
+      "editBirth": "Edit birth details",
+      "birthHint": "Name, date, time and place used to build your chart."
+    },
+    "prefs": {
+      "title": "Preferences",
+      "language": "App language",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeSystem": "System",
+      "tone": "Guidance tone",
+      "toneWarm": "Warm",
+      "toneNeutral": "Neutral",
+      "toneDirect": "Direct",
+      "toneCalm": "Calm",
+      "toneSupportive": "Supportive",
+      "length": "Answer length",
+      "lengthShort": "Short",
+      "lengthMedium": "Medium",
+      "lengthDetailed": "Detailed",
+      "lengthConcise": "Concise",
+      "lengthBalanced": "Balanced",
+      "memory": "Remember our conversations",
+      "memoryHelp": "Personalize guidance based on past chats."
+    },
+    "legal": {
+      "title": "Legal and about",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy"
+    },
+    "account": {
+      "title": "Account",
+      "signOut": "Sign out",
+      "delete": "Delete my data",
+      "deleteTitle": "Delete your data?",
+      "deleteBody": "This will remove your profile, chats, and preferences from this device. This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete data"
+    }
+  },
+  "states": {
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "goHome": "Go home",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page you're looking for doesn't exist or has been moved.",
+    "errorTitle": "This page didn't load",
+    "errorBody": "Something went wrong on our end. You can try again or head back home."
+  },
+  "numerology": {
+    "title": "Numerology",
+    "coreTitle": "Core Numbers",
+    "nameTitle": "Name Numbers",
+    "master": "Master",
+    "retry": "Retry",
+    "core": {
+      "driver": "Driver",
+      "destiny": "Destiny",
+      "birthday": "Birthday",
+      "personalYear": "Personal Year"
+    },
+    "systems": {
+      "pythagorean": "Pythagorean",
+      "chaldean": "Chaldean"
+    },
+    "name": {
+      "expression": "Expression",
+      "soulUrge": "Soul Urge",
+      "personality": "Personality",
+      "maturity": "Maturity"
+    },
+    "empty": {
+      "title": "No numerology yet",
+      "body": "Complete your birth profile with your full name and date of birth to see your numbers.",
+      "cta": "Complete birth profile"
+    },
+    "errors": {
+      "title": "Could not load numerology",
+      "body": "Something went wrong while calculating your numbers. Please try again in a moment.",
+      "birthMissing": "We need your full name and date of birth to calculate numerology.",
+      "completeProfile": "Complete birth profile"
+    }
+  },
+  "sections": {
+    "dasha": {
+      "title": "Vimshottari Dasha",
+      "subtitle": "Planetary periods",
+      "loading": "Loading…",
+      "serviceUnavailable": "The dasha service is temporarily unavailable.",
+      "loadError": "Could not load dasha.",
+      "retry": "Retry",
+      "noData": "No dasha data available.",
+      "noPeriods": "No dasha periods available.",
+      "currentTransit": "Current Transit",
+      "mahadasha": "Mahadasha",
+      "antardasha": "Antardasha",
+      "pratyantardasha": "Pratyantardasha",
+      "runningNow": "Running now",
+      "untilDate": "until {{date}}",
+      "balanceAtBirth": "Dasha balance at birth:",
+      "allMahadashas": "All Mahadashas",
+      "yearsShort": "{{n}} yrs",
+      "noAntardashas": "No antardashas.",
+      "noPratyantardashas": "No pratyantardashas."
+    },
+    "doshas": {
+      "title": "Doshas",
+      "subtitle": "Classical Vedic afflictions read from your birth chart.",
+      "mangalTitle": "Mangal Dosha",
+      "mangalAlias": "Manglik",
+      "mangalSubtitle": "Effect of Mars on marriage & temperament.",
+      "kaalSarpTitle": "Kaal Sarp Dosha",
+      "kaalSarpSubtitle": "All planets between Rahu and Ketu.",
+      "sadeSatiTitle": "Sade Sati",
+      "sadeSatiSubtitle": "Saturn's 7.5-year transit over the Moon.",
+      "present": "Present",
+      "notPresent": "Not present",
+      "active": "Active",
+      "notActive": "Not active",
+      "typeLabel": "Type",
+      "phaseLabel": "Phase",
+      "loadError": "Couldn't load this dosha right now.",
+      "retry": "Retry"
+    },
+    "ashtakavarga": {
+      "sarvashtakavargaTitle": "Sarvashtakavarga",
+      "sarvashtakavargaSubtitle": "Combined benefic points (bindus) each sign receives across all planets — higher means a stronger house.",
+      "loadError": "Couldn't load Ashtakavarga right now.",
+      "retry": "Retry",
+      "noData": "No Ashtakavarga data available.",
+      "totalBindus": "Total bindus:",
+      "bhinnashtakavargaTitle": "Bhinnashtakavarga (per planet)",
+      "bhinnashtakavargaSubtitle": "Benefic points (bindus, 0–8) each planet earns in every house. Higher = the planet gives stronger results there.",
+      "bhinnaLoadError": "Couldn't load Bhinnashtakavarga right now.",
+      "bhinnaNoData": "No Bhinnashtakavarga data available.",
+      "totalBindusForPlanet": "Total bindus for {{planet}}:",
+      "houseNum": "House {{n}}",
+      "lord": "Lord:",
+      "contributors": "Contributors ({{count}})",
+      "planets": {
+        "sun": "Sun",
+        "moon": "Moon",
+        "mars": "Mars",
+        "mercury": "Mercury",
+        "jupiter": "Jupiter",
+        "venus": "Venus",
+        "saturn": "Saturn"
+      }
+    },
+    "loshu": {
+      "gridIncludes": "Grid includes your Driver + Conductor numbers ({{numbers}})",
+      "driver": "Driver (Mulank)",
+      "destiny": "Destiny (Bhagyank)",
+      "presentNumbers": "Present numbers",
+      "noNumbersPresent": "No numbers present.",
+      "missingNumbers": "Missing numbers",
+      "noMissingNumbers": "No missing numbers.",
+      "repeated": "Repeated / intensified",
+      "arrows": "Arrows",
+      "remediesTitle": "Remedies for missing numbers",
+      "remediesSubtitle": "Gentle guidance to balance the gaps — not medical or financial advice.",
+      "kuaTitle": "Your Kua Directions",
+      "kuaSubtitle": "Personal favourable and unfavourable compass directions from Chinese Feng Shui.",
+      "kuaUnlockPrompt": "Add your gender to unlock your Kua directions.",
+      "completeProfile": "Complete profile",
+      "kuaGroup": "{{group}} Group",
+      "luckyDirections": "Lucky directions",
+      "directionsToAvoid": "Directions to avoid",
+      "emptyCell": "empty",
+      "colour": "Colour",
+      "mantra": "Mantra",
+      "luckyDirection": "Lucky direction",
+      "practice": "Practice",
+      "loadError": "Couldn't load the Lo Shu grid.",
+      "profileIncomplete": "Please complete your birth profile first.",
+      "tryAgainLater": "Please try again in a moment.",
+      "completeBirthProfile": "Complete birth profile"
+    }
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: 25 July 2026",
+    "draftNotice": "This is a draft policy pending legal review. It is provided for transparency and will be finalized before public launch.",
+    "sections": [
+      {
+        "heading": "1. Acceptance of terms",
+        "body": [
+          "By creating an account or using AstroSaathi, you agree to these Terms of Service and our Privacy Policy. If you do not agree, please do not use the app."
+        ]
+      },
+      {
+        "heading": "2. What AstroSaathi is",
+        "body": [
+          "AstroSaathi is an AI-powered Vedic astrology companion. Using the birth details you provide, we generate a kundli (birth chart) and let you chat with an AI astrologer that references your chart, planetary positions, dashas, and yogas to answer your questions."
+        ]
+      },
+      {
+        "heading": "3. Eligibility",
+        "body": [
+          "You must be at least 18 years old to use AstroSaathi, consistent with the age confirmation you provide during onboarding."
+        ]
+      },
+      {
+        "heading": "4. Your account",
+        "body": [
+          "You are responsible for keeping your login credentials secure and for all activity under your account. Let us know right away if you suspect unauthorized access."
+        ]
+      },
+      {
+        "heading": "5. Acceptable use",
+        "body": [
+          "Use AstroSaathi respectfully. Do not attempt to misuse, disrupt, reverse-engineer, or abuse the service, or use it to generate harmful, illegal, or abusive content."
+        ]
+      },
+      {
+        "heading": "6. Guidance is for reflection only",
+        "body": [
+          "Astrological readings and AI chat replies are offered for reflection and self-understanding. They are not a substitute for professional medical, legal, or financial advice. Please consult a qualified professional for decisions in those areas."
+        ]
+      },
+      {
+        "heading": "7. Your data",
+        "body": [
+          "Our Privacy Policy explains what we collect and how it is used. You can delete your birth data, chat history, and account at any time from Settings."
+        ]
+      },
+      {
+        "heading": "8. Intellectual property",
+        "body": [
+          "The AstroSaathi app, design, and branding are owned by us. Chart data and AI responses are provided for your personal, non-commercial use."
+        ]
+      },
+      {
+        "heading": "9. Termination",
+        "body": [
+          "You may stop using AstroSaathi and delete your account at any time. We may suspend or terminate accounts that violate these terms."
+        ]
+      },
+      {
+        "heading": "10. Limitation of liability",
+        "body": [
+          "AstroSaathi is provided \"as is\". We are not liable for decisions made based on astrological guidance, or for outcomes outside our reasonable control."
+        ]
+      },
+      {
+        "heading": "11. Changes to these terms",
+        "body": [
+          "We may update these terms from time to time. Continued use of AstroSaathi after changes take effect means you accept the updated terms."
+        ]
+      },
+      {
+        "heading": "12. Contact",
+        "body": [
+          "Questions about these terms? Reach out to us through the contact details in the app."
+        ]
+      }
+    ]
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: 25 July 2026",
+    "draftNotice": "This is a draft policy pending legal review. It is provided for transparency and will be finalized before public launch.",
+    "sections": [
+      {
+        "heading": "1. Introduction",
+        "body": [
+          "This policy explains what information AstroSaathi collects, how we use it, and the choices you have."
+        ]
+      },
+      {
+        "heading": "2. Information we collect",
+        "body": [
+          "Account details: your name and email address.",
+          "Birth details: date, time, and place of birth, used to generate your kundli.",
+          "Chat history: the messages you exchange with the AI astrologer, so replies can reference earlier conversation and, if you opt in, remember context across sessions."
+        ]
+      },
+      {
+        "heading": "3. How we use your information",
+        "body": [
+          "We use your birth details with astrology chart providers to calculate your kundli, planetary positions, dashas, and yogas.",
+          "We send your chart context and chat messages to AI providers to generate personalized astrologer replies.",
+          "If you opt in to memory during consent, we use past conversations to personalize future guidance. This is off by default and can be changed anytime in Settings."
+        ]
+      },
+      {
+        "heading": "4. Where your data is stored",
+        "body": [
+          "Your account, birth details, and chat history are stored in Supabase, encrypted in transit and at rest."
+        ]
+      },
+      {
+        "heading": "5. Third-party providers",
+        "body": [
+          "We share the minimum data needed with AI model providers and Vedic astrology chart providers solely to generate your readings and chat replies. We do not sell your personal data to anyone."
+        ]
+      },
+      {
+        "heading": "6. Data retention",
+        "body": [
+          "We retain your data for as long as your account is active, or until you delete it."
+        ]
+      },
+      {
+        "heading": "7. Your rights and choices",
+        "body": [
+          "You can review, update, or delete your birth details, chat history, and account at any time from Settings. Deleting your account removes your stored personal data from our systems."
+        ]
+      },
+      {
+        "heading": "8. Children's privacy",
+        "body": [
+          "AstroSaathi is not intended for anyone under 18. We do not knowingly collect data from minors."
+        ]
+      },
+      {
+        "heading": "9. Changes to this policy",
+        "body": [
+          "We may update this policy from time to time. We will update the \"last updated\" date above when we do."
+        ]
+      },
+      {
+        "heading": "10. Contact",
+        "body": [
+          "Questions about this policy? Reach out to us through the contact details in the app."
+        ]
+      }
+    ]
+  }
+}

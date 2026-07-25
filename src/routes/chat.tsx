@@ -1032,7 +1032,10 @@ function TopBar({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center justify-between border-b border-border/60 bg-background/80 px-3 py-2 backdrop-blur z-10">
+    <div
+      className="flex items-center justify-between border-b border-border/60 bg-background/80 px-3 py-2 backdrop-blur z-10"
+      style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}
+    >
       <div className="flex items-center gap-1.5">
         <button
           type="button"

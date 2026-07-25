@@ -166,7 +166,10 @@ function AuthPage() {
         <Starfield density={110} className="hidden lg:block" />
 
         {/* Mobile hero band */}
-        <div className="relative flex flex-col items-center justify-center px-6 py-10 text-center lg:hidden">
+        <div
+          className="relative flex flex-col items-center justify-center px-6 pb-10 text-center lg:hidden"
+          style={{ paddingTop: "calc(2.5rem + env(safe-area-inset-top))" }}
+        >
           <Link
             to="/"
             className="inline-flex items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:h-10 [&_svg]:w-10"
@@ -194,7 +197,10 @@ function AuthPage() {
       </aside>
 
       {/* Form column */}
-      <main className="relative flex min-h-screen flex-col bg-background px-4 py-6 md:px-6 lg:px-12">
+      <main
+        className="relative flex min-h-screen flex-col bg-background px-4 pb-6 md:px-6 lg:px-12"
+        style={{ paddingTop: "calc(1.5rem + env(safe-area-inset-top))" }}
+      >
         <div className="flex items-center justify-end gap-2">
           <ThemeToggle />
           <LanguageSwitcher />

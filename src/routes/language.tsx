@@ -42,7 +42,10 @@ function LanguagePage() {
   const current = (i18n.language as SupportedLanguage) ?? "mr";
 
   return (
-    <div className="flex min-h-dvh w-full flex-col items-center bg-background px-6 pt-16 pb-8 text-foreground md:justify-center">
+    <div
+      className="flex min-h-dvh w-full flex-col items-center bg-background px-6 pb-8 text-foreground md:justify-center"
+      style={{ paddingTop: "calc(4rem + env(safe-area-inset-top))" }}
+    >
       <div className="flex w-full max-w-[480px] flex-1 flex-col md:flex-initial md:gap-2">
         {/* Header */}
         <div className="flex flex-col items-center text-center">

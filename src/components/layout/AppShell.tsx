@@ -51,7 +51,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       {showNav && <DesktopRail pathname={pathname} />}
       <div className="flex min-w-0 flex-1 flex-col">
         {!isChat && !showNav && (
-          <header className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur">
+          <header
+            className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur"
+            style={{ paddingTop: "env(safe-area-inset-top)" }}
+          >
             <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
               <Link
                 to={logoTo}
@@ -70,7 +73,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           className={
             isChat
               ? "flex min-h-0 flex-1 flex-col"
-              : "mx-auto w-full max-w-4xl px-4 pt-10 md:pt-12 pb-8 " +
+              : "mx-auto w-full max-w-4xl px-4 pb-8 " +
+                "pt-[calc(2.5rem+env(safe-area-inset-top))] md:pt-12 " +
                 (showNav ? "pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8" : "")
           }
         >

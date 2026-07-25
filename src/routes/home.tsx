@@ -59,12 +59,16 @@ function HomePage() {
   useRequireAuth();
   const { t } = useTranslation();
   const [profile, setProfile] = useState<BirthProfile | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   useEffect(() => {
-    void getBirthProfile().then(setProfile);
+    void getBirthProfile().then((p) => {
+      setProfile(p);
+      setProfileLoaded(true);
+    });
   }, []);
   const name = profile?.name?.split(" ")[0] ?? "AstroSaathi";
   const [tab, setTab] = useState<TabKey>("charts");
-  const isProfileIncomplete = !profile || !profile.dob;
+  const isProfileIncomplete = profileLoaded && (!profile || !profile.dob);
 
   return (
     <section className="space-y-6">

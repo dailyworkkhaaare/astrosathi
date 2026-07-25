@@ -134,25 +134,17 @@ function DesktopRail({ pathname }: { pathname: string }) {
                 "tap-press flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                 (active
                   ? isChat
-                    ? "bg-amber-500/20 text-amber-500 ring-1 ring-amber-500/40"
+                    ? "bg-accent/20 text-accent ring-1 ring-accent/40"
                     : "bg-accent/15 text-accent-foreground"
                   : isChat
-                    ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+                    ? "bg-accent/10 text-accent hover:bg-accent/20"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground")
               }
             >
               <Icon
                 size={20}
                 aria-hidden="true"
-                className={
-                  active
-                    ? isChat
-                      ? "text-amber-500"
-                      : "text-accent"
-                    : isChat
-                      ? "text-amber-500"
-                      : ""
-                }
+                className={active || isChat ? "text-accent" : ""}
               />
             </Link>
           );
@@ -182,11 +174,9 @@ function MobileTabBar({ pathname }: { pathname: string }) {
                 className={
                   "tap-press flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                   (active
-                    ? isChat
-                      ? "text-amber-500 font-semibold"
-                      : "text-accent font-semibold"
+                    ? "text-accent font-semibold"
                     : isChat
-                      ? "text-amber-500/90 font-medium"
+                      ? "text-accent/90 font-medium"
                       : "text-muted-foreground hover:text-foreground")
                 }
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
@@ -196,10 +186,10 @@ function MobileTabBar({ pathname }: { pathname: string }) {
                     "flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] " +
                     (active
                       ? isChat
-                        ? "bg-amber-500/20 text-amber-500 ring-1 ring-amber-500/30"
+                        ? "bg-accent/20 text-accent ring-1 ring-accent/30"
                         : "bg-accent/15"
                       : isChat
-                        ? "bg-amber-500/10 text-amber-500"
+                        ? "bg-accent/10 text-accent"
                         : "")
                   }
                 >

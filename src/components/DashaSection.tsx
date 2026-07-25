@@ -164,9 +164,9 @@ function PlanetLabel({ p, className }: { p: { id: number; name: string }; classN
 function RunningBadge() {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-px text-[8px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-300/70 leading-none">
+    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-accent/20 px-1.5 py-px text-[8px] font-semibold uppercase tracking-wide text-accent-foreground ring-1 ring-accent/40 leading-none">
       <span
-        className="h-1 w-1 rounded-full bg-amber-500 motion-safe:animate-pulse"
+        className="h-1 w-1 rounded-full bg-accent motion-safe:animate-pulse"
         aria-hidden="true"
       />
       {t("sections.dasha.runningNow")}
@@ -277,11 +277,11 @@ function DashaBody({
     <div className="space-y-5">
       {current && (
         <div
-          className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-amber-50/60 to-transparent p-4 sm:p-5"
+          className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-accent/10 to-transparent p-4 sm:p-5"
           style={{ boxShadow: "var(--shadow-soft)" }}
         >
           <div className="mb-4 flex items-center gap-2">
-            <Sparkles size={16} aria-hidden="true" className="text-amber-600" />
+            <Sparkles size={16} aria-hidden="true" className="text-accent" />
             <h3 className="text-base font-semibold text-foreground sm:text-lg">
               {t("sections.dasha.currentTransit")}
             </h3>

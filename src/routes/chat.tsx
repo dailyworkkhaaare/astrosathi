@@ -708,9 +708,9 @@ function ChatPage() {
                     type="button"
                     onClick={scrollToBottom}
                     aria-label={t("chat.scrollToBottom", "Scroll to bottom")}
-                    className="tap-press motion-fade-up absolute bottom-3 left-1/2 z-30 grid h-11 w-11 -translate-x-1/2 place-items-center rounded-full border border-amber-500/40 bg-card/95 shadow-2xl backdrop-blur-xl transition-all hover:bg-card hover:border-amber-500/70 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="tap-press motion-fade-up absolute bottom-3 left-1/2 z-30 grid h-11 w-11 -translate-x-1/2 place-items-center rounded-full border border-accent/40 bg-card/95 shadow-2xl backdrop-blur-xl transition-all hover:bg-card hover:border-accent/70 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <ArrowDown size={18} className="text-amber-500 animate-bounce" aria-hidden="true" />
+                    <ArrowDown size={18} className="text-accent animate-bounce" aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -738,7 +738,7 @@ function ChatPage() {
                 <div className="flex flex-col items-center gap-3 text-center">
                   <div
                     aria-hidden="true"
-                    className="relative grid h-16 w-16 place-items-center rounded-2xl bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/30 shadow-[var(--shadow-glow-gold)]"
+                    className="relative grid h-16 w-16 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/30 shadow-[var(--shadow-glow-gold)]"
                   >
                     <BrandMark withWordmark={false} />
                   </div>
@@ -748,8 +748,8 @@ function ChatPage() {
                   <p className="max-w-md text-sm leading-relaxed text-muted-foreground md:text-base">
                     {t("chat.emptySubtitle")}
                   </p>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/10 px-3.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                    <Sparkles size={13} className="text-amber-500" />
+                  <div className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3.5 py-1 text-xs font-medium text-accent-foreground">
+                    <Sparkles size={13} className="text-accent" />
                     <span>
                       {profileName
                         ? `Context Active: ${profileName}'s Birth Chart & Current Transits`
@@ -902,7 +902,7 @@ function ConversationItem({
           className={
             "tap-press w-full truncate rounded-lg py-2 pl-3 pr-10 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
             (active
-              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
+              ? "bg-accent/10 text-accent-foreground font-medium"
               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")
           }
           title={title}
@@ -1111,17 +1111,17 @@ function TopBar({
             title={t("chat.newChat")}
             className="tap-press inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm hover:border-accent/40 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <MessageSquarePlus size={15} className="text-amber-500" aria-hidden="true" />
+            <MessageSquarePlus size={15} className="text-accent" aria-hidden="true" />
             <span className="hidden sm:inline">{t("chat.newChat")}</span>
           </button>
         )}
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+        <div className="flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-xs font-medium text-accent-foreground">
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
           </span>
           <span className="truncate max-w-[160px] sm:max-w-xs">
             {profileName ? `${profileName}'s Kundli` : "Vedic Chart Active"}
@@ -1161,7 +1161,7 @@ function MessageRow({
         </div>
         <div className="flex gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
           <IconAction label={copied ? t("chat.copied") : t("chat.copy")} onClick={doCopy}>
-            {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+            {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
           </IconAction>
           {onEdit && (
             <IconAction label={t("chat.edit")} onClick={onEdit}>
@@ -1181,8 +1181,8 @@ function MessageRow({
             {t("chat.assistantName")}
           </span>
           {streaming && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="flex items-center gap-1 text-[10px] text-accent font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
               generating…
             </span>
           )}
@@ -1198,7 +1198,7 @@ function MessageRow({
               components={{
                 pre: (props) => <CodeBlock {...props} />,
                 blockquote: ({ children }) => (
-                  <blockquote className="my-3 border-l-2 border-amber-500/60 bg-amber-500/5 py-2 pl-4 pr-3 text-sm italic text-foreground/90 rounded-r-lg">
+                  <blockquote className="my-3 border-l-2 border-accent/60 bg-accent/5 py-2 pl-4 pr-3 text-sm italic text-foreground/90 rounded-r-lg">
                     {children}
                   </blockquote>
                 ),
@@ -1236,7 +1236,7 @@ function MessageRow({
         {!streaming && message.content && (
           <div className="mt-2 flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
             <IconAction label={copied ? t("chat.copied") : t("chat.copy")} onClick={doCopy}>
-              {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+              {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
             </IconAction>
           </div>
         )}
@@ -1395,18 +1395,18 @@ function TypingRow() {
   const { t } = useTranslation();
   return (
     <div className="motion-fade-up flex items-center" aria-live="polite">
-      <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/5 px-3.5 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 backdrop-blur">
+      <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3.5 py-1.5 text-xs font-medium text-accent-foreground backdrop-blur">
         <span className="flex gap-1" aria-hidden="true">
           <span
-            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500 motion-reduce:animate-none"
+            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
             style={{ animationDelay: "0ms" }}
           />
           <span
-            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500 motion-reduce:animate-none"
+            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
             style={{ animationDelay: "150ms" }}
           />
           <span
-            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500 motion-reduce:animate-none"
+            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
             style={{ animationDelay: "300ms" }}
           />
         </span>

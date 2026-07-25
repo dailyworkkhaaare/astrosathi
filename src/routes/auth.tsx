@@ -180,23 +180,16 @@ function AuthPage() {
         </div>
 
         {/* Desktop celestial layout */}
-        <div className="relative hidden lg:flex lg:h-full lg:min-h-screen lg:flex-col lg:justify-between lg:px-14 lg:py-10">
+        <div className="relative hidden lg:flex lg:h-full lg:min-h-screen lg:flex-col lg:justify-center lg:px-14 lg:py-10">
           <Link
             to="/"
             className="inline-flex w-fit items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <BrandMark />
           </Link>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.28em] text-accent">
-              {APP_NAME}
-            </p>
-            <h2 className="font-display mt-4 max-w-md text-4xl font-semibold leading-[1.05] text-on-night xl:text-5xl">
-              {t("landing.title")}
-            </h2>
-            <p className="mt-4 max-w-md text-base text-on-night-muted">{t("common.tagline")}</p>
-          </div>
-          <div className="text-xs text-on-night-subtle">{t("landing.trustDisclaimer")}</div>
+          <h2 className="font-display mt-10 max-w-md text-4xl font-semibold leading-[1.05] text-on-night xl:text-5xl">
+            {t("landing.title")}
+          </h2>
         </div>
       </aside>
 
@@ -242,15 +235,9 @@ function AuthPage() {
                     : "auth.forgotTitle",
               )}
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t(
-                mode === "signin"
-                  ? "auth.signInSubtitle"
-                  : mode === "signup"
-                    ? "auth.signUpSubtitle"
-                    : "auth.forgotSubtitle",
-              )}
-            </p>
+            {mode === "forgot" && (
+              <p className="mt-2 text-sm text-muted-foreground">{t("auth.forgotSubtitle")}</p>
+            )}
 
             {formError && (
               <div
@@ -286,11 +273,7 @@ function AuthPage() {
                       <GoogleLogo />
                       {googleLoading ? t("auth.loading") : t("auth.continueWithGoogle")}
                     </Button>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="h-px flex-1 bg-border" />
-                      <span className="uppercase tracking-wide">{t("auth.orDivider")}</span>
-                      <span className="h-px flex-1 bg-border" />
-                    </div>
+                    <div className="h-px w-full bg-border" aria-hidden="true" />
                   </div>
                 )}
                 <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>

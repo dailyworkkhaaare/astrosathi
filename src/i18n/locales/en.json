@@ -3,7 +3,6 @@
     "continue": "Continue",
     "back": "Back",
     "language": "Language",
-    "tagline": "Vedic astrology guidance, in your language.",
     "terms": "Terms",
     "privacy": "Privacy"
   },
@@ -22,16 +21,7 @@
     "subtitle": "Personalized guidance rooted in tradition — kundli, daily insights, and one-to-one chat.",
     "cta": "Get started",
     "signInPrompt": "Already have an account?",
-    "signIn": "Sign in",
-    "howTitle": "How it works",
-    "step1Title": "Choose your language",
-    "step1Body": "Marathi, Hindi, or English — pick what feels closest to home.",
-    "step2Title": "Enter your birth details",
-    "step2Body": "Date, time, and place of birth to build your kundli accurately.",
-    "step3Title": "Get your chart & guidance",
-    "step3Body": "See your chart, daily insights, and chat with an astrologer.",
-    "trustAge": "For ages 18 and above.",
-    "trustDisclaimer": "Guidance is offered for reflection and is not a substitute for professional medical, legal, or financial advice."
+    "signIn": "Sign in"
   },
   "language": {
     "title": "Choose your language",
@@ -47,9 +37,7 @@
     "signInTab": "Sign in",
     "signUpTab": "Sign up",
     "signInTitle": "Welcome back",
-    "signInSubtitle": "Sign in to continue your journey.",
     "signUpTitle": "Create your account",
-    "signUpSubtitle": "A few details to personalize your guidance.",
     "name": "Full name",
     "email": "Email",
     "password": "Password",
@@ -76,7 +64,6 @@
       "emailNotConfirmed": "Please confirm your email address before signing in."
     },
     "continueWithGoogle": "Continue with Google",
-    "orDivider": "or",
     "confirmEmailTitle": "Check your email to confirm",
     "confirmEmailBody": "We sent a confirmation link to {{email}}. Click it to activate your account, then sign in.",
     "callback": {

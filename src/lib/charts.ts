@@ -538,12 +538,6 @@ export async function getPlanets(): Promise<PlanetsResult> {
     body: { resource: "planets" },
   });
 
-  try {
-    console.log("[getPlanets] raw response:", JSON.stringify({ data, error }));
-  } catch {
-    console.log("[getPlanets] raw response (unserializable)", data, error);
-  }
-
   if (error) {
     let code = "provider_error";
     let message = error.message ?? "Request failed";

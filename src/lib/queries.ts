@@ -254,9 +254,6 @@ export function useDoshaReport(reportType: DoshaReportType): UseQueryResult<Dosh
         outer && typeof outer === "object" && "data" in outer
           ? (outer as { data: unknown }).data
           : outer;
-      if (reportType === "mangal_dosha") {
-        console.log("[doshas] mangal raw", data, "-> payload", payload);
-      }
       return { data: payload, errorCode: null };
     },
   });
@@ -310,7 +307,6 @@ export function useAshtakavarga(): UseQueryResult<AshtakavargaQueryValue> {
         return { houses: [], errorCode: String(innerErr.code ?? "provider_error") };
       }
 
-      console.log("[ashtakavarga] raw", outer);
       const payload =
         outer && typeof outer === "object" && "data" in outer
           ? (outer as { data: unknown }).data
@@ -375,9 +371,6 @@ export function useBhinnashtakavarga(
         outer && typeof outer === "object" && "data" in outer
           ? (outer as { data: unknown }).data
           : outer;
-      if (planetId === 0) {
-        console.log("[bhinnashtakavarga] sun raw", data, "-> payload", payload);
-      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const houses = (payload as any)?.ashtakavarga?.prastara?.houses;
       return {
@@ -532,7 +525,6 @@ export function useLoShu(): UseQueryResult<LoShuQueryValue> {
           ? (outer as { data: unknown }).data
           : outer;
 
-      console.log("[lo_shu] payload", payload);
       return { data: (payload as LoShuData) ?? null, errorCode: null };
     },
   });

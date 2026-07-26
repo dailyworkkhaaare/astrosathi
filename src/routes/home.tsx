@@ -306,7 +306,7 @@ function ChartsTab() {
         <Card className="xl:col-span-2">
           <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
-            <div className="w-full sm:w-auto">
+            <div className="w-full min-w-0 sm:w-auto">
               <label htmlFor="varga-select" className="sr-only">
                 {t("home.varga.pickerLabel")}
               </label>
@@ -314,7 +314,7 @@ function ChartsTab() {
                 id="varga-select"
                 value={varga}
                 onChange={(e) => setVarga(e.target.value as VargaKey)}
-                className="h-11 w-full sm:w-auto rounded-lg border border-border bg-background px-3 text-sm"
+                className="h-11 w-full max-w-full truncate rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
               >
                 {VARGA_KEYS.map((k) => (
                   <option key={k} value={k}>

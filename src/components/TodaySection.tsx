@@ -2,33 +2,15 @@ import { MessageCircle, Moon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 
-import { NAKSHATRAS, SIGN_KEYS_BY_INDEX, type NormalizedPlanet } from "@/lib/charts";
+import { NAKSHATRAS, SIGN_KEYS_BY_INDEX } from "@/lib/charts";
 import { usePlanets, useTodayTransits, type TodayPlanetTransit } from "@/lib/queries";
-import type { PlanetKey } from "@/lib/chart-types";
+import {
+  findAscendantSignIndex,
+  houseFor,
+  INGRESS_SOON_MS,
+  PLANET_KEY_BY_CODE,
+} from "@/lib/todayTransits";
 import { Button } from "@/components/ui/button";
-
-const PLANET_KEY_BY_CODE: Record<number, PlanetKey> = {
-  0: "sun",
-  2: "mercury",
-  3: "venus",
-  4: "mars",
-  5: "jupiter",
-  6: "saturn",
-  101: "rahu",
-  102: "ketu",
-};
-
-const INGRESS_SOON_MS = 10 * 24 * 60 * 60 * 1000;
-
-function findAscendantSignIndex(planets: NormalizedPlanet[]): number | null {
-  const asc =
-    planets.find((p) => /ascend|lagna/i.test(p.name)) ?? planets.find((p) => p.house === 1) ?? null;
-  return asc?.signIndex ?? null;
-}
-
-function houseFor(transitSignIndex: number, ascSignIndex: number): number {
-  return ((transitSignIndex - ascSignIndex + 12) % 12) + 1;
-}
 
 export function TodaySection() {
   const { t, i18n } = useTranslation();

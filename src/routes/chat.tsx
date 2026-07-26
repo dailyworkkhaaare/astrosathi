@@ -38,6 +38,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getBirthProfile } from "@/lib/birth-profile";
 import { supabase } from "@/integrations/supabase/client";
+import { NAKSHATRAS, SIGN_KEYS_BY_INDEX } from "@/lib/charts";
+import { usePlanets, useTodayTransits } from "@/lib/queries";
+import {
+  findAscendantSignIndex,
+  houseFor,
+  INGRESS_SOON_MS,
+  PLANET_KEY_BY_CODE,
+} from "@/lib/todayTransits";
 
 type ChatRole = "user" | "assistant";
 export type ChatMessage = { id: string; role: ChatRole; content: string };
@@ -162,6 +170,72 @@ export const Route = createFileRoute("/chat")({
 
 const SIDEBAR_STORAGE_KEY = "astrosaathi:chat:sidebar";
 
+const MAX_SUGGESTIONS = 4;
+
+// Builds the empty-state suggestion chips from today's real transit facts
+// (same data as Home's "Today" panorama, reused via the shared query cache —
+// no extra fetch here). Falls back to fact-free evergreen prompts whenever
+// transit data isn't loaded yet, errored, or came back empty, and tops up any
+// remaining slots with evergreen prompts so there are always at least a few.
+function buildSuggestedPrompts(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  transits: { moon: { signIndex: number; nakshatraIndex: number } | null; planets: Array<{
+    planet: number;
+    nextIngressTs: string | null;
+    nextSignIndex: number | null;
+  }> } | null,
+  ascSignIndex: number | null,
+): string[] {
+  const prompts: string[] = [];
+  const moon = transits?.moon ?? null;
+  const planets = transits?.planets ?? [];
+
+  if (moon) {
+    prompts.push(
+      t("chat.suggestions.moonSign", {
+        sign: t(`signs.${SIGN_KEYS_BY_INDEX[moon.signIndex]}`),
+        nakshatra: NAKSHATRAS[moon.nakshatraIndex] ?? "",
+      }),
+    );
+    if (ascSignIndex != null) {
+      prompts.push(
+        t("chat.suggestions.moonHouse", {
+          house: houseFor(moon.signIndex, ascSignIndex),
+        }),
+      );
+    }
+  }
+
+  const ingressSoon = planets.find((p) => {
+    if (p.nextIngressTs == null || p.nextSignIndex == null) return false;
+    const delta = new Date(p.nextIngressTs).getTime() - Date.now();
+    return delta >= 0 && delta <= INGRESS_SOON_MS;
+  });
+  if (ingressSoon) {
+    const key = PLANET_KEY_BY_CODE[ingressSoon.planet];
+    if (key) {
+      prompts.push(
+        t("chat.suggestions.ingressSoon", {
+          planet: t(`home.planets.${key}`),
+          sign: t(`signs.${SIGN_KEYS_BY_INDEX[ingressSoon.nextSignIndex as number]}`),
+        }),
+      );
+    }
+  }
+
+  const evergreen = [
+    t("chat.suggestions.dasha"),
+    t("chat.suggestions.week"),
+    t("chat.suggestions.general"),
+  ];
+  for (const e of evergreen) {
+    if (prompts.length >= MAX_SUGGESTIONS) break;
+    prompts.push(e);
+  }
+
+  return prompts.slice(0, MAX_SUGGESTIONS);
+}
+
 // ---------- Page ----------
 
 function ChatPage() {
@@ -174,6 +248,24 @@ function ChatPage() {
     void getBirthProfile().then((p) => setProfileName(p?.name ?? null));
   }, []);
   const name = profileName?.split(" ")[0] ?? t("chat.friend");
+
+  // Empty-state suggestion chips, built from today's real transit facts (Home's
+  // "Today" panorama already fetches these — reused here via the shared query
+  // cache, no extra network call).
+  const transitsQuery = useTodayTransits();
+  const planetsQuery = usePlanets();
+  const ascSignIndex = useMemo(
+    () => findAscendantSignIndex(planetsQuery.data?.planets ?? []),
+    [planetsQuery.data],
+  );
+  const hasTransitData =
+    !transitsQuery.isPending &&
+    !transitsQuery.isError &&
+    (!!transitsQuery.data?.moon || (transitsQuery.data?.planets.length ?? 0) > 0);
+  const suggestions = useMemo(
+    () => buildSuggestedPrompts(t, hasTransitData ? (transitsQuery.data ?? null) : null, ascSignIndex),
+    [t, hasTransitData, transitsQuery.data, ascSignIndex],
+  );
 
   // Sidebar state (persisted on desktop; drawer on mobile is always closed at start).
   // Computed synchronously in the initializer — not via a post-mount effect —
@@ -650,6 +742,11 @@ function ChatPage() {
     textareaRef.current?.focus();
   };
 
+  const handleSuggestionClick = (text: string) => {
+    setInput(text);
+    textareaRef.current?.focus();
+  };
+
   const onKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
@@ -756,6 +853,24 @@ function ChatPage() {
                     {t("chat.emptyGreeting")}
                   </h1>
                 </div>
+                {suggestions.length > 0 && (
+                  <div
+                    role="group"
+                    aria-label={t("chat.suggestionsLabel")}
+                    className="flex flex-wrap items-center justify-center gap-2"
+                  >
+                    {suggestions.map((text, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleSuggestionClick(text)}
+                        className="tap-press min-h-11 rounded-full border border-border bg-card/60 px-4 py-2 text-sm text-foreground transition-all hover:border-accent/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {text}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="w-full">
                   <Composer
                     value={input}

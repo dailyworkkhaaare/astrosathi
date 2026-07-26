@@ -348,6 +348,15 @@
     "cancel": "Cancel",
     "historyEmpty": "Your conversations will appear here.",
     "emptyGreeting": "How can I help with your chart today?",
+    "suggestionsLabel": "Suggested prompts",
+    "suggestions": {
+      "moonSign": "The Moon is in {{sign}} ({{nakshatra}}) today — what does that mean for me?",
+      "moonHouse": "How does today's Moon in my {{house}} house affect me?",
+      "ingressSoon": "{{planet}} is about to enter {{sign}} — what shifts for me?",
+      "dasha": "What does my current dasha period mean?",
+      "week": "How is this week looking for me?",
+      "general": "What should I keep in mind today?"
+    },
     "composerPlaceholder": "Message AstroSaathi",
     "attach": "Attach",
     "stop": "Stop generating",

@@ -18,6 +18,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TodayRouteImport } from './routes/today'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as OnboardingBirthRouteImport } from './routes/onboarding.birth'
 import { Route as OnboardingConsentRouteImport } from './routes/onboarding.consent'
@@ -67,6 +68,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TodayRoute = TodayRouteImport.update({
+  id: '/today',
+  path: '/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/today': typeof TodayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/today': typeof TodayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/today': typeof TodayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/settings'
     | '/terms'
+    | '/today'
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/settings'
     | '/terms'
+    | '/today'
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/settings'
     | '/terms'
+    | '/today'
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   TermsRoute: typeof TermsRoute
+  TodayRoute: typeof TodayRoute
   OnboardingBirthRoute: typeof OnboardingBirthRoute
   OnboardingConsentRoute: typeof OnboardingConsentRoute
 }
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/today': {
+      id: '/today'
+      path: '/today'
+      fullPath: '/today'
+      preLoaderRoute: typeof TodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -294,6 +314,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   TermsRoute: TermsRoute,
+  TodayRoute: TodayRoute,
   OnboardingBirthRoute: OnboardingBirthRoute,
   OnboardingConsentRoute: OnboardingConsentRoute,
 }

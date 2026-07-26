@@ -630,3 +630,150 @@ export function useTodayTransits(): UseQueryResult<TodayTransitsValue> {
     },
   });
 }
+
+// ---------------------------------------------------------------- market outlook
+
+export type MarketReasoning = { points: number; text: string };
+
+export type MarketMetalOutlook = {
+  metal: "gold" | "silver";
+  lean: "up" | "flat" | "down";
+  score: number;
+  reasoning: MarketReasoning[];
+  refPrice: number | null;
+};
+
+export type MarketAccuracy = {
+  total: number; // scored calls in the window
+  correct: number;
+  pct: number | null; // 0..100, null when nothing is scored yet
+};
+
+export type MarketOutlookValue = {
+  tradeDate: string | null;
+  gold: MarketMetalOutlook | null;
+  silver: MarketMetalOutlook | null;
+  accuracy: MarketAccuracy;
+};
+
+export function useMarketOutlook(): UseQueryResult<MarketOutlookValue> {
+  const userId = useCurrentUserId();
+  return useQuery<MarketOutlookValue>({
+    queryKey: [...ROOT, "market-outlook", userId],
+    enabled: userId !== null,
+    staleTime: 15 * 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      // Last ~31 calendar days (2 metals/day). RLS allows authenticated reads.
+      const sinceIso = new Date(Date.now() - 31 * 24 * 3600 * 1000)
+        .toISOString()
+        .slice(0, 10);
+
+      const { data: rows } = await supabase
+        .from("market_predictions")
+        .select("trade_date, metal, lean, score, reasoning, ref_price, correct")
+        .gte("trade_date", sinceIso)
+        .order("trade_date", { ascending: false });
+
+      const all = rows ?? [];
+      const tradeDate = all.length ? all[0].trade_date : null;
+
+      const pick = (metal: "gold" | "silver"): MarketMetalOutlook | null => {
+        const r = all.find((x) => x.trade_date === tradeDate && x.metal === metal);
+        if (!r) return null;
+        const reasoning = Array.isArray(r.reasoning)
+          ? (r.reasoning as MarketReasoning[])
+          : [];
+        return {
+          metal,
+          lean: r.lean as "up" | "flat" | "down",
+          score: Number(r.score),
+          reasoning,
+          refPrice: r.ref_price != null ? Number(r.ref_price) : null,
+        };
+      };
+
+      const scored = all.filter((x) => x.correct === true || x.correct === false);
+      const correct = scored.filter((x) => x.correct === true).length;
+      const total = scored.length;
+      const pct = total > 0 ? Math.round((correct / total) * 100) : null;
+
+      return {
+        tradeDate,
+        gold: pick("gold"),
+        silver: pick("silver"),
+        accuracy: { total, correct, pct },
+      };
+    },
+  });
+}
+
+// ---------------------------------------------------------------- daily horoscope
+
+export type DailyHoroscopeArea = { key: string; text: string };
+export type DailyHoroscopeLucky = {
+  color: string | null;
+  number: string | null;
+  direction: string | null;
+};
+export type DailyHoroscopeValue = {
+  incomplete: boolean;
+  summary: string | null;
+  areas: DailyHoroscopeArea[];
+  focus: string | null;
+  lucky: DailyHoroscopeLucky | null;
+  date: string | null;
+};
+
+// Personalized daily reading. The `daily-horoscope` Edge Function grounds on
+// the user's real natal chart + today's live sky + current dasha, caches one
+// row per user/day/language, and returns calm structured JSON.
+export function useDailyHoroscope(lang: string): UseQueryResult<DailyHoroscopeValue> {
+  const userId = useCurrentUserId();
+  return useQuery<DailyHoroscopeValue>({
+    queryKey: [...ROOT, "daily-horoscope", userId, lang],
+    enabled: userId !== null && !!lang,
+    staleTime: CHART_STALE_MS,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("daily-horoscope", {
+        body: { lang },
+      });
+      if (error) {
+        let code = "provider_error";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ctx = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.json();
+            if (body?.error?.code) code = String(body.error.code);
+          } catch {
+            /* ignore */
+          }
+        }
+        throw new Error(code);
+      }
+      if (data?.incomplete) {
+        return {
+          incomplete: true,
+          summary: null,
+          areas: [],
+          focus: null,
+          lucky: null,
+          date: data?.date ?? null,
+        };
+      }
+      return {
+        incomplete: false,
+        summary: data?.summary ?? null,
+        areas: Array.isArray(data?.areas) ? (data.areas as DailyHoroscopeArea[]) : [],
+        focus: data?.focus ?? null,
+        lucky: (data?.lucky ?? null) as DailyHoroscopeLucky | null,
+        date: data?.date ?? null,
+      };
+    },
+  });
+}

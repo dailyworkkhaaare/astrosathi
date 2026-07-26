@@ -8,6 +8,7 @@
   },
   "nav": {
     "home": "Home",
+    "today": "Today",
     "chat": "Chat",
     "settings": "Settings"
   },
@@ -126,6 +127,9 @@
     },
     "castingTitle": "Casting your chart…",
     "castingSubtitle": "Reading the sky over {{place}}, {{date}}"
+  },
+  "today": {
+    "title": "Today"
   },
   "home": {
     "title": "Your chart",
@@ -484,8 +488,25 @@
     }
   },
   "sections": {
+    "horoscope": {
+      "title": "Today's horoscope",
+      "subtitle": "A calm, personal reading from your chart and today's sky",
+      "areas": {
+        "general": "Overall",
+        "work": "Work & focus",
+        "relationships": "Relationships",
+        "wellbeing": "Wellbeing"
+      },
+      "focusLabel": "Focus for today",
+      "lucky": { "color": "Colour", "number": "Number", "direction": "Direction" },
+      "disclaimer": "Astrology is for reflection and guidance, not a guarantee.",
+      "loadError": "Couldn't load today's reading right now.",
+      "empty": "No reading yet.",
+      "completeProfile": "Add your birth details to see your personal daily reading.",
+      "completeCta": "Complete birth profile"
+    },
     "today": {
-      "title": "Today",
+      "title": "Today's sky",
       "moonNowLabel": "Moon now",
       "moonNowLine": "{{sign}} · {{nakshatra}} nakshatra, pada {{pada}}",
       "transitingHouse": "Transiting house {{n}}",
@@ -501,6 +522,18 @@
       "bandDismiss": "Dismiss",
       "bandIngressSeed": "{{planet}} is entering {{sign}} in {{days}} days — what shifts for me?",
       "bandMoonHouseSeed": "The Moon is moving through my house {{house}} today — what does that mean for me?"
+    },
+    "market": {
+      "title": "Metals outlook",
+      "subtitle": "Vedic planetary outlook for gold & silver today",
+      "metals": { "gold": "Gold", "silver": "Silver" },
+      "lean": { "up": "Leaning up", "flat": "Flat", "down": "Leaning down" },
+      "accuracyLabel": "Last 30 days",
+      "accuracyValue": "{{pct}}% correct · {{correct}} of {{total}} calls",
+      "accuracyPending": "Scoring starts the day after the first run",
+      "loadError": "Could not load the metals outlook. Please try again.",
+      "empty": "No outlook available yet.",
+      "disclaimer": "A cultural, entertainment reading based on planetary positions — not investment advice. No buy or sell recommendations."
     },
     "dasha": {
       "title": "Vimshottari Dasha",
@@ -568,6 +601,8 @@
       }
     },
     "loshu": {
+      "title": "Lo Shu grid",
+      "subtitle": "Your numerology grid from your date of birth",
       "gridIncludes": "Grid includes your Driver + Conductor numbers ({{numbers}})",
       "driver": "Driver (Mulank)",
       "destiny": "Destiny (Bhagyank)",

@@ -1,4 +1,5 @@
-import { MessageCircle, Moon } from "lucide-react";
+import { ChevronDown, MessageCircle, Moon } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -17,6 +18,7 @@ export function TodaySection() {
   const navigate = useNavigate();
   const transitsQuery = useTodayTransits();
   const planetsQuery = usePlanets();
+  const [slowPlanetsOpen, setSlowPlanetsOpen] = useState(false);
 
   const loading = transitsQuery.isPending || planetsQuery.isPending;
   const hasError = transitsQuery.isError || planetsQuery.isError;
@@ -116,18 +118,36 @@ export function TodaySection() {
           {planets.length > 0 && (
             <div>
               <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t("sections.today.slowPlanetsTitle")}
-              </h3>
-              <ul className="mt-2 space-y-2">
-                {planets.map((p) => (
-                  <TodayPlanetRow
-                    key={p.planet}
-                    planet={p}
-                    ascSignIndex={ascSignIndex}
-                    t={t}
+                <button
+                  type="button"
+                  onClick={() => setSlowPlanetsOpen((open) => !open)}
+                  aria-expanded={slowPlanetsOpen}
+                  aria-controls="slow-planets-list"
+                  className="-mx-1 flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span>{t("sections.today.slowPlanetsTitle")}</span>
+                  <ChevronDown
+                    size={16}
+                    aria-hidden="true"
+                    className={
+                      "shrink-0 text-muted-foreground transition-transform " +
+                      (slowPlanetsOpen ? "rotate-180" : "")
+                    }
                   />
-                ))}
-              </ul>
+                </button>
+              </h3>
+              {slowPlanetsOpen && (
+                <ul id="slow-planets-list" className="mt-2 space-y-2">
+                  {planets.map((p) => (
+                    <TodayPlanetRow
+                      key={p.planet}
+                      planet={p}
+                      ascSignIndex={ascSignIndex}
+                      t={t}
+                    />
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 

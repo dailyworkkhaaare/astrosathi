@@ -44,7 +44,7 @@ function Body({ data }: { data: LoShuData }) {
     <div className="mt-5 space-y-6">
       {/* Grid */}
       <div className="flex flex-col items-center gap-4">
-        <div role="grid" aria-label={t("loshu.title")} className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div role="grid" aria-label={t("sections.loshu.title")} className="grid grid-cols-3 gap-2 sm:gap-3">
           {data.grid.flat().map((cell, i) => (
             <GridCell key={i} cell={cell} />
           ))}
@@ -592,8 +592,8 @@ function Header() {
   const { t } = useTranslation();
   return (
     <div>
-      <h2 className="text-base font-semibold text-foreground">{t("loshu.title")}</h2>
-      <p className="mt-1 text-xs text-muted-foreground">{t("loshu.subtitle")}</p>
+      <h2 className="text-base font-semibold text-foreground">{t("sections.loshu.title")}</h2>
+      <p className="mt-1 text-xs text-muted-foreground">{t("sections.loshu.subtitle")}</p>
     </div>
   );
 }

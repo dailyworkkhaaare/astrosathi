@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { LayoutGrid, MessageCircle, User } from "lucide-react";
+import { LayoutGrid, MessageCircle, Sun, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -11,14 +11,14 @@ import { applyTheme, bindSystemThemeListener, getPreferences } from "@/lib/prefe
 import { useAuthSession } from "@/lib/auth";
 
 type NavItem = {
-  to: "/home" | "/chat" | "/settings";
+  to: "/home" | "/today" | "/settings";
   labelKey: string;
   icon: typeof LayoutGrid;
 };
 
 const NAV_ITEMS: NavItem[] = [
   { to: "/home", labelKey: "nav.home", icon: LayoutGrid },
-  { to: "/chat", labelKey: "nav.chat", icon: MessageCircle },
+  { to: "/today", labelKey: "nav.today", icon: Sun },
   { to: "/settings", labelKey: "nav.settings", icon: User },
 ];
 
@@ -81,6 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {hydrated ? children : <HydrationSkeleton />}
         </main>
         {showNav && <MobileTabBar pathname={pathname} />}
+        {showNav && !isChat && <FloatingChatButton />}
       </div>
     </div>
   );
@@ -126,7 +127,6 @@ function DesktopRail({ pathname }: { pathname: string }) {
         {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => {
           const active = isActive(pathname, to);
           const label = t(labelKey);
-          const isChat = to === "/chat";
           return (
             <Link
               key={to}
@@ -137,19 +137,11 @@ function DesktopRail({ pathname }: { pathname: string }) {
               className={
                 "tap-press flex h-11 w-11 items-center justify-center rounded-xl text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                 (active
-                  ? isChat
-                    ? "bg-accent/20 text-accent ring-1 ring-accent/40"
-                    : "bg-accent/15 text-accent"
-                  : isChat
-                    ? "bg-accent/10 text-accent hover:bg-accent/20"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground")
+                  ? "bg-accent/15 text-accent"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground")
               }
             >
-              <Icon
-                size={20}
-                aria-hidden="true"
-                className={active || isChat ? "text-accent" : ""}
-              />
+              <Icon size={20} aria-hidden="true" className={active ? "text-accent" : ""} />
             </Link>
           );
         })}
@@ -169,7 +161,6 @@ function MobileTabBar({ pathname }: { pathname: string }) {
       <ul className="mx-auto flex max-w-md items-stretch justify-around px-2 pt-1.5 pb-1.5">
         {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => {
           const active = isActive(pathname, to);
-          const isChat = to === "/chat";
           return (
             <li key={to} className="flex-1">
               <Link
@@ -179,22 +170,14 @@ function MobileTabBar({ pathname }: { pathname: string }) {
                   "tap-press flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                   (active
                     ? "text-accent font-semibold"
-                    : isChat
-                      ? "text-accent/90 font-medium"
-                      : "text-muted-foreground hover:text-foreground")
+                    : "text-muted-foreground hover:text-foreground")
                 }
                 style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
               >
                 <span
                   className={
                     "flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] " +
-                    (active
-                      ? isChat
-                        ? "bg-accent/20 text-accent ring-1 ring-accent/30"
-                        : "bg-accent/15"
-                      : isChat
-                        ? "bg-accent/10 text-accent"
-                        : "")
+                    (active ? "bg-accent/15" : "")
                   }
                 >
                   <Icon size={20} aria-hidden="true" />
@@ -206,5 +189,19 @@ function MobileTabBar({ pathname }: { pathname: string }) {
         })}
       </ul>
     </nav>
+  );
+}
+
+function FloatingChatButton() {
+  const { t } = useTranslation();
+  return (
+    <Link
+      to="/chat"
+      aria-label={t("nav.chat")}
+      title={t("nav.chat")}
+      className="tap-press fixed right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg ring-1 ring-accent/40 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6"
+    >
+      <MessageCircle size={24} aria-hidden="true" />
+    </Link>
   );
 }

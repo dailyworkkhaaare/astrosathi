@@ -1,0 +1,587 @@
+// Supabase Edge Function: daily-horoscope
+// Calm, personalized daily reading. Grounds on the user's real natal chart +
+// today's live sky (gochara) + current Vimshottari dasha, then asks the model
+// for a gentle, structured JSON reading in the UI language. Cached one row per
+// user / day / language in public.daily_horoscopes.
+//
+// Runtime: Deno (Supabase Edge Functions).
+// Secrets required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+//   OPENROUTER_API_KEY, and optionally OPENROUTER_MODEL.
+
+// @ts-ignore - esm.sh import (resolved at deploy time)
+import {
+  createClient,
+  type SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2.45.4";
+// @ts-ignore - esm.sh import. Same validated engine as transit-compute/astrologer-chat.
+import { getAscendant } from "https://esm.sh/gh/heirmez/vedic-ephemeris@main/index.mjs";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const Deno: any;
+
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Max-Age": "86400",
+};
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json", ...CORS_HEADERS },
+  });
+}
+function err(status: number, code: string, message?: string): Response {
+  return json(status, { error: { code, message: message ?? code } });
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: Record<string, unknown>,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal } as never);
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+// ---------- Chart normalization (ported from astrologer-chat) ----------
+const NAKSHATRAS = [
+  "Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu",
+  "Pushya","Ashlesha","Magha","Purva Phalguni","Uttara Phalguni","Hasta",
+  "Chitra","Swati","Vishakha","Anuradha","Jyeshtha","Mula","Purva Ashadha",
+  "Uttara Ashadha","Shravana","Dhanishta","Shatabhisha","Purva Bhadrapada",
+  "Uttara Bhadrapada","Revati",
+];
+const NAK_LORDS = ["Ketu","Venus","Sun","Moon","Mars","Rahu","Jupiter","Saturn","Mercury"];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ctxPick(obj: any, ...keys: string[]): any {
+  for (const k of keys) if (obj && obj[k] != null) return obj[k];
+  return undefined;
+}
+function ctxNum(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (v != null && v !== "" && !Number.isNaN(Number(v))) return Number(v);
+  return null;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function deepFindArray(payload: any, keys: string[]): any[] {
+  if (!payload || typeof payload !== "object") return [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const queue: any[] = [payload];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (!cur || typeof cur !== "object") continue;
+    for (const k of keys) if (Array.isArray(cur[k])) return cur[k];
+    for (const v of Object.values(cur)) if (v && typeof v === "object") queue.push(v);
+  }
+  return [];
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isPlanetLike(o: any): boolean {
+  return (
+    !!o && typeof o === "object" &&
+    (o.rasi != null || o.sign != null || o.zodiac != null || o.longitude != null)
+  );
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractPlanetArray(payload: any): any[] {
+  const keyed = deepFindArray(payload, ["planet_position", "planetPosition", "planets"]);
+  if (keyed.length) return keyed;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const queue: any[] = [payload];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (!cur || typeof cur !== "object") continue;
+    if (Array.isArray(cur)) {
+      if (cur.length && cur.every(isPlanetLike)) return cur;
+      for (const v of cur) if (v && typeof v === "object") queue.push(v);
+      continue;
+    }
+    for (const v of Object.values(cur)) if (v && typeof v === "object") queue.push(v);
+  }
+  return [];
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ctxRasiId(p: any): number | null {
+  const r = p?.rasi ?? p?.sign ?? p?.zodiac;
+  return ctxNum(r?.id);
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ctxIsAsc(p: any): boolean {
+  const name = String(p?.name ?? p?.planet ?? "").trim().toLowerCase();
+  const id = p?.id;
+  return name === "ascendant" || name === "lagna" || id === 100 || id === "100";
+}
+function ctxNakshatra(lonRaw: number): { name: string; lord: string; pada: number } | null {
+  if (!Number.isFinite(lonRaw)) return null;
+  const lon = ((lonRaw % 360) + 360) % 360;
+  const SPAN = 360 / 27;
+  const PADA = SPAN / 4;
+  const idx = Math.floor(lon / SPAN);
+  const pada = Math.floor((lon % SPAN) / PADA) + 1;
+  return { name: NAKSHATRAS[idx], lord: NAK_LORDS[idx % 9], pada };
+}
+function ctxDate(s: unknown): string {
+  const str = String(s ?? "");
+  const d = new Date(str);
+  if (Number.isNaN(d.getTime())) return str;
+  return d.toISOString().slice(0, 10);
+}
+
+function navamsaSignIndex(lon: number): number {
+  const L = ((lon % 360) + 360) % 360;
+  return Math.floor(L / (30 / 9)) % 12;
+}
+type Dignity = { exaltSign: number; exaltDeg: number; debilSign: number; own: number[]; moola?: { sign: number; from: number; to: number } };
+const DIGNITY: Record<string, Dignity> = {
+  sun: { exaltSign: 0, exaltDeg: 10, debilSign: 6, own: [4], moola: { sign: 4, from: 0, to: 20 } },
+  moon: { exaltSign: 1, exaltDeg: 3, debilSign: 7, own: [3] },
+  mars: { exaltSign: 9, exaltDeg: 28, debilSign: 3, own: [0, 7], moola: { sign: 0, from: 0, to: 12 } },
+  mercury: { exaltSign: 5, exaltDeg: 15, debilSign: 11, own: [2, 5] },
+  jupiter: { exaltSign: 3, exaltDeg: 5, debilSign: 9, own: [8, 11], moola: { sign: 8, from: 0, to: 10 } },
+  venus: { exaltSign: 11, exaltDeg: 27, debilSign: 5, own: [1, 6], moola: { sign: 6, from: 0, to: 15 } },
+  saturn: { exaltSign: 6, exaltDeg: 20, debilSign: 0, own: [9, 10], moola: { sign: 10, from: 0, to: 20 } },
+};
+const PLANET_ALIAS: Record<string, string> = {
+  surya: "sun", ravi: "sun", chandra: "moon", mangala: "mars", mangal: "mars",
+  kuja: "mars", angaraka: "mars", budha: "mercury", budh: "mercury", guru: "jupiter",
+  brihaspati: "jupiter", shukra: "venus", sukra: "venus", shani: "saturn", sani: "saturn",
+};
+const COMBUST_ORB: Record<string, { normal: number; retro?: number }> = {
+  moon: { normal: 12 }, mars: { normal: 17 }, mercury: { normal: 14, retro: 12 },
+  jupiter: { normal: 11 }, venus: { normal: 10, retro: 8 }, saturn: { normal: 15 },
+};
+function normPlanetKey(name: string): string {
+  const n = name.trim().toLowerCase();
+  return PLANET_ALIAS[n] ?? n;
+}
+function angularSep(a: number, b: number): number {
+  let d = Math.abs(a - b) % 360;
+  if (d > 180) d = 360 - d;
+  return d;
+}
+function planetStates(args: {
+  name: string; lon: number | null; degInSign: number | null;
+  signIdx: number | null; retro: boolean; sunLon: number | null;
+}): string[] {
+  const { name, lon, degInSign, signIdx, retro, sunLon } = args;
+  const key = normPlanetKey(name);
+  const tags: string[] = [];
+  const dig = DIGNITY[key];
+  if (dig && signIdx != null) {
+    if (signIdx === dig.exaltSign) tags.push("Exalted");
+    else if (signIdx === dig.debilSign) tags.push("Debilitated");
+    else if (dig.moola && signIdx === dig.moola.sign && degInSign != null && degInSign >= dig.moola.from && degInSign <= dig.moola.to) tags.push("Moolatrikona");
+    else if (dig.own.includes(signIdx)) tags.push("Own sign");
+  }
+  const orb = COMBUST_ORB[key];
+  if (orb && lon != null && sunLon != null) {
+    const limit = retro && orb.retro != null ? orb.retro : orb.normal;
+    if (angularSep(lon, sunLon) <= limit) tags.push("Combust");
+  }
+  if (lon != null && signIdx != null && navamsaSignIndex(lon) === signIdx) tags.push("Vargottama");
+  if (retro) tags.push("Retrograde");
+  return tags;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function formatNatal(natal: any): string | null {
+  const arr = extractPlanetArray(natal);
+  if (!arr.length) return null;
+  const asc = arr.find(ctxIsAsc);
+  const ascRasiId = asc ? ctxRasiId(asc) : null;
+  const lines: string[] = [];
+  if (asc) {
+    const ascRasi = asc.rasi ?? asc.sign ?? asc.zodiac ?? {};
+    const ascSign = String(ascRasi?.name ?? "");
+    const ascDeg = ctxNum(ctxPick(asc, "degree"));
+    const ascLon = ctxNum(ctxPick(asc, "longitude", "long", "lon"));
+    const deg = ascDeg != null ? ascDeg : ascLon != null ? ascLon % 30 : null;
+    lines.push(`Ascendant (Lagna): ${ascSign || "?"}${deg != null ? " " + deg.toFixed(2) + "\u00B0" : ""}`);
+  }
+  const sunEntry = arr.find((p) => !ctxIsAsc(p) && normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "sun");
+  let sunLon: number | null = null;
+  if (sunEntry) {
+    const sLon = ctxNum(ctxPick(sunEntry, "longitude", "long", "lon"));
+    const sRasi = ctxRasiId(sunEntry);
+    const sDeg = ctxNum(ctxPick(sunEntry, "degree"));
+    sunLon = sLon != null ? sLon : sRasi != null && sDeg != null ? sRasi * 30 + sDeg : null;
+  }
+  let planetCount = 0;
+  for (const p of arr) {
+    if (ctxIsAsc(p)) continue;
+    const name = String(ctxPick(p, "name", "planet") ?? "").trim();
+    if (!name) continue;
+    const rasi = p.rasi ?? p.sign ?? p.zodiac ?? {};
+    const signName = String(rasi?.name ?? "");
+    const rasiId = ctxRasiId(p);
+    let house: number | null = null;
+    if (ascRasiId != null && rasiId != null) house = ((rasiId - ascRasiId + 12) % 12) + 1;
+    const degRaw = ctxNum(ctxPick(p, "degree"));
+    const lon = ctxNum(ctxPick(p, "longitude", "long", "lon"));
+    const degInSign = degRaw != null ? degRaw : lon != null ? lon % 30 : null;
+    const nak = lon != null ? ctxNakshatra(lon) : null;
+    const retro = Boolean(ctxPick(p, "is_retrograde", "isRetrograde", "retrograde", "retro"));
+    const parts = [
+      `${name}:`,
+      `${signName || "?"}${degInSign != null ? " " + degInSign.toFixed(2) + "\u00B0" : ""}`,
+      house != null ? `in House ${house}` : "in House ?",
+    ];
+    if (nak) parts.push(`nakshatra ${nak.name} pada ${nak.pada}`);
+    const effLon = lon != null ? lon : rasiId != null && degInSign != null ? rasiId * 30 + degInSign : null;
+    const states = planetStates({ name, lon: effLon, degInSign, signIdx: rasiId, retro, sunLon });
+    if (states.length) parts.push(`[${states.join(", ")}]`);
+    lines.push("- " + parts.join(" "));
+    planetCount++;
+  }
+  if (!planetCount) return null;
+  return lines.join("\n");
+}
+
+// ---------- Current sky (gochara) ----------
+const SIGN_FULL = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+function skyNorm360(x: number): number { return ((x % 360) + 360) % 360; }
+function skySignName(idx: number): string { return Number.isInteger(idx) && idx >= 0 && idx < 12 ? SIGN_FULL[idx] : "?"; }
+function skyNakName(idx: number | null): string { return idx != null && Number.isInteger(idx) && idx >= 0 && idx < 27 ? NAKSHATRAS[idx] : "?"; }
+function skyHouse(signIdx: number, refSignIdx: number | null): number | null {
+  if (refSignIdx == null || !Number.isInteger(signIdx)) return null;
+  return ((signIdx - refSignIdx + 12) % 12) + 1;
+}
+function skyDeg(deg: number | null): string { return deg != null && Number.isFinite(deg) ? deg.toFixed(2) + "\u00B0" : ""; }
+const TRANSIT_PLANET_ORDER = [
+  { id: 0, name: "Sun" }, { id: 2, name: "Mercury" }, { id: 3, name: "Venus" },
+  { id: 4, name: "Mars" }, { id: 5, name: "Jupiter" }, { id: 6, name: "Saturn" },
+  { id: 101, name: "Rahu" }, { id: 102, name: "Ketu" },
+];
+type TransitPlanetRow = { planet: number; sign: number; deg: number | null; nakshatra: number | null; pada: number | null; retrograde: boolean | null; next_ingress_ts: string | null; next_sign: number | null };
+type MoonRow = { slot_hour: number; slot_ts: string; moon_sign: number; moon_deg: number | null; moon_nakshatra: number | null; moon_pada: number | null };
+function skyIngressNote(nextTs: string | null, nextSign: number | null): string {
+  if (!nextTs || nextSign == null) return "";
+  const d = new Date(nextTs);
+  if (Number.isNaN(d.getTime())) return "";
+  const days = Math.round((d.getTime() - Date.now()) / 86400000);
+  if (days < 0 || days > 45) return "";
+  const when = d.toISOString().slice(0, 10);
+  return " [enters " + skySignName(nextSign) + " ~" + when + (days <= 14 ? " (~" + days + "d)" : "") + "]";
+}
+function formatCurrentSky(args: {
+  planets: TransitPlanetRow[]; moon: MoonRow | null;
+  natalAscSign: number | null; natalMoonSign: number | null;
+  liveAsc: { sign: number; deg: number } | null;
+}): string | null {
+  const { planets, moon, natalAscSign, natalMoonSign, liveAsc } = args;
+  const byId: Record<number, TransitPlanetRow> = {};
+  for (const p of planets) byId[p.planet] = p;
+  const lines: string[] = [];
+  if (liveAsc) {
+    const nk = ctxNakshatra(liveAsc.sign * 30 + liveAsc.deg);
+    lines.push("Ascendant rising NOW: " + skySignName(liveAsc.sign) + " " + skyDeg(liveAsc.deg) + (nk ? " - nakshatra " + nk.name + " pada " + nk.pada : ""));
+  }
+  if (moon) {
+    const h = skyHouse(moon.moon_sign, natalAscSign);
+    lines.push("Moon: " + skySignName(moon.moon_sign) + " " + skyDeg(moon.moon_deg) + (h != null ? " - House " + h : "") + (moon.moon_nakshatra != null ? " - nakshatra " + skyNakName(moon.moon_nakshatra) + " pada " + (moon.moon_pada ?? "?") : ""));
+  }
+  for (const entry of TRANSIT_PLANET_ORDER) {
+    const p = byId[entry.id];
+    if (!p) continue;
+    const h = skyHouse(p.sign, natalAscSign);
+    const retro = p.retrograde ? " (R)" : "";
+    const nk = p.nakshatra != null ? " - nakshatra " + skyNakName(p.nakshatra) + " pada " + (p.pada ?? "?") : "";
+    lines.push(entry.name + ": " + skySignName(p.sign) + " " + skyDeg(p.deg) + retro + (h != null ? " - House " + h : "") + nk + skyIngressNote(p.next_ingress_ts, p.next_sign));
+  }
+  if (!lines.length) return null;
+  const ref = "Houses above are whole-sign from the natal Ascendant (" + (natalAscSign != null ? skySignName(natalAscSign) : "?") + "). Natal Moon sign is " + (natalMoonSign != null ? skySignName(natalMoonSign) : "?") + ".";
+  return lines.join("\n") + "\n" + ref;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function formatDasha(dasha: any): string | null {
+  const periods = deepFindArray(dasha, ["dasha_periods", "dashaPeriods"]);
+  if (!periods.length) return null;
+  const now = Date.now();
+  const lines: string[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const within = (x: any) => {
+    const s = new Date(x?.start).getTime();
+    const e = new Date(x?.end).getTime();
+    return Number.isFinite(s) && Number.isFinite(e) && now >= s && now <= e;
+  };
+  const curMaha = periods.find(within);
+  if (curMaha) {
+    lines.push(`Current Mahadasha: ${curMaha.name} (${ctxDate(curMaha.start)} to ${ctxDate(curMaha.end)}).`);
+    const antars = Array.isArray(curMaha.antardasha) ? curMaha.antardasha : [];
+    const curAntar = antars.find(within);
+    if (curAntar) lines.push(`Current Antardasha: ${curMaha.name}-${curAntar.name} (${ctxDate(curAntar.start)} to ${ctxDate(curAntar.end)}).`);
+  }
+  return lines.length ? lines.join("\n") : null;
+}
+
+// ---------- Language + safe JSON parse ----------
+const LANG_NAME: Record<string, string> = { en: "English", hi: "Hindi (Devanagari script)", mr: "Marathi (Devanagari script)" };
+function parseModelJson(raw: string): Record<string, unknown> | null {
+  let s = raw.trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+  const first = s.indexOf("{");
+  const last = s.lastIndexOf("}");
+  if (first !== -1 && last !== -1 && last > first) s = s.slice(first, last + 1);
+  try { return JSON.parse(s); } catch { return null; }
+}
+
+const AREA_KEYS = ["general", "work", "relationships", "wellbeing"];
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
+  if (req.method !== "POST") return err(405, "method_not_allowed", "Only POST is supported");
+
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+  const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+  const MODEL = Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.0-flash-001";
+  if (!SUPABASE_URL || !SERVICE_KEY) return err(500, "server_misconfigured", "Supabase env missing");
+  if (!OPENROUTER_API_KEY) return err(500, "server_misconfigured", "OpenRouter API key missing");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let body: any = {};
+  try { body = await req.json(); } catch { body = {}; }
+  const langRaw = String(body.lang ?? "en").toLowerCase();
+  const lang = LANG_NAME[langRaw] ? langRaw : "en";
+  const force = body.force === true;
+
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const authClient: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: userData, error: userErr } = await authClient.auth.getUser();
+  if (userErr || !userData?.user) return err(401, "not_authenticated");
+  const userId = userData.user.id;
+
+  const svc: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  // Birth profile (for timezone, lat/lon, name).
+  const { data: birth } = await svc
+    .from("birth_profiles")
+    .select("full_name, birth_timezone, latitude, longitude")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const tz = birth?.birth_timezone || "Asia/Kolkata";
+  const todayIso = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+
+  // Cache hit?
+  if (!force) {
+    const { data: cached } = await svc
+      .from("daily_horoscopes")
+      .select("summary, areas, focus, lucky, model")
+      .eq("user_id", userId)
+      .eq("horoscope_date", todayIso)
+      .eq("lang", lang)
+      .maybeSingle();
+    if (cached) {
+      return json(200, {
+        ok: true, cached: true, date: todayIso, lang,
+        summary: cached.summary, areas: cached.areas ?? [],
+        focus: cached.focus ?? null, lucky: cached.lucky ?? null, model: cached.model,
+      });
+    }
+  }
+
+  // Grounding: natal + dasha artifacts.
+  const { data: arts } = await svc
+    .from("chart_artifacts")
+    .select("chart_type, chart_jsonb, created_at")
+    .eq("user_id", userId)
+    .in("chart_type", ["natal", "vimshottari_dasha"])
+    .order("created_at", { ascending: false })
+    .limit(10);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const byType: Record<string, any> = {};
+  for (const a of arts ?? []) if (!(a.chart_type in byType)) byType[a.chart_type] = a.chart_jsonb;
+
+  const natalText = byType.natal ? formatNatal(byType.natal) : null;
+  if (!natalText) {
+    // No computed chart yet — let the client show a "complete your profile" state.
+    return json(200, { ok: true, incomplete: true, date: todayIso, lang });
+  }
+
+  // Natal ascendant + moon sign for gochara houses.
+  let natalAscSign: number | null = null;
+  let natalMoonSign: number | null = null;
+  {
+    const natalArr = extractPlanetArray(byType.natal);
+    const ascP = natalArr.find(ctxIsAsc);
+    natalAscSign = ascP ? ctxRasiId(ascP) : null;
+    const moonP = natalArr.find((p) => !ctxIsAsc(p) && normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "moon");
+    natalMoonSign = moonP ? ctxRasiId(moonP) : null;
+  }
+
+  // Current sky.
+  let skyText: string | null = null;
+  try {
+    const { data: transitPlanets } = await svc
+      .from("transit_planets")
+      .select("planet, sign, deg, nakshatra, pada, retrograde, next_ingress_ts, next_sign");
+    const { data: moonRows } = await svc
+      .from("transit_moon_hourly")
+      .select("slot_hour, slot_ts, moon_sign, moon_deg, moon_nakshatra, moon_pada");
+    let moon: MoonRow | null = null;
+    if (Array.isArray(moonRows) && moonRows.length) {
+      const nowMs = Date.now();
+      let best = Infinity;
+      for (const r of moonRows) {
+        const t = new Date(r.slot_ts).getTime();
+        if (Number.isNaN(t)) continue;
+        const diff = Math.abs(t - nowMs);
+        if (diff < best) { best = diff; moon = r as MoonRow; }
+      }
+    }
+    let liveAsc: { sign: number; deg: number } | null = null;
+    const lat = ctxNum(birth?.latitude);
+    const lon = ctxNum(birth?.longitude);
+    if (lat != null && lon != null) {
+      try {
+        const a = getAscendant({ date: new Date(), lat, lon });
+        const sid = ctxNum(a?.siderealLon);
+        if (sid != null) {
+          const corrected = skyNorm360(sid + 180);
+          liveAsc = { sign: Math.floor(corrected / 30) % 12, deg: corrected % 30 };
+        }
+      } catch (_e) { liveAsc = null; }
+    }
+    skyText = formatCurrentSky({
+      planets: (transitPlanets ?? []) as TransitPlanetRow[],
+      moon, natalAscSign, natalMoonSign, liveAsc,
+    });
+  } catch (_e) { skyText = null; }
+
+  const dashaText = byType.vimshottari_dasha ? formatDasha(byType.vimshottari_dasha) : null;
+
+  const firstName = String(birth?.full_name ?? "").trim().split(/\s+/)[0] || "";
+  const todayLabel = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric",
+  }).format(new Date());
+
+  const context = [
+    firstName ? `Person's first name: ${firstName}` : "",
+    `Today: ${todayLabel} (${tz}).`,
+    "",
+    "NATAL CHART (kundali) — authoritative placements, whole-sign houses from the Ascendant. Use these exact values:",
+    natalText,
+    "",
+    skyText ? "CURRENT SKY (gochara / live transits) — where planets are right now. Read verbatim; never recompute:\n" + skyText : "",
+    "",
+    dashaText ? "CURRENT VIMSHOTTARI DASHA (active planetary period):\n" + dashaText : "",
+  ].filter(Boolean).join("\n");
+
+  const systemPrompt = [
+    "You are AstroSaathi, a warm, wise Vedic (Jyotish) astrologer working in the Parasara tradition with the Lahiri sidereal ayanamsa.",
+    "Write a gentle, encouraging DAILY reading for this person for today, grounded ONLY in the chart facts and transits given below.",
+    "",
+    "TONE (must follow):",
+    "- Calm, kind, hopeful and empowering. Like a caring friend, not a report.",
+    "- NEVER use fear, alarm, urgency, warnings of danger, doom, or pressure. No 'beware', 'danger', 'avoid at all costs', 'must', deadlines, or scare language.",
+    "- Frame any challenge softly as a gentle invitation to be mindful, always with a constructive, reassuring note.",
+    "- Base everything on the real placements/transits/dasha provided. NEVER invent positions, numbers, or facts not present below. Keep it specific but not technical/jargony.",
+    "",
+    `LANGUAGE: Write ALL text values in ${LANG_NAME[lang]}. Keep sentences natural and warm.`,
+    "",
+    "OUTPUT: Return ONLY a JSON object (no markdown, no commentary) with EXACTLY this shape:",
+    "{",
+    '  "summary": "2-3 warm sentences about the overall feel of today for this person",',
+    '  "areas": [',
+    '    { "key": "general", "text": "1-2 gentle sentences" },',
+    '    { "key": "work", "text": "1-2 gentle sentences on work/study/focus" },',
+    '    { "key": "relationships", "text": "1-2 gentle sentences on relationships/family" },',
+    '    { "key": "wellbeing", "text": "1-2 gentle sentences on mind & body wellbeing" }',
+    "  ],",
+    '  "focus": "one short, gentle suggestion to carry through the day",',
+    '  "lucky": { "color": "a calming colour", "number": "a single number", "direction": "a compass direction" }',
+    "}",
+    "Use exactly these four area keys in this order. Keep the whole thing concise and soothing.",
+    "",
+    "Chart facts and transits (ground truth):",
+    context,
+  ].join("\n");
+
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    const orRes = await fetchWithTimeout(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://astrosathi.app",
+          "X-Title": "AstroSaathi",
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: "Give me my calm daily reading for today as JSON only." },
+          ],
+          temperature: 0.7,
+          max_tokens: 900,
+          response_format: { type: "json_object" },
+        }),
+      },
+      45000,
+    );
+    const orJson = await orRes.json();
+    if (!orRes.ok) return err(502, "provider_error", orJson?.error?.message || `OpenRouter HTTP ${orRes.status}`);
+    const content = String(orJson?.choices?.[0]?.message?.content ?? "").trim();
+    parsed = parseModelJson(content);
+  } catch (e) {
+    return err(504, "provider_timeout", String((e as Error)?.message ?? e));
+  }
+  if (!parsed || typeof parsed.summary !== "string" || !parsed.summary.trim()) {
+    return err(502, "provider_empty", "Model returned an unusable response");
+  }
+
+  // Normalize areas to the four expected keys, in order.
+  const rawAreas = Array.isArray(parsed.areas) ? parsed.areas : [];
+  const areaText: Record<string, string> = {};
+  for (const a of rawAreas) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const key = String((a as any)?.key ?? "").toLowerCase();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const text = String((a as any)?.text ?? "").trim();
+    if (AREA_KEYS.includes(key) && text) areaText[key] = text;
+  }
+  const areas = AREA_KEYS.filter((k) => areaText[k]).map((k) => ({ key: k, text: areaText[k] }));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const luckyRaw = (parsed.lucky as any) ?? null;
+  const lucky = luckyRaw && typeof luckyRaw === "object"
+    ? {
+        color: luckyRaw.color != null ? String(luckyRaw.color) : null,
+        number: luckyRaw.number != null ? String(luckyRaw.number) : null,
+        direction: luckyRaw.direction != null ? String(luckyRaw.direction) : null,
+      }
+    : null;
+  const summary = String(parsed.summary).trim();
+  const focus = parsed.focus != null ? String(parsed.focus).trim() : null;
+
+  // Cache (upsert to be safe against races).
+  await svc.from("daily_horoscopes").upsert(
+    {
+      user_id: userId, horoscope_date: todayIso, lang,
+      summary, areas, focus, lucky, model: MODEL,
+    },
+    { onConflict: "user_id,horoscope_date,lang" },
+  );
+
+  return json(200, { ok: true, cached: false, date: todayIso, lang, summary, areas, focus, lucky, model: MODEL });
+});

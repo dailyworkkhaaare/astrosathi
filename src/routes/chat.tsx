@@ -817,7 +817,7 @@ function ChatPage() {
                     aria-label={t("chat.scrollToBottom", "Scroll to bottom")}
                     className="tap-press motion-fade-up absolute bottom-3 left-1/2 z-30 grid h-11 w-11 -translate-x-1/2 place-items-center rounded-full border border-accent/40 bg-card/95 shadow-2xl backdrop-blur-xl transition-all hover:bg-card hover:border-accent/70 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <ArrowDown size={18} className="text-accent animate-bounce" aria-hidden="true" />
+                    <ArrowDown size={18} className="text-accent" aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -864,7 +864,7 @@ function ChatPage() {
                         key={i}
                         type="button"
                         onClick={() => handleSuggestionClick(text)}
-                        className="tap-press min-h-11 rounded-full border border-border bg-card/60 px-4 py-2 text-sm text-foreground transition-all hover:border-accent/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="tap-press min-h-11 max-w-[22rem] rounded-full border border-border bg-card/60 px-4 py-2 text-center text-sm text-foreground transition-all hover:border-accent/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {text}
                       </button>
@@ -1265,13 +1265,13 @@ function MessageRow({
           {streaming && (
             <span className="flex items-center gap-1 text-[10px] text-accent font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-              generating…
+              {t("chat.generating")}
             </span>
           )}
         </div>
-        <div className="prose max-w-none text-foreground [&_a]:text-primary [&_a]:underline [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_p]:my-2 [&_p]:leading-relaxed [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5">
+        <div className="prose max-w-none text-foreground [&_a]:text-primary [&_a]:underline [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&>h1]:max-w-[34rem] [&_h1]:text-lg [&_h1]:font-semibold [&>h2]:max-w-[34rem] [&_h2]:text-base [&_h2]:font-semibold [&>p]:max-w-[34rem] [&_p]:my-2 [&_p]:leading-relaxed [&>ul]:max-w-[34rem] [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&>ol]:max-w-[34rem] [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5">
           {streaming ? (
-            <div className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
+            <div className="max-w-[34rem] whitespace-pre-wrap text-base leading-relaxed text-foreground">
               {message.content}
             </div>
           ) : (
@@ -1280,7 +1280,7 @@ function MessageRow({
               components={{
                 pre: (props) => <CodeBlock {...props} />,
                 blockquote: ({ children }) => (
-                  <blockquote className="my-3 border-l-2 border-accent/60 bg-accent/5 py-2 pl-4 pr-3 text-sm italic text-foreground/90 rounded-r-lg">
+                  <blockquote className="my-3 max-w-[34rem] border-l-2 border-accent/60 bg-accent/5 py-2 pl-4 pr-3 text-sm italic text-foreground/90 rounded-r-lg">
                     {children}
                   </blockquote>
                 ),
@@ -1416,15 +1416,6 @@ function Composer({
           }}
           className="flex items-end gap-2 rounded-3xl border border-border/70 bg-card/80 p-2 shadow-[var(--shadow-elevated)] backdrop-blur-xl transition-all focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20"
         >
-          <button
-            type="button"
-            disabled
-            aria-label={t("chat.attach")}
-            title={t("chat.attach")}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground opacity-60"
-          >
-            <Plus size={18} aria-hidden="true" />
-          </button>
           <textarea
             ref={textareaRef}
             value={value}
@@ -1434,7 +1425,7 @@ function Composer({
             disabled={sending}
             placeholder={t("chat.composerPlaceholder")}
             aria-label={t("chat.composerPlaceholder")}
-            className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
           <button
             type="submit"
@@ -1564,6 +1555,6 @@ function groupConversations(
       label: t("chat.groups.previous7"),
       items: buckets.previous7,
     });
-  if (buckets.older.length) groups.push({ label: "Older", items: buckets.older });
+  if (buckets.older.length) groups.push({ label: t("chat.groups.older"), items: buckets.older });
   return groups;
 }

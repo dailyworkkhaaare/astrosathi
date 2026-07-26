@@ -330,6 +330,7 @@
     "friend": "friend",
     "opening": "Namaste {{name}}. I can see your chart — with Moon in Cancer and Jupiter in Sagittarius, this is a thoughtful, expansive time. What would you like to explore today?",
     "typing": "Consulting your chart",
+    "generating": "generating…",
     "disclaimer": "Guidance is for reflection, not a substitute for professional advice.",
     "mockReplies": {
       "career": "In your chart, Saturn in the 10th house asks for patience and steady effort — big leaps rarely help here. Focus on a craft you can practise daily; recognition tends to follow quietly.",
@@ -377,7 +378,8 @@
     "groups": {
       "today": "Today",
       "yesterday": "Yesterday",
-      "previous7": "Previous 7 days"
+      "previous7": "Previous 7 days",
+      "older": "Older"
     },
     "history": {
       "t1": "Saturn return, next steps",

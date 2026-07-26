@@ -373,7 +373,7 @@
     "edit": "Edit message",
     "retry": "Retry",
     "errorGeneric": "Something went wrong reaching AstroSaathi. Please try again.",
-    "disclaimerLong": "AstroSaathi can make mistakes. Guidance is for reflection, not professional advice.",
+    "disclaimerLong": "AstroSaathi can make mistakes. Not professional advice.",
     "groups": {
       "today": "Today",
       "yesterday": "Yesterday",

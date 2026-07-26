@@ -45,7 +45,7 @@ export function MarketOutlookSection() {
         )}
       </header>
 
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1 text-xs text-muted-foreground">
         {t("sections.market.subtitle")}
       </p>
 
@@ -57,7 +57,7 @@ export function MarketOutlookSection() {
               className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4"
             >
               <div className="flex items-center gap-2.5">
-                <div className="size-8 animate-pulse rounded-full bg-muted" />
+                <div className="h-7 w-7 animate-pulse rounded-full bg-muted" />
                 <div className="h-4 w-16 animate-pulse rounded bg-muted" />
               </div>
               <div className="h-3 w-full animate-pulse rounded bg-muted" />
@@ -69,8 +69,8 @@ export function MarketOutlookSection() {
 
       {!loading && hasError && (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-            <AlertCircle size={16} aria-hidden="true" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <AlertCircle size={15} aria-hidden="true" />
           </span>
           <div className="flex flex-col items-start gap-2">
             <p className="text-sm text-foreground">{t("sections.market.loadError")}</p>
@@ -101,7 +101,7 @@ export function MarketOutlookSection() {
 
           {acc && (
             <div className="flex flex-col gap-2 rounded-xl bg-muted/40 p-4">
-              <div className="flex items-baseline justify-between gap-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t("sections.market.accuracyLabel")}
                 </p>
@@ -154,14 +154,16 @@ function MetalCard({
 
   const leanClasses = isUp
     ? "border-accent/30 bg-accent/10 text-accent"
-    : "border-border bg-muted/50 text-muted-foreground";
+    : isDown
+      ? "border-border bg-transparent text-muted-foreground"
+      : "border-border bg-muted/50 text-muted-foreground";
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
-            <Coins size={16} aria-hidden="true" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+            <Coins size={15} aria-hidden="true" />
           </span>
           <span className="font-medium text-foreground">
             {t(`sections.market.metals.${outlook.metal}`)}
@@ -187,7 +189,10 @@ function MetalCard({
               : r.text;
             return (
               <li key={i} className="flex gap-2 text-sm leading-snug text-muted-foreground">
-                <span aria-hidden="true" className="mt-1.5 size-1 shrink-0 rounded-full bg-accent" />
+                <span
+                  aria-hidden="true"
+                  className="mt-1.5 size-1 shrink-0 rounded-full bg-muted-foreground/40"
+                />
                 <span>{label}</span>
               </li>
             );

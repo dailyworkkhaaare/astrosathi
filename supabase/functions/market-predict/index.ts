@@ -93,38 +93,38 @@ Deno.serve(async (req) => {
       { have: { sun, venus, mars, jup, sat, moonSign } });
 
   // ---- 2) Rule engine (documented, deterministic) ----
-  const push = (arr, pts, text) => { arr.push({ points: pts, text }); return pts; };
+  const push = (arr, pts, code, params, text) => { arr.push({ points: pts, code, params: params ?? {}, text }); return pts; };
   const waxing = (((moonSign - sun) + 12) % 12) <= 5;
 
   const gR = []; let gS = 0;
   { const d = dignity(P.SUN, sun);
-    if (d === "exalted") gS += push(gR, 2, `Sun exalted in ${SIGN[sun]} (strong for gold)`);
-    else if (d === "own") gS += push(gR, 1, `Sun in own sign ${SIGN[sun]}`);
-    else if (d === "debilitated") gS += push(gR, -2, `Sun debilitated in ${SIGN[sun]} (weak for gold)`); }
+    if (d === "exalted") gS += push(gR, 2, "sun.exalted", { sign: sun }, `Sun exalted in ${SIGN[sun]} (strong for gold)`);
+    else if (d === "own") gS += push(gR, 1, "sun.own", { sign: sun }, `Sun in own sign ${SIGN[sun]}`);
+    else if (d === "debilitated") gS += push(gR, -2, "sun.debilitated", { sign: sun }, `Sun debilitated in ${SIGN[sun]} (weak for gold)`); }
   { const d = dignity(P.JUPITER, jup);
-    if (d === "exalted" || d === "own") gS += push(gR, 2, `Jupiter strong in ${SIGN[jup]} (expansion)`);
-    else if (d === "debilitated") gS += push(gR, -1, `Jupiter debilitated in ${SIGN[jup]}`); }
+    if (d === "exalted" || d === "own") gS += push(gR, 2, "jupiter.strong", { sign: jup }, `Jupiter strong in ${SIGN[jup]} (expansion)`);
+    else if (d === "debilitated") gS += push(gR, -1, "jupiter.debilitated", { sign: jup }, `Jupiter debilitated in ${SIGN[jup]}`); }
   { const d = dignity(P.VENUS, venus);
-    if (d === "exalted" || d === "own") gS += push(gR, 1, `Venus strong in ${SIGN[venus]}`);
-    else if (d === "debilitated") gS += push(gR, -1, `Venus debilitated in ${SIGN[venus]}`); }
-  if (UPACHAYA_FROM_ARIES.has(sat)) gS += push(gR, -1, `Saturn in Upachaya (${SIGN[sat]}) from Aries — pressure`);
-  if (dignity(P.SATURN, sat) === "debilitated") gS += push(gR, 1, `Saturn debilitated in ${SIGN[sat]} (less pressure)`);
-  if (UPACHAYA_FROM_ARIES.has(mars)) gS += push(gR, -1, `Mars in Upachaya (${SIGN[mars]}) from Aries — pressure`);
-  if (dignity(P.MARS, mars) === "debilitated") gS += push(gR, 1, `Mars debilitated in ${SIGN[mars]} (less pressure)`);
-  if (rahu != null) gS += push(gR, 0.5, `Rahu in ${SIGN[rahu]} (fear/inflation premium)`);
+    if (d === "exalted" || d === "own") gS += push(gR, 1, "venus.strong", { sign: venus }, `Venus strong in ${SIGN[venus]}`);
+    else if (d === "debilitated") gS += push(gR, -1, "venus.debilitated", { sign: venus }, `Venus debilitated in ${SIGN[venus]}`); }
+  if (UPACHAYA_FROM_ARIES.has(sat)) gS += push(gR, -1, "saturn.upachaya", { sign: sat }, `Saturn in Upachaya (${SIGN[sat]}) from Aries — pressure`);
+  if (dignity(P.SATURN, sat) === "debilitated") gS += push(gR, 1, "saturn.debilitatedRelief", { sign: sat }, `Saturn debilitated in ${SIGN[sat]} (less pressure)`);
+  if (UPACHAYA_FROM_ARIES.has(mars)) gS += push(gR, -1, "mars.upachaya", { sign: mars }, `Mars in Upachaya (${SIGN[mars]}) from Aries — pressure`);
+  if (dignity(P.MARS, mars) === "debilitated") gS += push(gR, 1, "mars.debilitatedRelief", { sign: mars }, `Mars debilitated in ${SIGN[mars]} (less pressure)`);
+  if (rahu != null) gS += push(gR, 0.5, "rahu.premium", { sign: rahu }, `Rahu in ${SIGN[rahu]} (fear/inflation premium)`);
 
   const sR = []; let sS = 0;
-  if (waxing) sS += push(sR, 2, "Waxing Moon (Shukla paksha) — bullish for silver");
-  else sS += push(sR, -2, "Waning Moon (Krishna paksha) — bearish for silver");
+  if (waxing) sS += push(sR, 2, "moon.waxing", {}, "Waxing Moon (Shukla paksha) — bullish for silver");
+  else sS += push(sR, -2, "moon.waning", {}, "Waning Moon (Krishna paksha) — bearish for silver");
   { const d = moonDignity(moonSign);
-    if (d === "exalted" || d === "own") sS += push(sR, 1, `Moon strong in ${SIGN[moonSign]}`);
-    else if (d === "debilitated") sS += push(sR, -1, `Moon debilitated in ${SIGN[moonSign]}`); }
+    if (d === "exalted" || d === "own") sS += push(sR, 1, "moon.strong", { sign: moonSign }, `Moon strong in ${SIGN[moonSign]}`);
+    else if (d === "debilitated") sS += push(sR, -1, "moon.debilitated", { sign: moonSign }, `Moon debilitated in ${SIGN[moonSign]}`); }
   { const d = dignity(P.VENUS, venus);
-    if (d === "exalted" || d === "own") sS += push(sR, 1, `Venus strong in ${SIGN[venus]}`);
-    else if (d === "debilitated") sS += push(sR, -1, `Venus debilitated in ${SIGN[venus]}`); }
-  if (sat === moonSign) sS += push(sR, -1, `Saturn with Moon in ${SIGN[moonSign]} — pressure`);
-  if (mars === moonSign) sS += push(sR, -1, `Mars with Moon in ${SIGN[moonSign]} — volatility`);
-  if (rahu != null) sS += push(sR, 0.5, `Rahu in ${SIGN[rahu]} (fear/inflation premium)`);
+    if (d === "exalted" || d === "own") sS += push(sR, 1, "venus.strong", { sign: venus }, `Venus strong in ${SIGN[venus]}`);
+    else if (d === "debilitated") sS += push(sR, -1, "venus.debilitated", { sign: venus }, `Venus debilitated in ${SIGN[venus]}`); }
+  if (sat === moonSign) sS += push(sR, -1, "saturn.withMoon", { sign: moonSign }, `Saturn with Moon in ${SIGN[moonSign]} — pressure`);
+  if (mars === moonSign) sS += push(sR, -1, "mars.withMoon", { sign: moonSign }, `Mars with Moon in ${SIGN[moonSign]} — volatility`);
+  if (rahu != null) sS += push(sR, 0.5, "rahu.premium", { sign: rahu }, `Rahu in ${SIGN[rahu]} (fear/inflation premium)`);
 
   // ---- 3) Dates (IST calendar) ----
   const istNow = Date.now() + 5.5 * 3600 * 1000;

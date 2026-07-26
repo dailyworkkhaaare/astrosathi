@@ -2,6 +2,7 @@ import { AlertCircle, Coins, Minus, TrendingDown, TrendingUp } from "lucide-reac
 import { useTranslation } from "react-i18next";
 
 import { useMarketOutlook, type MarketMetalOutlook } from "@/lib/queries";
+import { SIGN_KEYS_BY_INDEX } from "@/lib/charts";
 
 export function MarketOutlookSection() {
   const { t, i18n } = useTranslation();
@@ -179,12 +180,21 @@ function MetalCard({
 
       {outlook.reasoning.length > 0 && (
         <ul className="space-y-1.5 border-t border-border/60 pt-3">
-          {outlook.reasoning.map((r, i) => (
-            <li key={i} className="flex gap-2 text-sm leading-snug text-muted-foreground">
-              <span aria-hidden="true" className="mt-1.5 size-1 shrink-0 rounded-full bg-accent" />
-              <span>{r.text}</span>
-            </li>
-          ))}
+          {outlook.reasoning.map((r, i) => {
+            const signName =
+              r.params?.sign != null
+                ? t(`signs.${SIGN_KEYS_BY_INDEX[r.params.sign]}`)
+                : "";
+            const label = r.code
+              ? t(`sections.market.reasons.${r.code}`, { sign: signName })
+              : r.text;
+            return (
+              <li key={i} className="flex gap-2 text-sm leading-snug text-muted-foreground">
+                <span aria-hidden="true" className="mt-1.5 size-1 shrink-0 rounded-full bg-accent" />
+                <span>{label}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

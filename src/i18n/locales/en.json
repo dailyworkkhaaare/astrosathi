@@ -533,7 +533,39 @@
       "accuracyPending": "Scoring starts the day after the first run",
       "loadError": "Could not load the metals outlook. Please try again.",
       "empty": "No outlook available yet.",
-      "disclaimer": "A cultural, entertainment reading based on planetary positions — not investment advice. No buy or sell recommendations."
+      "disclaimer": "A cultural, entertainment reading based on planetary positions — not investment advice. No buy or sell recommendations.",
+      "reasons": {
+        "sun": {
+          "exalted": "Sun exalted in {{sign}} — supportive for gold",
+          "own": "Sun in its own sign {{sign}} — steady",
+          "debilitated": "Sun weak in {{sign}} — softer for gold"
+        },
+        "jupiter": {
+          "strong": "Jupiter strong in {{sign}} — expansive",
+          "debilitated": "Jupiter weak in {{sign}}"
+        },
+        "venus": {
+          "strong": "Venus strong in {{sign}}",
+          "debilitated": "Venus weak in {{sign}}"
+        },
+        "saturn": {
+          "upachaya": "Saturn building in {{sign}} — some pressure",
+          "debilitatedRelief": "Saturn weak in {{sign}} — less pressure",
+          "withMoon": "Saturn alongside the Moon in {{sign}} — pressure"
+        },
+        "mars": {
+          "upachaya": "Mars building in {{sign}} — some pressure",
+          "debilitatedRelief": "Mars weak in {{sign}} — less pressure",
+          "withMoon": "Mars alongside the Moon in {{sign}} — more movement"
+        },
+        "rahu": { "premium": "Rahu in {{sign}} — inflation premium" },
+        "moon": {
+          "waxing": "Waxing Moon (Shukla paksha) — supportive for silver",
+          "waning": "Waning Moon (Krishna paksha) — softer for silver",
+          "strong": "Moon strong in {{sign}}",
+          "debilitated": "Moon weak in {{sign}}"
+        }
+      }
     },
     "dasha": {
       "title": "Vimshottari Dasha",

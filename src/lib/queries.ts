@@ -633,7 +633,12 @@ export function useTodayTransits(): UseQueryResult<TodayTransitsValue> {
 
 // ---------------------------------------------------------------- market outlook
 
-export type MarketReasoning = { points: number; text: string };
+export type MarketReasoning = {
+  points: number;
+  text: string;
+  code?: string;
+  params?: { sign?: number };
+};
 
 export type MarketMetalOutlook = {
   metal: "gold" | "silver";

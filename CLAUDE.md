@@ -10,7 +10,7 @@ The full UI/UX redesign is COMPLETE and audited. Your job from here is to keep t
 
 1. **Never change without explicit approval from me:**
    - Astrology calculation logic and provider integration (chart data, planets, dashas, yogas)
-   - Everything in `supabase/functions/` (astrologer-chat SSE contract, chart-gateway, prime-charts) — request/response shapes are frozen
+   - Everything in `supabase/functions/` (astrologer-chat SSE contract, chart-gateway, transit-compute, transit-planets-refresh) — request/response shapes are frozen. These are committed to this repo; edit them here, never elsewhere
    - Authentication, database schema, data models, business rules
    - The streaming plumbing in `src/routes/chat.tsx` (streamAstrologerReply, bufferRef/rafRef, scheduleFlush, typewriterReveal, abortActiveStream, sendToBackend, scroll pinning)
 2. **Design tokens only.** Never hardcode hex/rgb/hsl colors in classNames or inline styles (exceptions: Google logo SVG, Starfield/ceremony SVG internals). Amber for destructive/caution — **never red**. One gold glow per screen at rest.
@@ -30,6 +30,7 @@ The full UI/UX redesign is COMPLETE and audited. Your job from here is to keep t
 - Commit format: `feat(scope): …`, `fix(scope): …`, `polish(scope): …`, `i18n(scope): …`, `test(scope): …` (matches existing history: `redesign(home): …`).
 - If something breaks, we `git revert` — never patch forward blindly.
 - Ask me before running anything that installs packages, touches the network, or modifies Supabase.
+- Ship path: Claude Code does the local work and preview verification; commits are pushed via GitHub Desktop to GitHub, and Vercel auto-deploys on push. Supabase Edge Functions are committed under `supabase/functions/` in this repo — deploy them via the Supabase CLI/dashboard, not through a Lovable project.
 
 ## 3. Verification checklist for UI work
 

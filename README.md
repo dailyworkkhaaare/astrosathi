@@ -1,20 +1,35 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# AstroSaathi
 
-# Run and deploy your AI Studio app
+AstroSaathi is a Vedic astrology web app built around "Chat with your Kundli" — an AI chat companion personalized by the user's real birth chart. Charts are computed in the Parāśara tradition with the Lahiri (sidereal) ayanamsa.
 
-This contains everything you need to run your app locally.
+## Stack
 
-View your app in AI Studio: https://ai.studio/apps/796a6614-d8bf-4110-b9f2-2a7e483cb95e
+- React 19 + TypeScript
+- TanStack Start / Router / Query
+- Vite
+- Tailwind CSS 4 + shadcn/ui
+- i18next (English, Hindi, Marathi)
+- Supabase (Postgres, Auth, Edge Functions)
+- OpenRouter for the chat model
 
-## Run Locally
+## Local development
 
-**Prerequisites:**  Node.js
+```bash
+npm install
+npm run dev
+```
 
+The dev server runs on port 3000.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Environment variables
+
+See [.env.example](.env.example):
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+Never commit secrets — real values live in `.env` (gitignored) or in your deployment provider's environment settings.
+
+## Deployment
+
+Pushes to GitHub are auto-deployed by Vercel. Supabase Edge Functions live in `supabase/functions/` in this repo and are deployed separately via the Supabase CLI/dashboard.

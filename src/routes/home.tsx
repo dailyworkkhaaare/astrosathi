@@ -8,6 +8,8 @@ import {
   Grid,
   Grid3x3,
   Hash,
+  LayoutGrid,
+  Orbit,
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
@@ -143,7 +145,7 @@ function Tabs({ current, onChange }: { current: TabKey; onChange: (k: TabKey) =>
     <div
       role="tablist"
       aria-label={t("home.title")}
-      className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 no-scrollbar scroll-smooth"
+      className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
     >
       {TAB_CONFIG.map(({ key: k, icon: Icon }) => {
         const active = current === k;
@@ -305,7 +307,12 @@ function ChartsTab() {
       <div className="grid gap-6 xl:grid-cols-5">
         <Card className="xl:col-span-2">
           <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
+                <Compass size={15} className="text-accent" aria-hidden="true" />
+              </span>
+              <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
+            </div>
             <div className="w-full min-w-0 sm:w-auto">
               <label htmlFor="varga-select" className="sr-only">
                 {t("home.varga.pickerLabel")}
@@ -363,10 +370,15 @@ function ChartsTab() {
         </Card>
 
         <Card className="xl:col-span-3">
-          <h2 className="mb-3 text-base font-semibold text-foreground">
-            {t("home.planetsTitle")}
-            {isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : ""}
-          </h2>
+          <div className="mb-3 flex items-center gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
+              <Orbit size={15} className="text-accent" aria-hidden="true" />
+            </span>
+            <h2 className="text-base font-semibold text-foreground">
+              {t("home.planetsTitle")}
+              {isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : ""}
+            </h2>
+          </div>
           {tablesLoading && <PlanetsTableSkeleton />}
           {!tablesLoading && tablesErrorKey && (
             <ErrorInline
@@ -539,10 +551,15 @@ function ChartsTab() {
 
       <Card>
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-semibold text-foreground">
-            {t("home.housesTitle")}
-            {isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : ""}
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
+              <LayoutGrid size={15} className="text-accent" aria-hidden="true" />
+            </span>
+            <h2 className="text-base font-semibold text-foreground">
+              {t("home.housesTitle")}
+              {isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : ""}
+            </h2>
+          </div>
           <p className="text-xs text-muted-foreground">{t("home.housesSubtitle")}</p>
         </div>
         {tablesLoading && <HousesGridSkeleton />}

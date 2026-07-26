@@ -241,6 +241,9 @@ function SettingsPage() {
           <p className="mt-0.5 font-display italic text-xs text-muted-foreground">
             {t("settings.aboutBody")}
           </p>
+          <p className="mt-1.5 text-[11px] text-muted-foreground/70">
+            {t("settings.version", { v: APP_VERSION })}
+          </p>
         </div>
       </Group>
 
@@ -260,9 +263,9 @@ function SettingsPage() {
           type="button"
           variant="ghost"
           onClick={() => setConfirmDelete(true)}
-          className="w-full justify-start gap-2 h-auto px-4 py-3 min-h-11 font-medium text-destructive hover:bg-destructive/10 hover:text-destructive rounded-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full justify-start gap-2 h-auto px-4 py-3 min-h-11 font-medium text-foreground hover:bg-accent/10 rounded-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Trash2 size={15} aria-hidden="true" className="text-destructive" />
+          <Trash2 size={15} aria-hidden="true" className="text-accent" />
           {t("settings.account.delete")}
         </Button>
       </Group>
@@ -466,7 +469,12 @@ function ConfirmDialog({
           >
             {cancelLabel}
           </Button>
-          <Button type="button" variant="destructive" onClick={onConfirm} className="flex-1">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onConfirm}
+            className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+          >
             {confirmLabel}
           </Button>
         </div>

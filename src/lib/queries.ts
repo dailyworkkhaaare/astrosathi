@@ -22,6 +22,7 @@ import {
   type NormalizedPlanet,
 } from "@/lib/charts";
 import type { ChartStyle, VargaKey } from "@/lib/chart-types";
+import { getBirthProfile } from "@/lib/birth-profile";
 
 // ---------------------------------------------------------------- constants
 
@@ -778,6 +779,70 @@ export function useDailyHoroscope(lang: string): UseQueryResult<DailyHoroscopeVa
         focus: data?.focus ?? null,
         lucky: (data?.lucky ?? null) as DailyHoroscopeLucky | null,
         date: data?.date ?? null,
+      };
+    },
+  });
+}
+
+// ---------------------------------------------------------------- panchang
+
+export type PanchangQueryValue = {
+  sunLon: number;
+  moonLon: number;
+  nakshatraIndex: number;
+  lat: number | null;
+  lon: number | null;
+  timezone: string;
+} | null;
+
+// Reads today's Sun (transit_planets planet=0) and the nearest Moon slot
+// (transit_moon_hourly) and returns sidereal longitudes for panchang math.
+export function usePanchang(): UseQueryResult<PanchangQueryValue> {
+  const userId = useCurrentUserId();
+  return useQuery<PanchangQueryValue>({
+    queryKey: [...ROOT, "panchang", userId],
+    enabled: userId !== null,
+    staleTime: 15 * 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    refetchOnWindowFocus: true,
+    queryFn: async (): Promise<PanchangQueryValue> => {
+      const [{ data: moonRows }, { data: sunRows }] = await Promise.all([
+        supabase
+          .from("transit_moon_hourly")
+          .select("slot_ts, moon_sign, moon_deg, moon_nakshatra")
+          .order("slot_ts", { ascending: true }),
+        supabase.from("transit_planets").select("planet, sign, deg").eq("planet", 0),
+      ]);
+
+      const sunRow = (sunRows ?? [])[0];
+      if (!sunRow || sunRow.sign == null || sunRow.deg == null) return null;
+      const sunLon = sunRow.sign * 30 + Number(sunRow.deg);
+
+      if (!moonRows || moonRows.length === 0) return null;
+      const nowMs = Date.now();
+      let chosen: (typeof moonRows)[number] | undefined;
+      for (const r of moonRows) {
+        if (new Date(r.slot_ts).getTime() <= nowMs) chosen = r;
+      }
+      if (!chosen) {
+        chosen = moonRows.reduce((best, r) =>
+          Math.abs(new Date(r.slot_ts).getTime() - nowMs) <
+          Math.abs(new Date(best.slot_ts).getTime() - nowMs)
+            ? r
+            : best,
+        );
+      }
+      if (chosen.moon_sign == null || chosen.moon_deg == null) return null;
+      const moonLon = chosen.moon_sign * 30 + Number(chosen.moon_deg);
+      const nakshatraIndex = chosen.moon_nakshatra ?? null;
+
+      const profile = await getBirthProfile();
+      return {
+        sunLon, moonLon, nakshatraIndex,
+        lat: profile?.latitude ?? null,
+        lon: profile?.longitude ?? null,
+        timezone: profile?.birth_timezone ?? "Asia/Kolkata",
       };
     },
   });

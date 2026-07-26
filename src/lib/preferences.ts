@@ -124,4 +124,4 @@ export function bindSystemThemeListener() {
   mediaListenerBound = true;
 }
 
-export const APP_VERSION = "0.2.0-mock";
+export const APP_VERSION = "0.2.1-mock";

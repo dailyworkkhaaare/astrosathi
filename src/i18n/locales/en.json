@@ -488,6 +488,21 @@
     }
   },
   "sections": {
+    "panchang": {
+      "title": "Panchang",
+      "subtitle": "Today's tithi, nakshatra and yoga",
+      "tithi": "Tithi",
+      "nakshatra": "Nakshatra",
+      "yoga": "Yoga",
+      "paksha": { "shukla": "Shukla", "krishna": "Krishna" },
+      "loadError": "Couldn't load today's panchang.",
+      "empty": "Panchang isn't ready yet.",
+      "sunrise": "Sunrise",
+      "sunset": "Sunset",
+      "rahuKaal": "Rahu Kaal",
+      "timesUnavailable": "Add your birth place to see local timings",
+      "abhijit": "Abhijit Muhurat"
+    },
     "horoscope": {
       "title": "Today's horoscope",
       "subtitle": "A calm, personal reading from your chart and today's sky",

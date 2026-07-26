@@ -219,7 +219,7 @@ export const mockAuth = {
   async signInWithGoogle(): Promise<{ error?: string; redirected?: boolean }> {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: `${siteOrigin()}/auth/callback` },
     });
 
     if (error) return { error: mapError(error.message) };

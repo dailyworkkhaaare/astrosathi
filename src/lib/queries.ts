@@ -529,3 +529,104 @@ export function useLoShu(): UseQueryResult<LoShuQueryValue> {
     },
   });
 }
+
+// ---------------------------------------------------------------- today's transits
+
+export type TodayMoonTransit = {
+  slotTs: string;
+  signIndex: number;
+  nakshatraIndex: number;
+  pada: number | null;
+};
+
+export type TodayPlanetTransit = {
+  planet: number;
+  signIndex: number;
+  nakshatraIndex: number | null;
+  pada: number | null;
+  retrograde: boolean;
+  nextIngressTs: string | null;
+  nextSignIndex: number | null;
+};
+
+export type TodayTransitsValue = {
+  timezone: string;
+  moon: TodayMoonTransit | null;
+  planets: TodayPlanetTransit[];
+};
+
+// Slow-moving bodies shown in the "Today" panorama, in display order.
+const TODAY_PLANET_CODES = [0, 2, 3, 4, 5, 6, 101, 102];
+
+export function useTodayTransits(): UseQueryResult<TodayTransitsValue> {
+  const userId = useCurrentUserId();
+  return useQuery<TodayTransitsValue>({
+    queryKey: [...ROOT, "today-transits", userId],
+    enabled: userId !== null,
+    staleTime: 15 * 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      let timezone = "Asia/Kolkata";
+      if (userId) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("timezone")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (data?.timezone) timezone = data.timezone;
+      }
+
+      const [{ data: moonRows }, { data: planetRows }] = await Promise.all([
+        supabase
+          .from("transit_moon_hourly")
+          .select("slot_ts, moon_sign, moon_nakshatra, moon_pada")
+          .order("slot_ts", { ascending: true }),
+        supabase
+          .from("transit_planets")
+          .select("planet, sign, nakshatra, pada, retrograde, next_ingress_ts, next_sign")
+          .in("planet", TODAY_PLANET_CODES),
+      ]);
+
+      // slot_ts is an absolute timestamp, so picking by it is timezone-proof —
+      // matching an integer local hour to slot_hour would break near a
+      // sign/nakshatra boundary whenever the cron's UTC basis and the user's
+      // offset (e.g. IST +5:30) disagree on which hour "now" falls in.
+      let moon: TodayMoonTransit | null = null;
+      if (moonRows && moonRows.length > 0) {
+        const nowMs = Date.now();
+        let chosen: (typeof moonRows)[number] | undefined;
+        for (const r of moonRows) {
+          if (new Date(r.slot_ts).getTime() <= nowMs) chosen = r;
+        }
+        if (!chosen) {
+          chosen = moonRows.reduce((best, r) =>
+            Math.abs(new Date(r.slot_ts).getTime() - nowMs) <
+            Math.abs(new Date(best.slot_ts).getTime() - nowMs)
+              ? r
+              : best,
+          );
+        }
+        moon = {
+          slotTs: chosen.slot_ts,
+          signIndex: chosen.moon_sign,
+          nakshatraIndex: chosen.moon_nakshatra,
+          pada: chosen.moon_pada,
+        };
+      }
+
+      const planets: TodayPlanetTransit[] = (planetRows ?? []).map((r) => ({
+        planet: r.planet,
+        signIndex: r.sign,
+        nakshatraIndex: r.nakshatra,
+        pada: r.pada,
+        retrograde: !!r.retrograde,
+        nextIngressTs: r.next_ingress_ts,
+        nextSignIndex: r.next_sign,
+      }));
+
+      return { timezone, moon, planets };
+    },
+  });
+}

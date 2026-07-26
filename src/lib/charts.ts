@@ -228,7 +228,7 @@ function extractPlanetArray(payload: unknown): unknown[] {
   return [];
 }
 
-const NAKSHATRAS = [
+export const NAKSHATRAS = [
   "Ashwini",
   "Bharani",
   "Krittika",

@@ -475,6 +475,16 @@
     }
   },
   "sections": {
+    "today": {
+      "title": "आज",
+      "moonNowLabel": "चंद्रमा अभी",
+      "moonNowLine": "{{sign}} · {{nakshatra}} नक्षत्र, चरण {{pada}}",
+      "transitingHouse": "आपके भाव {{n}} में गोचर",
+      "slowPlanetsTitle": "मंद ग्रह",
+      "enteringSoon": "→ जल्द ही {{sign}} में प्रवेश",
+      "loadError": "आज का आकाश लोड नहीं हो सका। कृपया पुनः प्रयास करें।",
+      "empty": "अभी कोई गोचर डेटा उपलब्ध नहीं है।"
+    },
     "dasha": {
       "title": "विंशोत्तरी दशा",
       "subtitle": "ग्रहों की दशा अवधि",

@@ -475,6 +475,16 @@
     }
   },
   "sections": {
+    "today": {
+      "title": "Today",
+      "moonNowLabel": "Moon now",
+      "moonNowLine": "{{sign}} · {{nakshatra}} nakshatra, pada {{pada}}",
+      "transitingHouse": "Transiting house {{n}}",
+      "slowPlanetsTitle": "Slow planets",
+      "enteringSoon": "→ entering {{sign}} soon",
+      "loadError": "Could not load today's sky. Please try again.",
+      "empty": "No transit data available yet."
+    },
     "dasha": {
       "title": "Vimshottari Dasha",
       "subtitle": "Planetary periods",

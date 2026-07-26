@@ -30,6 +30,7 @@ import {
   type VargaTable,
 } from "@/lib/charts";
 import { useChart, usePlanets } from "@/lib/queries";
+import { TodaySection } from "@/components/TodaySection";
 import { NumerologySection } from "@/components/NumerologySection";
 import { DoshasSection } from "@/components/DoshasSection";
 import { AshtakavargaSection } from "@/components/AshtakavargaSection";
@@ -80,6 +81,8 @@ function HomePage() {
       </header>
 
       {isProfileIncomplete && <IncompleteProfileHeroCard />}
+
+      {!isProfileIncomplete && <TodaySection />}
 
       <Tabs current={tab} onChange={setTab} />
 

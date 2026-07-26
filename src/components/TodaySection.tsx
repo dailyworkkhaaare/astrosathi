@@ -1,9 +1,11 @@
-import { Moon } from "lucide-react";
+import { MessageCircle, Moon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "@tanstack/react-router";
 
 import { NAKSHATRAS, SIGN_KEYS_BY_INDEX, type NormalizedPlanet } from "@/lib/charts";
 import { usePlanets, useTodayTransits, type TodayPlanetTransit } from "@/lib/queries";
 import type { PlanetKey } from "@/lib/chart-types";
+import { Button } from "@/components/ui/button";
 
 const PLANET_KEY_BY_CODE: Record<number, PlanetKey> = {
   0: "sun",
@@ -30,6 +32,7 @@ function houseFor(transitSignIndex: number, ascSignIndex: number): number {
 
 export function TodaySection() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const transitsQuery = useTodayTransits();
   const planetsQuery = usePlanets();
 
@@ -49,6 +52,18 @@ export function TodaySection() {
   const moon = transitsQuery.data?.moon ?? null;
   const planets = transitsQuery.data?.planets ?? [];
   const isEmpty = !loading && !hasError && !moon && planets.length === 0;
+
+  const moonHouse = moon && ascSignIndex != null ? houseFor(moon.signIndex, ascSignIndex) : null;
+
+  const handleAskAboutToday = () => {
+    if (!moon || moonHouse == null) return;
+    const seed = t("sections.today.askSeed", {
+      sign: t(`signs.${SIGN_KEYS_BY_INDEX[moon.signIndex]}`),
+      nakshatra: NAKSHATRAS[moon.nakshatraIndex] ?? "",
+      house: moonHouse,
+    });
+    void navigate({ to: "/chat", search: { seed } });
+  };
 
   return (
     <section
@@ -132,6 +147,19 @@ export function TodaySection() {
                 ))}
               </ul>
             </div>
+          )}
+
+          {moonHouse != null && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleAskAboutToday}
+              className="gap-1.5 px-3 text-muted-foreground hover:text-foreground"
+            >
+              <MessageCircle size={16} aria-hidden="true" />
+              {t("sections.today.askAboutToday")}
+            </Button>
           )}
         </div>
       )}

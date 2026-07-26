@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
@@ -136,7 +136,18 @@ async function streamAstrologerReply(
   if (streamError) throw new Error(streamError);
 }
 
+const MAX_SEED_LENGTH = 500;
+
+type ChatSearch = { seed?: string };
+
 export const Route = createFileRoute("/chat")({
+  validateSearch: (search: Record<string, unknown>): ChatSearch => {
+    const raw = search.seed;
+    if (typeof raw !== "string") return {};
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.length > MAX_SEED_LENGTH) return {};
+    return { seed: trimmed };
+  },
   head: () => ({
     meta: [
       { title: "Chat — AstroSaathi" },
@@ -156,6 +167,8 @@ const SIDEBAR_STORAGE_KEY = "astrosaathi:chat:sidebar";
 function ChatPage() {
   useRequireAuth();
   const { t } = useTranslation();
+  const { seed } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const [profileName, setProfileName] = useState<string | null>(null);
   useEffect(() => {
     void getBirthProfile().then((p) => setProfileName(p?.name ?? null));
@@ -373,6 +386,17 @@ function ChatPage() {
       textareaRef.current?.focus();
     }
   }, [initialLoadDone, isMobile, messages.length, sending]);
+
+  // Pre-fill the composer from a `?seed=` search param (e.g. the "Ask about
+  // today" bridge from Home) — never auto-sent, the user still presses send.
+  // Only applies to a genuinely empty conversation, and the param is stripped
+  // right after so a refresh or reload doesn't re-inject it.
+  useEffect(() => {
+    if (!initialLoadDone || !seed || messages.length > 0) return;
+    setInput(seed);
+    textareaRef.current?.focus();
+    void navigate({ search: {}, replace: true });
+  }, [initialLoadDone, seed, messages.length, navigate]);
 
   // Auto-grow textarea
   useLayoutEffect(() => {

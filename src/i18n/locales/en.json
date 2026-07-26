@@ -483,7 +483,9 @@
       "slowPlanetsTitle": "Slow planets",
       "enteringSoon": "→ entering {{sign}} soon",
       "loadError": "Could not load today's sky. Please try again.",
-      "empty": "No transit data available yet."
+      "empty": "No transit data available yet.",
+      "askAboutToday": "Ask about today",
+      "askSeed": "Today the Moon is in {{sign}} ({{nakshatra}}), in my house {{house}}. What does this mean for me today?"
     },
     "dasha": {
       "title": "Vimshottari Dasha",

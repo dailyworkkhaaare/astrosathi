@@ -268,7 +268,7 @@ function BirthPage() {
           </button>
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field id="dob" label={t("birth.date")} error={errors.dob}>
             <input
               id="dob"
@@ -422,7 +422,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label htmlFor={id} className="block text-sm font-medium text-foreground">
         {label}
       </label>

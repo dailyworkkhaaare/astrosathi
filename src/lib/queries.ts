@@ -48,7 +48,7 @@ const ROOT = ["chart-gateway"] as const;
 
 // ---------------------------------------------------------------- user id
 
-function useCurrentUserId(): string | null {
+export function useCurrentUserId(): string | null {
   const [uid, setUid] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     try {

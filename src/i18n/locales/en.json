@@ -494,7 +494,13 @@
       "loadError": "Could not load today's sky. Please try again.",
       "empty": "No transit data available yet.",
       "askAboutToday": "Ask about today",
-      "askSeed": "Today the Moon is in {{sign}} ({{nakshatra}}), in my house {{house}}. What does this mean for me today?"
+      "askSeed": "Today the Moon is in {{sign}} ({{nakshatra}}), in my house {{house}}. What does this mean for me today?",
+      "bandIngress": "{{planet}} enters {{sign}} in {{days}} days.",
+      "bandIngressHouse": "{{planet}} enters {{sign}} in {{days}} days — your house {{house}}.",
+      "bandMoonHouse": "The Moon is moving through your house {{house}} today.",
+      "bandDismiss": "Dismiss",
+      "bandIngressSeed": "{{planet}} is entering {{sign}} in {{days}} days — what shifts for me?",
+      "bandMoonHouseSeed": "The Moon is moving through my house {{house}} today — what does that mean for me?"
     },
     "dasha": {
       "title": "Vimshottari Dasha",

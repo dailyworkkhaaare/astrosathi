@@ -503,6 +503,18 @@
       "timesUnavailable": "Add your birth place to see local timings",
       "abhijit": "Abhijit Muhurat"
     },
+    "mantra": {
+      "title": "Daily Mantra",
+      "meanings": [
+        "We meditate upon the radiant light of the Divine Sun — may it illuminate our minds.",
+        "I bow to Shiva, the auspicious one within all things.",
+        "May all beings everywhere be happy and free.",
+        "Lead me from the unreal to the real.",
+        "Peace in body, peace in mind, peace in spirit.",
+        "May all be happy, may all be free from illness.",
+        "We worship the three-eyed one who nourishes and sustains all beings."
+      ]
+    },
     "horoscope": {
       "title": "Today's horoscope",
       "subtitle": "A calm, personal reading from your chart and today's sky",

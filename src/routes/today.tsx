@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { useRequireAuth } from "@/lib/require-auth";
 import { DailyHoroscopeSection } from "@/components/DailyHoroscopeSection";
+import { DailyMantraSection } from "@/components/DailyMantraSection";
 import { PanchangSection } from "@/components/PanchangSection";
 import { MarketOutlookSection } from "@/components/MarketOutlookSection";
 import { TodaySection } from "@/components/TodaySection";
@@ -46,6 +47,7 @@ function TodayPage() {
         </h1>
       </header>
 
+      <DailyMantraSection />
       <TransitHighlightBand />
       <TodaySection />
       <PanchangSection />

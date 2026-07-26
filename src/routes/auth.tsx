@@ -13,6 +13,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { APP_NAME } from "@/lib/brand";
+import { LoadingState } from "@/components/states/LoadingState";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -157,6 +158,14 @@ function AuthPage() {
       setGoogleLoading(false);
     }
   };
+
+  if (sessionLoading || user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <LoadingState />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen lg:grid lg:grid-cols-[1.1fr_1fr]">

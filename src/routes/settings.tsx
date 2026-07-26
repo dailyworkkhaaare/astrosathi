@@ -241,9 +241,6 @@ function SettingsPage() {
           <p className="mt-0.5 font-display italic text-xs text-muted-foreground">
             {t("settings.aboutBody")}
           </p>
-          <p className="mt-1.5 text-[11px] text-muted-foreground/70">
-            {t("settings.version", { v: APP_VERSION })}
-          </p>
         </div>
       </Group>
 

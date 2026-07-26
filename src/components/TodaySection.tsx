@@ -54,10 +54,15 @@ export function TodaySection() {
       aria-labelledby="today-heading"
       className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
     >
-      <header className="flex items-baseline justify-between gap-3">
-        <h2 id="today-heading" className="text-base font-semibold text-foreground">
-          {t("sections.today.title")}
-        </h2>
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+            <Moon size={15} aria-hidden="true" />
+          </span>
+          <h2 id="today-heading" className="text-base font-semibold text-foreground">
+            {t("sections.today.title")}
+          </h2>
+        </div>
         <p className="text-sm text-muted-foreground">{dateLabel}</p>
       </header>
 

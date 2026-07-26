@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
@@ -144,19 +144,20 @@ export function TransitHighlightBand() {
       : t("sections.today.bandMoonHouse", { house: highlight.house });
 
   return (
-    <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-muted/40 pl-2 pr-2">
+    <div className="flex items-center gap-1 rounded-xl border border-accent/20 bg-accent/[0.05] pl-1 pr-1">
       <button
         type="button"
         onClick={handleTap}
-        className="min-h-11 flex-1 rounded-lg px-2 py-2.5 text-left text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-h-11 flex-1 items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {text}
+        <Sparkles size={14} className="shrink-0 text-accent" aria-hidden="true" />
+        <span>{text}</span>
       </button>
       <button
         type="button"
         onClick={handleDismiss}
         aria-label={t("sections.today.bandDismiss")}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <X size={16} aria-hidden="true" />
       </button>

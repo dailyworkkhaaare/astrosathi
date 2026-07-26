@@ -847,3 +847,78 @@ export function usePanchang(): UseQueryResult<PanchangQueryValue> {
     },
   });
 }
+
+// ---------------------------------------------------------------- whatsapp guidance
+
+export type WhatsAppPrefs = {
+  phone_e164: string | null;
+  opt_in: boolean;
+  send_hour_local: number;
+  lang: string;
+  opted_in_at: string | null;
+};
+
+export const DEFAULT_WHATSAPP_HOUR = 8;
+
+// Loose E.164 check: leading +, country code digit 1-9, up to 15 digits total.
+const E164_RE = /^\+[1-9]\d{7,14}$/;
+
+export function isValidE164Phone(phone: string): boolean {
+  return E164_RE.test(phone.trim());
+}
+
+// Backed by Supabase `whatsapp_prefs` (one row per user). Presentation-only
+// opt-in card in Settings reads/writes through this — no sending logic here.
+export function useWhatsAppPrefs(): UseQueryResult<WhatsAppPrefs | null> {
+  const userId = useCurrentUserId();
+  return useQuery<WhatsAppPrefs | null>({
+    queryKey: ["whatsapp-prefs", userId],
+    enabled: userId !== null,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("whatsapp_prefs")
+        .select("phone_e164, opt_in, send_hour_local, lang, opted_in_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!data) return null;
+      return {
+        phone_e164: data.phone_e164 ?? null,
+        opt_in: !!data.opt_in,
+        send_hour_local: data.send_hour_local ?? DEFAULT_WHATSAPP_HOUR,
+        lang: data.lang ?? "en",
+        opted_in_at: data.opted_in_at ?? null,
+      };
+    },
+  });
+}
+
+export async function saveWhatsAppPrefs(input: {
+  phone_e164: string;
+  opt_in: boolean;
+  send_hour_local: number;
+  lang: string;
+}): Promise<{ error?: string }> {
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth.user?.id;
+  if (!userId) return { error: "unauthenticated" };
+
+  if (input.opt_in && !isValidE164Phone(input.phone_e164)) {
+    return { error: "invalid_phone" };
+  }
+
+  const patch: Record<string, unknown> = {
+    user_id: userId,
+    phone_e164: input.phone_e164.trim(),
+    opt_in: input.opt_in,
+    send_hour_local: input.send_hour_local,
+    lang: input.lang,
+  };
+  // Only stamp opted_in_at when the user is (re)enabling — leaving it out of
+  // the patch when disabling keeps the original opt-in time intact.
+  if (input.opt_in) patch.opted_in_at = new Date().toISOString();
+
+  const { error } = await supabase.from("whatsapp_prefs").upsert(patch, { onConflict: "user_id" });
+  if (error) return { error: error.message };
+  return {};
+}

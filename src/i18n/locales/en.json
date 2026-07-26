@@ -429,6 +429,20 @@
       "memory": "Remember our conversations",
       "memoryHelp": "Personalize guidance based on past chats."
     },
+    "whatsapp": {
+      "title": "WhatsApp guidance",
+      "toggleLabel": "Send my daily guidance on WhatsApp",
+      "toggleHelp": "One quiet message a day, whenever suits you.",
+      "phoneLabel": "Phone number",
+      "phonePlaceholder": "+91XXXXXXXXXX",
+      "phoneError": "Enter a valid phone number in international format, e.g. +91XXXXXXXXXX.",
+      "timeLabel": "Preferred time",
+      "helperLine": "We'll send one short WhatsApp message with your day's guidance. You can turn this off anytime.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "saveError": "Couldn't save your preferences. Please try again."
+    },
     "legal": {
       "title": "Legal and about",
       "terms": "Terms of Service",

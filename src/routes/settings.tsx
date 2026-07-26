@@ -14,6 +14,7 @@ import {
 import { useRequireAuth } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { WhatsAppGuidanceCard } from "@/components/WhatsAppGuidanceCard";
 import { clearSession, getSession, mockAuth } from "@/lib/auth";
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
@@ -225,6 +226,8 @@ function SettingsPage() {
           />
         </div>
       </Group>
+
+      <WhatsAppGuidanceCard />
 
       {/* Legal & about */}
       <Group title={t("settings.legal.title")} icon={<ScrollText size={14} aria-hidden="true" />}>

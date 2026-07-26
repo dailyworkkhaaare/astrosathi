@@ -5,7 +5,6 @@
 import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
 
-import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 
 export type MockUser = { id: string; email: string; name?: string };
@@ -218,22 +217,13 @@ export const mockAuth = {
   },
 
   async signInWithGoogle(): Promise<{ error?: string; redirected?: boolean }> {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      // In a top-level browser flow the Lovable broker returns to the app
-      // origin with Supabase tokens for the browser client to hydrate. Sending
-      // this to /auth/callback can produce an empty `/auth/callback#` URL.
-      redirect_uri: siteOrigin(),
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
     });
 
-    if (result.error) return { error: mapError(result.error.message) };
-    if (result.redirected) return { redirected: true };
-
-    const { data, error } = await supabase.auth.setSession(result.tokens);
     if (error) return { error: mapError(error.message) };
-    currentSession = data.session;
-    initialSessionLoaded = true;
-    emit();
-    return {};
+    return { redirected: true };
   },
 
   async signOut(): Promise<void> {

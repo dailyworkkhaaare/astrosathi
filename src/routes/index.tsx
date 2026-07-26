@@ -8,6 +8,7 @@ import { useAuthSession } from "@/lib/auth";
 import { getOnboardingState, routeForOnboardingState } from "@/lib/birth-profile";
 import { Button } from "@/components/ui/button";
 import { Starfield } from "@/components/Starfield";
+import { LoadingState } from "@/components/states/LoadingState";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,6 +48,14 @@ function Landing() {
       cancelled = true;
     };
   }, [loading, navigate, user]);
+
+  if (loading || user) {
+    return (
+      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
+        <LoadingState />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[calc(100vh-8rem)] flex-col">

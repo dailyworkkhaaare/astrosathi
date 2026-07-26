@@ -1,12 +1,14 @@
 import { useEffect } from "react";
 
-// TanStack Start has no static index.html, so vite-plugin-pwa's automatic
-// registration (which patches index.html at build time) never fires here —
-// register the built service worker manually instead.
+// PWA/service worker intentionally disabled. The generated worker isn't served
+// on our Nitro→Vercel output, and we want zero stale-cache risk on frequent
+// deploys. This also unregisters any worker a browser registered earlier.
 export function PwaRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js");
+    void navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((reg) => void reg.unregister());
+    });
   }, []);
 
   return null;

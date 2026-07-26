@@ -115,12 +115,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         property: "og:image",
         content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f5bb477f-9caa-4d25-8efa-51aeb27b1a8b/id-preview-e1cd7b6f--9ef130ac-4c48-4bd2-b8b7-4da374a8a1e8.lovable.app-1784202530081.png",
+          "https://astrosathi.vercel.app/og-image.jpg",
       },
       {
         name: "twitter:image",
         content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f5bb477f-9caa-4d25-8efa-51aeb27b1a8b/id-preview-e1cd7b6f--9ef130ac-4c48-4bd2-b8b7-4da374a8a1e8.lovable.app-1784202530081.png",
+          "https://astrosathi.vercel.app/og-image.jpg",
       },
     ],
     links: [
@@ -128,9 +128,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", href: "/favicon.ico?v=2", type: "image/x-icon" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

@@ -109,7 +109,7 @@ function ConsentPage() {
         </Group>
 
         <div className="rounded-xl border border-accent/25 bg-accent/5 p-5">
-          <p className="text-sm font-semibold text-accent-foreground">
+          <p className="text-sm font-semibold text-accent">
             {t("consent.disclosureTitle")}
           </p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">

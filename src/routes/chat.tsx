@@ -981,7 +981,7 @@ function ConversationItem({
           className={
             "tap-press w-full truncate rounded-lg py-2 pl-3 pr-10 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
             (active
-              ? "bg-accent/10 text-accent-foreground font-medium"
+              ? "bg-accent/10 text-accent font-medium"
               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")
           }
           title={title}
@@ -1200,7 +1200,7 @@ function TopBar({
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-xs font-medium text-accent-foreground">
+        <div className="flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
@@ -1477,7 +1477,7 @@ function TypingRow() {
   const { t } = useTranslation();
   return (
     <div className="motion-fade-up flex items-center" aria-live="polite">
-      <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3.5 py-1.5 text-xs font-medium text-accent-foreground backdrop-blur">
+      <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3.5 py-1.5 text-xs font-medium text-accent backdrop-blur">
         <span className="flex gap-1" aria-hidden="true">
           <span
             className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"

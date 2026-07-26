@@ -64,7 +64,7 @@ function StepIndicator({
         })}
       </div>
       {eyebrow ? (
-        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-foreground/80">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {eyebrow}
         </span>
       ) : null}

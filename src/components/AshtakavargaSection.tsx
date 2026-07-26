@@ -185,7 +185,7 @@ function BhinnaHouseCard({ h }: { h: AshtakavargaHouse }) {
   const score = Number(h.score) || 0;
   const strong = score >= 5;
   const weak = score <= 2;
-  const scoreColor = strong ? "text-primary" : weak ? "text-accent-foreground" : "text-foreground";
+  const scoreColor = strong ? "text-primary" : weak ? "text-accent" : "text-foreground";
   const ring = strong ? "border-primary/40" : weak ? "border-accent/30" : "border-border";
   const contributors = Array.isArray(h.planets)
     ? h.planets
@@ -225,7 +225,7 @@ function HouseCard({ h }: { h: AshtakavargaHouse }) {
   const score = Number(h.score) || 0;
   const strong = score >= 30;
   const weak = score <= 25;
-  const scoreColor = strong ? "text-primary" : weak ? "text-accent-foreground" : "text-foreground";
+  const scoreColor = strong ? "text-primary" : weak ? "text-accent" : "text-foreground";
   const ring = strong ? "border-primary/40" : weak ? "border-accent/30" : "border-border";
   return (
     <article className={`flex flex-col gap-2 rounded-xl border bg-background p-4 ${ring}`}>

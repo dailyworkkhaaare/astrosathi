@@ -247,7 +247,7 @@ function BirthPage() {
                   onClick={() => setGender(opt.value)}
                   className={`tap-press rounded-xl border px-4 py-3 min-h-11 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     selected
-                      ? "border-accent/60 bg-accent/10 text-accent-foreground font-semibold"
+                      ? "border-accent/60 bg-accent/10 text-accent font-semibold"
                       : "border-border bg-card text-foreground hover:bg-card"
                   }`}
                 >

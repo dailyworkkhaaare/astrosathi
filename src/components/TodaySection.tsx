@@ -179,7 +179,7 @@ function TodayPlanetRow({
         {planet.retrograde && (
           <span
             aria-label={t("home.motionRetro")}
-            className="inline-flex items-center rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent-foreground"
+            className="inline-flex items-center rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
           >
             {t("home.retroShort")}
           </span>

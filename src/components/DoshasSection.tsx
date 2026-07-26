@@ -175,8 +175,8 @@ function Badge({
 }) {
   const tone = active
     ? "border-destructive/40 bg-destructive/10 text-destructive"
-    : "border-accent/40 bg-accent/15 text-accent-foreground";
-  const dot = active ? "bg-destructive" : "bg-accent-foreground/70";
+    : "border-accent/40 bg-accent/15 text-accent";
+  const dot = active ? "bg-destructive" : "bg-accent/70";
   return (
     <span
       className={`inline-flex w-fit items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide ${tone}`}

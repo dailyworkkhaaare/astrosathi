@@ -209,7 +209,7 @@ function CoreCard({ label, block, badge }: { label: string; block: NumberBlock; 
           {block.number}
         </span>
         {block.is_master && (
-          <span className="rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-foreground">
+          <span className="rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">
             {t("numerology.master")}
           </span>
         )}
@@ -258,7 +258,7 @@ function NameSystemCard({ title, data }: { title: string; data: NameSet }) {
                   {t(r.labelKey)}
                 </span>
                 {r.block?.is_master && (
-                  <span className="rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-accent-foreground">
+                  <span className="rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-accent">
                     {t("numerology.master")}
                   </span>
                 )}

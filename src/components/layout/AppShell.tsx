@@ -139,7 +139,7 @@ function DesktopRail({ pathname }: { pathname: string }) {
                 (active
                   ? isChat
                     ? "bg-accent/20 text-accent ring-1 ring-accent/40"
-                    : "bg-accent/15 text-accent-foreground"
+                    : "bg-accent/15 text-accent"
                   : isChat
                     ? "bg-accent/10 text-accent hover:bg-accent/20"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground")

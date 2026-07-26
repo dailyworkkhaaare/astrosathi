@@ -164,7 +164,7 @@ function PlanetLabel({ p, className }: { p: { id: number; name: string }; classN
 function RunningBadge() {
   const { t } = useTranslation();
   return (
-    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-accent/20 px-1.5 py-px text-[8px] font-semibold uppercase tracking-wide text-accent-foreground ring-1 ring-accent/40 leading-none">
+    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-accent/20 px-1.5 py-px text-[8px] font-semibold uppercase tracking-wide text-accent ring-1 ring-accent/40 leading-none">
       <span
         className="h-1 w-1 rounded-full bg-accent motion-safe:animate-pulse"
         aria-hidden="true"

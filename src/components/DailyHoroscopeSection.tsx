@@ -47,7 +47,7 @@ export function DailyHoroscopeSection() {
           </p>
           <Link
             to="/onboarding/birth"
-            className="tap-press mt-3 inline-flex items-center rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground"
+            className="tap-press mt-3 inline-flex min-h-11 items-center rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground"
           >
             {t("sections.horoscope.completeCta")}
           </Link>
@@ -58,7 +58,9 @@ export function DailyHoroscopeSection() {
         </p>
       ) : (
         <div className="mt-4 space-y-4">
-          <p className="text-sm leading-relaxed text-foreground">{data.summary}</p>
+          <p className="border-l-2 border-accent/30 pl-3 text-sm leading-relaxed text-foreground">
+            {data.summary}
+          </p>
 
           {data.areas.length > 0 && (
             <ul className="space-y-3">
@@ -84,11 +86,11 @@ export function DailyHoroscopeSection() {
           )}
 
           {data.focus && (
-            <div className="rounded-xl border border-border bg-muted/40 p-3">
-              <p className="text-xs font-medium text-muted-foreground">
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {t("sections.horoscope.focusLabel")}
               </p>
-              <p className="mt-0.5 text-sm text-foreground">{data.focus}</p>
+              <p className="mt-1 text-sm text-foreground">{data.focus}</p>
             </div>
           )}
 
@@ -109,6 +111,8 @@ export function DailyHoroscopeSection() {
                 )}
               </div>
             )}
+
+          <div className="border-t border-border/60" />
 
           <p className="text-xs text-muted-foreground">
             {t("sections.horoscope.disclaimer")}

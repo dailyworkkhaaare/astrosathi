@@ -1,6 +1,7 @@
 import { CalendarDays } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NAKSHATRAS } from "@/lib/charts";
 import { computePanchang, computeDayTimes } from "@/lib/panchang";
 import { usePanchang } from "@/lib/queries";
@@ -19,75 +20,102 @@ export function PanchangSection() {
       ? computeDayTimes(data.lat, data.lon, tz)
       : null;
   const fmtTime = (dt: Date) =>
-    new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true }).format(dt);
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(dt);
 
   return (
-    <section
-      className="rounded-2xl border border-border bg-card p-5"
-      style={{ boxShadow: "var(--shadow-soft)" }}
-    >
-      <div className="flex items-center gap-2">
-        <CalendarDays size={18} className="text-accent" aria-hidden="true" />
-        <h2 className="text-base font-semibold text-foreground">
-          {t("sections.panchang.title")}
-        </h2>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {t("sections.panchang.subtitle")}
-      </p>
-
-      {isLoading ? (
-        <div className="mt-4 space-y-2" aria-busy="true">
-          <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-3/5 animate-pulse rounded bg-muted" />
+    <Card className="rounded-2xl p-0">
+      <CardHeader className="gap-1 space-y-0 p-5 pb-0">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
+            <CalendarDays size={15} className="text-accent" aria-hidden="true" />
+          </span>
+          <CardTitle className="text-base font-semibold leading-tight">
+            {t("sections.panchang.title")}
+          </CardTitle>
         </div>
-      ) : isError ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("sections.panchang.loadError")}
-        </p>
-      ) : !panchang ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("sections.panchang.empty")}
-        </p>
-      ) : (
-        <dl className="mt-4 space-y-3">
-          <Row
-            label={t("sections.panchang.tithi")}
-            value={`${t(`sections.panchang.paksha.${panchang.paksha}`)} ${panchang.tithiName}`}
-          />
-          <Row label={t("sections.panchang.nakshatra")} value={nakshatra} />
-          <Row label={t("sections.panchang.yoga")} value={panchang.yogaName} />
-          {times ? (
-            <>
-              <Row label={t("sections.panchang.sunrise")} value={fmtTime(times.sunrise)} />
-              <Row label={t("sections.panchang.sunset")} value={fmtTime(times.sunset)} />
+        <CardDescription className="text-xs">
+          {t("sections.panchang.subtitle")}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="pt-4">
+        {isLoading ? (
+          <div className="space-y-2" aria-busy="true">
+            <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-3/5 animate-pulse rounded bg-muted" />
+          </div>
+        ) : isError ? (
+          <p className="text-sm text-muted-foreground">{t("sections.panchang.loadError")}</p>
+        ) : !panchang ? (
+          <p className="text-sm text-muted-foreground">{t("sections.panchang.empty")}</p>
+        ) : (
+          <div className="space-y-4">
+            <dl className="space-y-2.5">
               <Row
-                label={t("sections.panchang.rahuKaal")}
-                value={`${fmtTime(times.rahuStart)} – ${fmtTime(times.rahuEnd)}`}
+                label={t("sections.panchang.tithi")}
+                value={`${t(`sections.panchang.paksha.${panchang.paksha}`)} ${panchang.tithiName}`}
               />
-              <Row
-                label={t("sections.panchang.abhijit")}
-                value={`${fmtTime(times.abhijitStart)} – ${fmtTime(times.abhijitEnd)}`}
-              />
-            </>
-          ) : (
-            <Row
-              label={t("sections.panchang.rahuKaal")}
-              value={t("sections.panchang.timesUnavailable")}
-            />
-          )}
-        </dl>
-      )}
-    </section>
+              <Row label={t("sections.panchang.nakshatra")} value={nakshatra} />
+              <Row label={t("sections.panchang.yoga")} value={panchang.yogaName} />
+            </dl>
+
+            <div className="border-t border-border/60" />
+
+            <dl className="space-y-2.5">
+              {times ? (
+                <>
+                  <Row label={t("sections.panchang.sunrise")} value={fmtTime(times.sunrise)} numeric />
+                  <Row label={t("sections.panchang.sunset")} value={fmtTime(times.sunset)} numeric />
+                  <Row
+                    label={t("sections.panchang.rahuKaal")}
+                    value={`${fmtTime(times.rahuStart)} – ${fmtTime(times.rahuEnd)}`}
+                    numeric
+                  />
+                  <Row
+                    label={t("sections.panchang.abhijit")}
+                    value={`${fmtTime(times.abhijitStart)} – ${fmtTime(times.abhijitEnd)}`}
+                    numeric
+                  />
+                </>
+              ) : (
+                <Row
+                  label={t("sections.panchang.rahuKaal")}
+                  value={t("sections.panchang.timesUnavailable")}
+                />
+              )}
+            </dl>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  numeric,
+}: {
+  label: string;
+  value: string;
+  numeric?: boolean;
+}) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-border/50 pb-3 last:border-0 last:pb-0">
+    <div className="flex items-baseline justify-between gap-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-sm font-medium text-foreground">{value}</dd>
+      <dd
+        className={`text-right text-sm font-medium text-foreground ${
+          numeric ? "tabular-nums" : ""
+        }`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

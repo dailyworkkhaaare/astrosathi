@@ -52,10 +52,10 @@ export function TodaySection() {
   return (
     <section
       aria-labelledby="today-heading"
-      className="rounded-2xl border border-border bg-card p-5"
+      className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
     >
       <header className="flex items-baseline justify-between gap-3">
-        <h2 id="today-heading" className="font-display text-2xl font-semibold text-foreground">
+        <h2 id="today-heading" className="text-base font-semibold text-foreground">
           {t("sections.today.title")}
         </h2>
         <p className="text-sm text-muted-foreground">{dateLabel}</p>

@@ -17,12 +17,11 @@ export function DailyHoroscopeSection() {
   const { data, isLoading, isError } = useDailyHoroscope(lang);
 
   return (
-    <section
-      className="rounded-2xl border border-border bg-card p-5"
-      style={{ boxShadow: "var(--shadow-soft)" }}
-    >
-      <div className="flex items-center gap-2">
-        <Sun size={18} className="text-accent" aria-hidden="true" />
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
+          <Sun size={15} className="text-accent" aria-hidden="true" />
+        </span>
         <h2 className="text-base font-semibold text-foreground">
           {t("sections.horoscope.title")}
         </h2>

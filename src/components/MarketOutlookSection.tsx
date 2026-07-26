@@ -27,17 +27,14 @@ export function MarketOutlookSection() {
   return (
     <section
       aria-labelledby="market-heading"
-      className="rounded-2xl border border-border bg-card p-5"
+      className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
     >
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
-            <Coins size={18} aria-hidden="true" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+            <Coins size={15} aria-hidden="true" />
           </span>
-          <h2
-            id="market-heading"
-            className="font-display text-2xl font-semibold text-foreground"
-          >
+          <h2 id="market-heading" className="text-base font-semibold text-foreground">
             {t("sections.market.title")}
           </h2>
         </div>
@@ -48,7 +45,7 @@ export function MarketOutlookSection() {
         )}
       </header>
 
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="mt-1 text-sm text-muted-foreground">
         {t("sections.market.subtitle")}
       </p>
 

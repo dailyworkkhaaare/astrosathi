@@ -119,6 +119,8 @@ export type NormalizedPlanet = {
   nakshatraPada: number | null;
   retrograde: boolean;
   states: string[];
+  /** Degree within the current sign, 0..30 (e.g. 20.64 = 20°38′). */
+  degInSign: number | null;
   /** Absolute sidereal longitude (0..360). Needed to compute divisional charts. */
   lon: number | null;
   /** D1 sign index, 0 = Aries .. 11 = Pisces. */
@@ -527,6 +529,7 @@ function mapPlanets(payload: unknown): NormalizedPlanet[] {
       nakshatraPada: nakInfo?.nakshatraPada ?? null,
       retrograde: retro,
       states,
+      degInSign,
       lon: effLon,
       signIndex: bodyRasiId,
     };

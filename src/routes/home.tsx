@@ -38,6 +38,18 @@ import { AshtakavargaSection } from "@/components/AshtakavargaSection";
 import { LoShuSection } from "@/components/LoShuSection";
 import { DashaSection } from "@/components/DashaSection";
 
+// Format a degree-within-sign (0..30) as Vedic degrees-minutes, e.g. 20.64 -> "20°38′".
+function formatDeg(deg: number | null): string | null {
+  if (deg == null || !Number.isFinite(deg)) return null;
+  let d = Math.floor(deg);
+  let m = Math.round((deg - d) * 60);
+  if (m === 60) {
+    d += 1;
+    m = 0;
+  }
+  return `${d}°${String(m).padStart(2, "0")}′`;
+}
+
 export const Route = createFileRoute("/home")({
   head: () => ({
     meta: [
@@ -259,6 +271,7 @@ function ChartsTab() {
           nakshatraLordKey: null,
           nakshatraLordName: "",
           retrograde: r.retrograde,
+          degInSign: null,
           states: r.states,
         };
       })
@@ -275,6 +288,7 @@ function ChartsTab() {
           nakshatraLordKey: p.nakshatraLordKey,
           nakshatraLordName: p.nakshatraLordName,
           retrograde: p.retrograde,
+          degInSign: p.degInSign,
           states: p.states,
         }));
 
@@ -402,6 +416,11 @@ function ChartsTab() {
                           <span className="font-medium text-foreground">
                             {t(`home.planets.${p.key}`)}
                           </span>
+                          {p.degInSign != null && (
+                            <span className="text-xs text-muted-foreground">
+                              {formatDeg(p.degInSign)}
+                            </span>
+                          )}
                           {p.retrograde && (
                             <span
                               aria-label={t("home.motionRetro")}
@@ -434,22 +453,26 @@ function ChartsTab() {
                               : p.signLordName || "—"}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colNakshatra")}
-                          </div>
-                          <div className="text-foreground">{p.nakshatraName || "—"}</div>
-                        </div>
-                        <div>
-                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colNakshatraLord")}
-                          </div>
-                          <div className="text-foreground">
-                            {p.nakshatraLordKey
-                              ? t(`home.planets.${p.nakshatraLordKey}`)
-                              : p.nakshatraLordName || "—"}
-                          </div>
-                        </div>
+                        {!isDivisional && (
+                          <>
+                            <div>
+                              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                {t("home.colNakshatra")}
+                              </div>
+                              <div className="text-foreground">{p.nakshatraName || "—"}</div>
+                            </div>
+                            <div>
+                              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                {t("home.colNakshatraLord")}
+                              </div>
+                              <div className="text-foreground">
+                                {p.nakshatraLordKey
+                                  ? t(`home.planets.${p.nakshatraLordKey}`)
+                                  : p.nakshatraLordName || "—"}
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                       {statesExcludeRetro.length > 0 && (
                         <div className="mt-3">
@@ -480,8 +503,12 @@ function ChartsTab() {
                       <th className="py-2 pr-3 font-medium">{t("home.colSign")}</th>
                       <th className="py-2 pr-3 font-medium">{t("home.colSignLord")}</th>
                       <th className="py-2 pr-3 font-medium">{t("home.colHouse")}</th>
-                      <th className="py-2 pr-3 font-medium">{t("home.colNakshatra")}</th>
-                      <th className="py-2 pr-3 font-medium">{t("home.colNakshatraLord")}</th>
+                      {!isDivisional && (
+                        <>
+                          <th className="py-2 pr-3 font-medium">{t("home.colNakshatra")}</th>
+                          <th className="py-2 pr-3 font-medium">{t("home.colNakshatraLord")}</th>
+                        </>
+                      )}
                       <th className="py-2 pr-3 font-medium">{t("home.colRetro")}</th>
                       <th className="py-2 font-medium">{t("home.colStates")}</th>
                     </tr>
@@ -491,6 +518,11 @@ function ChartsTab() {
                       <tr key={p.key} className="border-b border-border/60 last:border-0">
                         <td className="py-2 pr-3 font-medium text-foreground">
                           {t(`home.planets.${p.key}`)}
+                          {p.degInSign != null && (
+                            <span className="ml-1 text-xs font-normal text-muted-foreground">
+                              {formatDeg(p.degInSign)}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2 pr-3 text-muted-foreground">
                           {p.signKey ? t(`signs.${p.signKey}`) : p.signName || "—"}
@@ -501,14 +533,18 @@ function ChartsTab() {
                             : p.signLordName || "—"}
                         </td>
                         <td className="py-2 pr-3 text-muted-foreground">{p.house ?? "—"}</td>
-                        <td className="py-2 pr-3 text-muted-foreground">
-                          {p.nakshatraName || "—"}
-                        </td>
-                        <td className="py-2 pr-3 text-muted-foreground">
-                          {p.nakshatraLordKey
-                            ? t(`home.planets.${p.nakshatraLordKey}`)
-                            : p.nakshatraLordName || "—"}
-                        </td>
+                        {!isDivisional && (
+                          <>
+                            <td className="py-2 pr-3 text-muted-foreground">
+                              {p.nakshatraName || "—"}
+                            </td>
+                            <td className="py-2 pr-3 text-muted-foreground">
+                              {p.nakshatraLordKey
+                                ? t(`home.planets.${p.nakshatraLordKey}`)
+                                : p.nakshatraLordName || "—"}
+                            </td>
+                          </>
+                        )}
                         <td className="py-2 text-muted-foreground">
                           {p.retrograde ? (
                             <span
@@ -649,6 +685,7 @@ type DisplayPlanet = {
   nakshatraLordKey: PlanetKey | null;
   nakshatraLordName: string;
   retrograde: boolean;
+  degInSign: number | null;
   states: string[];
 };
 

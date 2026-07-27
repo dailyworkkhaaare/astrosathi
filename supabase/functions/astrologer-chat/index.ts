@@ -61,7 +61,12 @@ const CONTEXT_CHART_TYPES = [
   "vimshottari_dasha",
   "ashtakavarga",
 ];
-const HISTORY_LIMIT = 20;
+// Rolling-summary memory tuning. Recent turns are sent verbatim; older turns
+// are folded into a compact running summary so long chats stay cheap.
+const SUMMARY_TRIGGER = 20; // fold once this many un-summarized messages exist
+const SUMMARY_FOLD_BATCH = 10; // oldest messages folded into the summary per pass
+const SUMMARY_MAX_MESSAGES = 50; // safety cap on verbatim messages loaded per turn
+const SUMMARY_MAX_WORDS = 300; // target length of the rolling summary
 
 // ---------------------------------------------------------------------------
 // Chart normalization for the LLM context.
@@ -905,6 +910,124 @@ function formatDivisionalFromParsed(
   return lines.length ? lines.join("\n") : null;
 }
 
+// @ts-ignore - EdgeRuntime is provided by the Supabase Edge runtime.
+declare const EdgeRuntime: any;
+
+// Schedule background work that should outlive the response. Supabase keeps the
+// worker alive for waitUntil promises; otherwise we fall back to fire-and-forget.
+function runBackground(task: Promise<unknown>): void {
+  const guarded = Promise.resolve(task).catch(() => {});
+  try {
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+      EdgeRuntime.waitUntil(guarded);
+      return;
+    }
+  } catch {
+    /* fall through to fire-and-forget */
+  }
+  void guarded;
+}
+
+// Rolling-summary memory. When enough messages have piled up beyond what the
+// summary already covers, fold the oldest batch into a fresh compact summary
+// using a cheap model. Best-effort: any failure leaves the chat untouched.
+async function maybeSummarizeConversation(opts: {
+  svc: SupabaseClient;
+  conversationId: string;
+  userId: string;
+  currentSummary: string | null;
+  summarizedCount: number;
+  apiKey: string;
+  model: string;
+}): Promise<void> {
+  const {
+    svc,
+    conversationId,
+    userId,
+    currentSummary,
+    summarizedCount,
+    apiKey,
+    model,
+  } = opts;
+
+  const { count } = await svc
+    .from("chat_messages")
+    .select("*", { count: "exact", head: true })
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId);
+  const total = count ?? 0;
+  if (total - summarizedCount < SUMMARY_TRIGGER) return;
+
+  const { data: batchRows } = await svc
+    .from("chat_messages")
+    .select("role, content")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .range(summarizedCount, summarizedCount + SUMMARY_FOLD_BATCH - 1);
+  const batch = (batchRows ?? []) as Array<{ role: string; content: string }>;
+  if (batch.length === 0) return;
+
+  const batchText = batch
+    .map(
+      (m) =>
+        `${m.role === "assistant" ? "Astrologer" : "Person"}: ${m.content}`,
+    )
+    .join("\n");
+
+  const sumSystem = [
+    "You maintain a running MEMORY SUMMARY of an ongoing conversation between a person and their Vedic astrology companion.",
+    "Merge the EXISTING SUMMARY with the NEW MESSAGES into one updated summary.",
+    `Keep it under ${SUMMARY_MAX_WORDS} words.`,
+    "Preserve durable, useful facts: the person's life situation, concerns, goals, relationships, decisions or timings discussed, and guidance already given.",
+    "Drop greetings, small talk, and repetition. Write compact third-person notes, not dialogue.",
+    "Output ONLY the updated summary text, nothing else.",
+  ].join(" ");
+  const sumUser =
+    "EXISTING SUMMARY:\n" +
+    (currentSummary && currentSummary.trim()
+      ? currentSummary.trim()
+      : "(none yet)") +
+    "\n\nNEW MESSAGES:\n" +
+    batchText;
+
+  const res = await fetchWithTimeout(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://astrosathi.app",
+        "X-Title": "AstroSaathi",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: sumSystem },
+          { role: "user", content: sumUser },
+        ],
+        temperature: 0.3,
+        max_tokens: 600,
+      }),
+    },
+    30000,
+  );
+  if (!res.ok) return;
+  const j = await res.json();
+  const newSummary = String(j?.choices?.[0]?.message?.content ?? "").trim();
+  if (!newSummary) return;
+
+  await svc
+    .from("chat_conversations")
+    .update({
+      memory_summary: newSummary,
+      summarized_count: summarizedCount + batch.length,
+    })
+    .eq("id", conversationId)
+    .eq("user_id", userId);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -918,6 +1041,9 @@ Deno.serve(async (req: Request) => {
   const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
   const MODEL =
     Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.0-flash-001";
+  const SUMMARY_MODEL =
+    Deno.env.get("OPENROUTER_SUMMARY_MODEL") ||
+    "google/gemini-2.0-flash-lite-001";
 
   if (!SUPABASE_URL || !SERVICE_KEY) {
     return err(500, "server_misconfigured", "Supabase env missing");
@@ -1312,7 +1438,9 @@ Deno.serve(async (req: Request) => {
     "- Do NOT begin your reply by recapping what you already said. Open directly with the answer to the NEW question.",
     "- Greet the person (e.g. 'Oh Krishna, lovely to connect...') ONLY in the very first message of a brand-new conversation. If there is ANY earlier message in this chat, skip the greeting entirely and answer straight away.",
     "- If the new question builds on an earlier topic, reference it in at most one short phrase \u2014 never re-explain it from scratch.",
-    "- Always finish your thought. Keep each reply reasonably concise and self-contained so it never gets cut off mid-sentence.",
+    "- LENGTH: Keep replies concise and usable, not an essay. Aim for about 300-400 words normally. Only go longer (up to about 750 words maximum) if the person explicitly asks for depth or a detailed breakdown.",
+    "- Lead with the direct answer first, then a few short supporting lines or a small list when helpful. No preamble, no restating the question, no filler.",
+    "- Always finish your thought completely within these limits - never stop mid-sentence or leave a reply half-done.",
     "",
     "WHO YOU ARE (persona):",
     "- Talk like a real person having a heart-to-heart, not like a report or a bot. Warm, gentle, encouraging, and genuinely curious about the person's life.",
@@ -1366,10 +1494,12 @@ Deno.serve(async (req: Request) => {
 
   // ---------- Resolve conversation ----------
   let conversationId = "";
+  let memorySummary: string | null = null;
+  let summarizedCount = 0;
   if (requestedConversationId) {
     const { data: conv } = await svc
       .from("chat_conversations")
-      .select("id")
+      .select("id, memory_summary, summarized_count")
       .eq("id", requestedConversationId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -1377,6 +1507,10 @@ Deno.serve(async (req: Request) => {
       return err(404, "conversation_not_found");
     }
     conversationId = conv.id;
+    memorySummary =
+      (conv as { memory_summary?: string | null }).memory_summary ?? null;
+    summarizedCount =
+      (conv as { summarized_count?: number | null }).summarized_count ?? 0;
   } else {
     const title = message.length > 48 ? message.slice(0, 48) + "..." : message;
     const { data: created, error: convErr } = await svc
@@ -1390,21 +1524,35 @@ Deno.serve(async (req: Request) => {
     conversationId = created.id;
   }
 
-  // ---------- Load recent history (excludes the new message) ----------
+  // ---------- Load verbatim history ----------
+  // Everything NOT yet folded into the rolling summary, oldest-first. The
+  // summary block below covers the older turns, so there is no context gap.
   const { data: historyRows } = await svc
     .from("chat_messages")
-    .select("role, content, created_at")
+    .select("role, content")
     .eq("conversation_id", conversationId)
     .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(HISTORY_LIMIT);
-  const history = (historyRows ?? [])
-    .slice()
-    .reverse()
-    .map((m) => ({ role: m.role as string, content: m.content as string }));
+    .order("created_at", { ascending: true })
+    .range(summarizedCount, summarizedCount + SUMMARY_MAX_MESSAGES - 1);
+  const history = (historyRows ?? []).map((m) => ({
+    role: m.role as string,
+    content: m.content as string,
+  }));
+
+  const memoryBlock = memorySummary
+    ? [
+        {
+          role: "system",
+          content:
+            "CONVERSATION MEMORY (a running summary of earlier parts of THIS chat, older than the messages that follow). Use it as background context to stay consistent; never quote or restate it verbatim:\n" +
+            memorySummary,
+        },
+      ]
+    : [];
 
   const messages = [
     { role: "system", content: systemPrompt },
+    ...memoryBlock,
     ...history,
     { role: "user", content: message },
   ];
@@ -1453,7 +1601,7 @@ Deno.serve(async (req: Request) => {
                 model: MODEL,
                 messages,
                 temperature: 0.7,
-                max_tokens: 2000,
+                max_tokens: 1150,
                 stream: true,
               }),
             },
@@ -1557,6 +1705,18 @@ Deno.serve(async (req: Request) => {
             .update({ updated_at: new Date().toISOString() })
             .eq("id", conversationId)
             .eq("user_id", userId);
+
+          runBackground(
+            maybeSummarizeConversation({
+              svc,
+              conversationId,
+              userId,
+              currentSummary: memorySummary,
+              summarizedCount,
+              apiKey: OPENROUTER_API_KEY,
+              model: SUMMARY_MODEL,
+            }),
+          );
         } catch {
           /* best-effort persistence */
         }
@@ -1586,7 +1746,7 @@ Deno.serve(async (req: Request) => {
           model: MODEL,
           messages,
           temperature: 0.7,
-          max_tokens: 2000,
+          max_tokens: 1150,
         }),
       },
       45000,
@@ -1636,6 +1796,18 @@ Deno.serve(async (req: Request) => {
     .update({ updated_at: new Date().toISOString() })
     .eq("id", conversationId)
     .eq("user_id", userId);
+
+  runBackground(
+    maybeSummarizeConversation({
+      svc,
+      conversationId,
+      userId,
+      currentSummary: memorySummary,
+      summarizedCount,
+      apiKey: OPENROUTER_API_KEY,
+      model: SUMMARY_MODEL,
+    }),
+  );
 
   return json(200, {
     conversation_id: conversationId,

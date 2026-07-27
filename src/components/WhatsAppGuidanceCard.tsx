@@ -124,7 +124,7 @@ export function WhatsAppGuidanceCard() {
                 onBlur={() => setPhoneTouched(true)}
                 placeholder={t("settings.whatsapp.phonePlaceholder")}
                 aria-invalid={showPhoneError}
-                className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-11 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
               />
               {showPhoneError && (
                 <p className="text-xs text-accent">{t("settings.whatsapp.phoneError")}</p>
@@ -144,7 +144,7 @@ export function WhatsAppGuidanceCard() {
                   id="whatsapp-hour"
                   value={hour}
                   onChange={(e) => setHour(Number(e.target.value))}
-                  className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring md:w-auto"
+                  className="h-11 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring md:w-auto md:text-sm"
                 >
                   {Array.from({ length: 24 }, (_, h) => h).map((h) => (
                     <option key={h} value={h}>

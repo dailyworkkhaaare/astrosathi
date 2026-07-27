@@ -970,7 +970,7 @@ function ConversationItem({
                 setIsRenaming(false);
               }
             }}
-            className="w-full truncate rounded-lg border border-border bg-background py-2 pl-3 pr-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full truncate rounded-lg border border-border bg-background py-2 pl-3 pr-10 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
           />
         </label>
       ) : (
@@ -1101,7 +1101,7 @@ function Sidebar({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("chat.searchPlaceholder")}
-            className="w-full rounded-full border border-border bg-background py-2 pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-full border border-border bg-background py-2 pl-8 pr-3 text-base text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
           />
         </label>
       </div>
@@ -1425,7 +1425,7 @@ function Composer({
             disabled={sending}
             placeholder={t("chat.composerPlaceholder")}
             aria-label={t("chat.composerPlaceholder")}
-            className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none md:text-sm"
           />
           <button
             type="submit"

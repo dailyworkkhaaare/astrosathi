@@ -22,7 +22,17 @@
     "subtitle": "Personalized guidance rooted in tradition — kundli, daily insights, and one-to-one chat.",
     "cta": "Get started",
     "signInPrompt": "Already have an account?",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "stepsLabel": "How it works",
+    "step1Title": "Enter your birth details",
+    "step1Body": "Get an accurate kundli in seconds, calculated the traditional Vedic way.",
+    "step2Title": "Chat with your kundli",
+    "step2Body": "Ask about dashas, doshas, career, or relationships — grounded in your real chart.",
+    "step3Title": "In your language",
+    "step3Body": "Available in English, हिन्दी, and मराठी.",
+    "trustPrivate": "Private & personal",
+    "trustNoFear": "No fear-based readings",
+    "trustDisclaimer": "For reflection — not a substitute for professional advice"
   },
   "language": {
     "title": "Choose your language",

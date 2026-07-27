@@ -67,6 +67,7 @@ const SUMMARY_TRIGGER = 20; // fold once this many un-summarized messages exist
 const SUMMARY_FOLD_BATCH = 10; // oldest messages folded into the summary per pass
 const SUMMARY_MAX_MESSAGES = 50; // safety cap on verbatim messages loaded per turn
 const SUMMARY_MAX_WORDS = 300; // target length of the rolling summary
+const FACTS_MAX_WORDS = 300; // cap on the durable, cross-conversation user-facts memory
 
 // ---------------------------------------------------------------------------
 // Chart normalization for the LLM context.
@@ -928,9 +929,36 @@ function runBackground(task: Promise<unknown>): void {
   void guarded;
 }
 
-// Rolling-summary memory. When enough messages have piled up beyond what the
-// summary already covers, fold the oldest batch into a fresh compact summary
-// using a cheap model. Best-effort: any failure leaves the chat untouched.
+// Defensively parse a { "summary", "facts" } JSON object from a model reply,
+// tolerating code fences or stray prose around it. Returns null if unusable.
+function parseSummaryFactsJson(
+  raw: string,
+): { summary: string; facts: string } | null {
+  let text = raw.trim();
+  const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fence) text = fence[1].trim();
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    const obj = JSON.parse(text.slice(start, end + 1)) as {
+      summary?: unknown;
+      facts?: unknown;
+    };
+    const summary = typeof obj.summary === "string" ? obj.summary.trim() : "";
+    const facts = typeof obj.facts === "string" ? obj.facts.trim() : "";
+    if (!summary && !facts) return null;
+    return { summary, facts };
+  } catch {
+    return null;
+  }
+}
+
+// Rolling-summary + durable-facts memory. When enough messages have piled up
+// beyond what the summary already covers, fold the oldest batch into a fresh
+// compact summary using a cheap model; when the user has memory enabled, the
+// same call also refreshes the durable, cross-conversation user-facts.
+// Best-effort: any failure leaves the chat untouched.
 async function maybeSummarizeConversation(opts: {
   svc: SupabaseClient;
   conversationId: string;
@@ -939,6 +967,8 @@ async function maybeSummarizeConversation(opts: {
   summarizedCount: number;
   apiKey: string;
   model: string;
+  rememberFacts: boolean;
+  currentFacts: string | null;
 }): Promise<void> {
   const {
     svc,
@@ -948,6 +978,8 @@ async function maybeSummarizeConversation(opts: {
     summarizedCount,
     apiKey,
     model,
+    rememberFacts,
+    currentFacts,
   } = opts;
 
   const { count } = await svc
@@ -975,21 +1007,45 @@ async function maybeSummarizeConversation(opts: {
     )
     .join("\n");
 
-  const sumSystem = [
-    "You maintain a running MEMORY SUMMARY of an ongoing conversation between a person and their Vedic astrology companion.",
-    "Merge the EXISTING SUMMARY with the NEW MESSAGES into one updated summary.",
-    `Keep it under ${SUMMARY_MAX_WORDS} words.`,
-    "Preserve durable, useful facts: the person's life situation, concerns, goals, relationships, decisions or timings discussed, and guidance already given.",
-    "Drop greetings, small talk, and repetition. Write compact third-person notes, not dialogue.",
-    "Output ONLY the updated summary text, nothing else.",
-  ].join(" ");
-  const sumUser =
-    "EXISTING SUMMARY:\n" +
-    (currentSummary && currentSummary.trim()
+  const existingSummary =
+    currentSummary && currentSummary.trim()
       ? currentSummary.trim()
-      : "(none yet)") +
-    "\n\nNEW MESSAGES:\n" +
-    batchText;
+      : "(none yet)";
+
+  let sumSystem: string;
+  let sumUser: string;
+
+  if (rememberFacts) {
+    const existingFacts =
+      currentFacts && currentFacts.trim() ? currentFacts.trim() : "(none yet)";
+    sumSystem = [
+      "You maintain long-term memory for a Vedic astrology companion app, based on one ongoing conversation.",
+      'Return ONLY a single JSON object with exactly two string fields: "summary" and "facts". No code fences, no commentary.',
+      `"summary": an updated running summary of THIS conversation - merge the EXISTING SUMMARY with the NEW MESSAGES, under ${SUMMARY_MAX_WORDS} words, compact third-person notes, dropping greetings, small talk and repetition.`,
+      `"facts": an updated list of durable facts about this specific person that stay true across conversations - their life situation, relationships, work, recurring concerns, goals, stated preferences, and important guidance already given. Merge the EXISTING FACTS with anything new and lasting from the messages, and drop anything transient or already superseded. At most 25 facts, one concise fact per line, third person, under ${FACTS_MAX_WORDS} words total.`,
+    ].join(" ");
+    sumUser =
+      "EXISTING SUMMARY:\n" +
+      existingSummary +
+      "\n\nEXISTING FACTS:\n" +
+      existingFacts +
+      "\n\nNEW MESSAGES:\n" +
+      batchText;
+  } else {
+    sumSystem = [
+      "You maintain a running MEMORY SUMMARY of an ongoing conversation between a person and their Vedic astrology companion.",
+      "Merge the EXISTING SUMMARY with the NEW MESSAGES into one updated summary.",
+      `Keep it under ${SUMMARY_MAX_WORDS} words.`,
+      "Preserve durable, useful facts: the person's life situation, concerns, goals, relationships, decisions or timings discussed, and guidance already given.",
+      "Drop greetings, small talk, and repetition. Write compact third-person notes, not dialogue.",
+      "Output ONLY the updated summary text, nothing else.",
+    ].join(" ");
+    sumUser =
+      "EXISTING SUMMARY:\n" +
+      existingSummary +
+      "\n\nNEW MESSAGES:\n" +
+      batchText;
+  }
 
   const res = await fetchWithTimeout(
     "https://openrouter.ai/api/v1/chat/completions",
@@ -1008,16 +1064,34 @@ async function maybeSummarizeConversation(opts: {
           { role: "user", content: sumUser },
         ],
         temperature: 0.3,
-        max_tokens: 600,
+        max_tokens: rememberFacts ? 900 : 600,
       }),
     },
     30000,
   );
   if (!res.ok) return;
   const j = await res.json();
-  const newSummary = String(j?.choices?.[0]?.message?.content ?? "").trim();
-  if (!newSummary) return;
+  const rawOut = String(j?.choices?.[0]?.message?.content ?? "").trim();
+  if (!rawOut) return;
 
+  let newSummary = "";
+  let newFacts = "";
+  if (rememberFacts) {
+    const parsed = parseSummaryFactsJson(rawOut);
+    if (parsed) {
+      newSummary = parsed.summary;
+      newFacts = parsed.facts;
+    } else {
+      // Couldn't parse JSON: salvage the reply as the summary, skip facts.
+      newSummary = rawOut;
+    }
+  } else {
+    newSummary = rawOut;
+  }
+
+  // Only advance the fold pointer when we captured a usable summary, so the
+  // conversation never loses context to a failed or empty summarization.
+  if (!newSummary) return;
   await svc
     .from("chat_conversations")
     .update({
@@ -1026,6 +1100,19 @@ async function maybeSummarizeConversation(opts: {
     })
     .eq("id", conversationId)
     .eq("user_id", userId);
+
+  // Durable facts are independent of the fold pointer and only persisted when
+  // the person has memory enabled.
+  if (rememberFacts && newFacts) {
+    await svc.from("user_memory").upsert(
+      {
+        user_id: userId,
+        facts: newFacts,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -1524,6 +1611,33 @@ Deno.serve(async (req: Request) => {
     conversationId = created.id;
   }
 
+  // ---------- Load durable, cross-conversation memory (privacy-gated) ----------
+  // profiles.memory_enabled defaults to true; only load and inject stored
+  // facts when the person has memory turned on.
+  let memoryEnabled = true;
+  let userFacts: string | null = null;
+  {
+    const { data: prof } = await svc
+      .from("profiles")
+      .select("memory_enabled")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (
+      prof &&
+      typeof (prof as { memory_enabled?: boolean }).memory_enabled === "boolean"
+    ) {
+      memoryEnabled = (prof as { memory_enabled: boolean }).memory_enabled;
+    }
+    if (memoryEnabled) {
+      const { data: mem } = await svc
+        .from("user_memory")
+        .select("facts")
+        .eq("user_id", userId)
+        .maybeSingle();
+      userFacts = (mem as { facts?: string | null } | null)?.facts ?? null;
+    }
+  }
+
   // ---------- Load verbatim history ----------
   // Everything NOT yet folded into the rolling summary, oldest-first. The
   // summary block below covers the older turns, so there is no context gap.
@@ -1539,6 +1653,18 @@ Deno.serve(async (req: Request) => {
     content: m.content as string,
   }));
 
+  const factsBlock =
+    memoryEnabled && userFacts && userFacts.trim()
+      ? [
+          {
+            role: "system",
+            content:
+              "WHAT YOU ALREADY KNOW ABOUT THIS PERSON (durable memory carried over from earlier conversations). Weave it in naturally to stay personal and continuous; never list it back or mention that you keep notes:\n" +
+              userFacts.trim(),
+          },
+        ]
+      : [];
+
   const memoryBlock = memorySummary
     ? [
         {
@@ -1552,6 +1678,7 @@ Deno.serve(async (req: Request) => {
 
   const messages = [
     { role: "system", content: systemPrompt },
+    ...factsBlock,
     ...memoryBlock,
     ...history,
     { role: "user", content: message },
@@ -1715,6 +1842,8 @@ Deno.serve(async (req: Request) => {
               summarizedCount,
               apiKey: OPENROUTER_API_KEY,
               model: SUMMARY_MODEL,
+              rememberFacts: memoryEnabled,
+              currentFacts: userFacts,
             }),
           );
         } catch {
@@ -1806,6 +1935,8 @@ Deno.serve(async (req: Request) => {
       summarizedCount,
       apiKey: OPENROUTER_API_KEY,
       model: SUMMARY_MODEL,
+      rememberFacts: memoryEnabled,
+      currentFacts: userFacts,
     }),
   );
 

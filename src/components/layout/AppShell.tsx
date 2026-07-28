@@ -58,7 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
               <Link
                 to={logoTo}
-                className="focus:outline-none focus:ring-2 focus:ring-ring rounded-md min-h-11 min-w-11 grid place-items-center"
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md min-h-11 min-w-11 grid place-items-center"
               >
                 <BrandMark />
               </Link>

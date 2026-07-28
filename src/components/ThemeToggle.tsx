@@ -33,9 +33,22 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-card/60 text-foreground/80 backdrop-blur transition-colors hover:bg-card hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+      className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-card/60 text-foreground/80 backdrop-blur transition-colors hover:bg-card hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
     >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      <Sun
+        aria-hidden="true"
+        className={
+          "absolute h-4 w-4 transition-all duration-[var(--motion-standard)] ease-[var(--ease-standard)] " +
+          (isDark ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-75 opacity-0")
+        }
+      />
+      <Moon
+        aria-hidden="true"
+        className={
+          "absolute h-4 w-4 transition-all duration-[var(--motion-standard)] ease-[var(--ease-standard)] " +
+          (isDark ? "rotate-90 scale-75 opacity-0" : "rotate-0 scale-100 opacity-100")
+        }
+      />
     </button>
   );
 }

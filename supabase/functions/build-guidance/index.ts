@@ -1,232 +1,113 @@
-// Supabase Edge Function: build-guidance
-// Composes a short, calm WhatsApp message from an already-cached
-// public.daily_horoscopes row for a given user. Pure formatting — this
-// function does NOT call any LLM/astrology provider and does NOT send
-// anything; it is meant to be called by a WhatsApp-sending job (cron or
-// otherwise) which POSTs a user_id and receives back the message text.
-//
-// Runtime: Deno (Supabase Edge Functions). Deploy with verify_jwt = false
-// (this is a system/service call, not an end-user-authenticated one) —
-// same posture as transit-planets-refresh.
-// Secrets required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
-// Secrets optional: BUILD_GUIDANCE_CRON_SECRET — if set, callers must send
-//   a matching `x-cron-secret` header (same guard pattern as
-//   transit-planets-refresh's TRANSIT_CRON_SECRET).
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4"
 
-// @ts-ignore - esm.sh import (resolved at deploy time)
-import {
-  createClient,
-  type SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2.45.4";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+const DEFAULT_TZ = "Asia/Kolkata"
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Deno: any;
-
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-cron-secret",
-  "Access-Control-Max-Age": "86400",
-};
-
-function json(status: number, body: unknown): Response {
+function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json", ...CORS_HEADERS },
-  });
-}
-function fail(status: number, reason: string): Response {
-  return json(status, { ok: false, reason });
+    headers: { "content-type": "application/json" },
+  })
 }
 
-// ---------- Language ----------
-type Lang = "en" | "hi" | "mr";
-const SUPPORTED_LANGS: Lang[] = ["en", "hi", "mr"];
-function normalizeLang(raw: unknown): Lang | null {
-  const s = String(raw ?? "").trim().toLowerCase().slice(0, 2);
-  return (SUPPORTED_LANGS as string[]).includes(s) ? (s as Lang) : null;
+// Collapse to a single line: no newlines / tabs / 4+ spaces (WhatsApp param rule)
+function oneLine(s: unknown): string {
+  return String(s ?? "")
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/\t/g, " ")
+    .replace(/ {4,}/g, " ")
+    .trim()
 }
 
-const LOCALE_MAP: Record<Lang, string> = {
-  en: "en-IN",
-  hi: "hi-IN",
-  mr: "mr-IN",
-};
-
-// Only the WhatsApp-message chrome is localized here — horoscope content
-// (summary/focus/lucky) is already localized at generation time by the
-// daily-horoscope function, one row per (user, date, lang).
-const LABELS: Record<Lang, { focus: string; lucky: string; fallbackName: string }> = {
-  en: { focus: "Focus", lucky: "Lucky", fallbackName: "friend" },
-  hi: { focus: "फोकस", lucky: "शुभ", fallbackName: "मित्र" },
-  mr: { focus: "फोकस", lucky: "शुभ", fallbackName: "मित्र" },
-};
-
-const DEFAULT_TZ = "Asia/Kolkata";
-
-// ---------- Small helpers ----------
-function firstName(full: unknown): string {
-  return String(full ?? "").trim().split(/\s+/)[0] || "";
-}
-
-function todayIsoInTz(tz: string): string {
-  // en-CA gives YYYY-MM-DD directly.
+function localDateISO(tz: string, d = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(d)
 }
 
-// Formats a plain YYYY-MM-DD (no time component) as a long localized date,
-// pinned to UTC so the calendar day shown never drifts with runtime tz.
-function formatLongDate(isoDate: string, locale: string): string {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
-  return new Intl.DateTimeFormat(locale, {
-    timeZone: "UTC",
+function dateLabel(iso: string, tz: string): string {
+  // e.g. "Monday, 27 July"
+  const d = new Date(`${iso}T12:00:00Z`)
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
     weekday: "long",
     day: "numeric",
     month: "long",
-  }).format(dt);
+  }).format(d)
 }
 
-// jsonb { color, number, direction } -> "Blue · 7 · East", omitting any
-// field that isn't present. Returns null if nothing usable is present.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatLucky(lucky: any): string | null {
-  if (!lucky || typeof lucky !== "object") return null;
-  const parts = [lucky.color, lucky.number, lucky.direction]
-    .map((v) => (v == null ? "" : String(v).trim()))
-    .filter((v) => v.length > 0);
-  return parts.length ? parts.join(" · ") : null;
-}
-
-const MESSAGE_CHAR_LIMIT = 700;
-
-function buildMessage(args: {
-  name: string;
-  localizedDate: string;
-  summary: string | null;
-  focus: string | null;
-  luckyStr: string | null;
-  labels: { focus: string; lucky: string };
-}): string {
-  const { name, localizedDate, summary, focus, luckyStr, labels } = args;
-
-  const header = `🙏 *Namaste ${name}*`;
-  const dateLine = `✨ ${localizedDate} — your AstroSaathi guidance`;
-  const focusLine = focus ? `🎯 *${labels.focus}:* ${focus}` : null;
-  const luckyLine = luckyStr ? `🍀 *${labels.lucky}:* ${luckyStr}` : null;
-  const footer = "🕉️ AstroSaathi";
-
-  // Fit the summary within MESSAGE_CHAR_LIMIT: compute the fixed overhead
-  // (every other line + the newline that will separate it from the body),
-  // then truncate only the summary if the total would run over.
-  const fixedLines = [header, dateLine, focusLine, luckyLine, footer].filter(
-    (l): l is string => l !== null,
-  );
-  const overhead = fixedLines.reduce((n, l) => n + l.length + 1, 0);
-  const maxBody = Math.max(0, MESSAGE_CHAR_LIMIT - overhead);
-
-  let body = (summary ?? "").trim();
-  if (body.length > maxBody) {
-    body = body.slice(0, Math.max(0, maxBody - 1)).trimEnd() + "…";
-  }
-
-  const lines = [header, dateLine];
-  if (body) lines.push(body);
-  if (focusLine) lines.push(focusLine);
-  if (luckyLine) lines.push(luckyLine);
-  lines.push(footer);
-  return lines.join("\n");
-}
-
-// ---------- Handler ----------
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
-  if (req.method !== "POST") return fail(405, "method_not_allowed");
-
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-  const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!SUPABASE_URL || !SERVICE_KEY) return fail(500, "server_misconfigured");
-
-  // Optional shared-secret guard, same posture as transit-planets-refresh —
-  // only enforced when the secret is actually configured.
-  const cronSecret = Deno.env.get("BUILD_GUIDANCE_CRON_SECRET");
-  if (cronSecret) {
-    const provided = req.headers.get("x-cron-secret") || "";
-    if (provided !== cronSecret) return fail(401, "bad_cron_secret");
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let body: any = {};
+Deno.serve(async (req) => {
   try {
-    body = await req.json();
-  } catch {
-    body = {};
-  }
+    const { user_id, lang: langIn, date: dateIn } = await req
+      .json()
+      .catch(() => ({}))
+    if (!user_id) return json({ ok: false, reason: "missing_user_id" }, 400)
 
-  const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
-  if (!userId) return fail(400, "missing_user_id");
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
-  const inputLang = normalizeLang(body.lang);
-  const inputDate =
-    typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : null;
+    const { data: prefs } = await supabase
+      .from("whatsapp_prefs")
+      .select("lang")
+      .eq("user_id", user_id)
+      .maybeSingle()
 
-  const svc: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("timezone, display_name")
+      .eq("user_id", user_id)
+      .maybeSingle()
 
-  const [{ data: birth }, { data: profile }, { data: waPrefs }] = await Promise.all([
-    svc.from("birth_profiles").select("full_name").eq("user_id", userId).maybeSingle(),
-    svc.from("profiles").select("display_name, timezone").eq("user_id", userId).maybeSingle(),
-    svc.from("whatsapp_prefs").select("lang").eq("user_id", userId).maybeSingle(),
-  ]);
+    const tz = profile?.timezone || DEFAULT_TZ
+    const lang = langIn || prefs?.lang || "en"
+    const date = dateIn || localDateISO(tz)
 
-  const lang: Lang = inputLang ?? normalizeLang(waPrefs?.lang) ?? "en";
-  const labels = LABELS[lang];
+    const { data: birth } = await supabase
+      .from("birth_profiles")
+      .select("full_name")
+      .eq("user_id", user_id)
+      .maybeSingle()
 
-  const tz = profile?.timezone || DEFAULT_TZ;
-  const date = inputDate ?? todayIsoInTz(tz);
+    const fullName = (birth?.full_name || profile?.display_name || "").trim()
+    const firstName = fullName ? fullName.split(/\s+/)[0] : "there"
 
-  const name = firstName(birth?.full_name) || firstName(profile?.display_name) || labels.fallbackName;
-
-  // Exact (user, date, lang) match first.
-  const { data: exact } = await svc
-    .from("daily_horoscopes")
-    .select("horoscope_date, summary, focus, lucky")
-    .eq("user_id", userId)
-    .eq("horoscope_date", date)
-    .eq("lang", lang)
-    .maybeSingle();
-
-  let row = exact ?? null;
-
-  // Fall back to the most recent cached reading for this user+lang.
-  if (!row) {
-    const { data: latest } = await svc
+    const { data: h } = await supabase
       .from("daily_horoscopes")
-      .select("horoscope_date, summary, focus, lucky")
-      .eq("user_id", userId)
+      .select("summary, focus, lucky")
+      .eq("user_id", user_id)
+      .eq("horoscope_date", date)
       .eq("lang", lang)
-      .order("horoscope_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    row = latest ?? null;
+      .maybeSingle()
+
+    if (!h) return json({ ok: false, reason: "no_horoscope" })
+
+    const lucky = (h.lucky || {}) as {
+      color?: string
+      number?: number | string
+      direction?: string
+    }
+    const luckyStr = [lucky.color, lucky.number, lucky.direction]
+      .filter((x) => x !== undefined && x !== null && String(x).length > 0)
+      .join(" · ")
+
+    // The 4 template variables, in order:
+    const params = {
+      name: oneLine(firstName),                                   // user://388d872b-594c-81b7-b763-0002c9da3bb4
+      body: oneLine(`${dateLabel(date, tz)} — ${h.summary || ""}`), // 388d872b-594c-81b7-b763-0002c9da3bb4
+      focus: oneLine(h.focus || ""),                              // thread://ce48f13c-80c4-819c-aab5-000362189a3e/3a98f13c-80c4-80c1-b90a-00a9d4c283b9
+      lucky: oneLine(luckyStr),                                   // https://app.notion.com/p/5da647b3ea2943a5874ee7bbd0c321ba
+    }
+
+    // Backward-compatible single-line version (for free-form window sends)
+    const message = oneLine(
+      `🙏 Namaste ${params.name} ✨ ${params.body} 🎯 Focus: ${params.focus} 🍀 Lucky: ${params.lucky}`,
+    )
+
+    return json({ ok: true, params, message, lang, date })
+  } catch (e) {
+    return json({ ok: false, reason: "error", error: String(e) }, 500)
   }
-
-  if (!row) return fail(404, "no_horoscope");
-
-  const resolvedDate = String(row.horoscope_date);
-  const localizedDate = formatLongDate(resolvedDate, LOCALE_MAP[lang]);
-  const summary = typeof row.summary === "string" ? row.summary.trim() : null;
-  const focus = typeof row.focus === "string" && row.focus.trim() ? row.focus.trim() : null;
-  const luckyStr = formatLucky(row.lucky);
-
-  const message = buildMessage({ name, localizedDate, summary, focus, luckyStr, labels });
-
-  return json(200, { ok: true, message, lang, date: resolvedDate });
-});
+})

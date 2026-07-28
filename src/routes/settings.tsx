@@ -11,7 +11,7 @@ import {
   Trash2,
   UserCircle,
 } from "lucide-react";
-import { useRequireAuth } from "@/lib/require-auth";
+import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { WhatsAppGuidanceCard } from "@/components/WhatsAppGuidanceCard";
@@ -66,7 +66,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  useRequireAuth();
+  useRequireOnboarding();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const cache = useChartGatewayCacheControls();

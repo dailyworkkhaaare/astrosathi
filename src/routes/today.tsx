@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { useRequireAuth } from "@/lib/require-auth";
+import { useRequireOnboarding } from "@/lib/require-auth";
 import { DailyHoroscopeSection } from "@/components/DailyHoroscopeSection";
 import { DailyMantraSection } from "@/components/DailyMantraSection";
 import { PanchangSection } from "@/components/PanchangSection";
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/today")({
 });
 
 function TodayPage() {
-  useRequireAuth();
+  useRequireOnboarding();
   const { t, i18n } = useTranslation();
 
   const dateLabel = new Intl.DateTimeFormat(i18n.language, {

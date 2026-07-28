@@ -3,6 +3,7 @@ import { useEffect } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession, waitForAuthReady } from "@/lib/auth";
+import { getOnboardingState, routeForOnboardingState } from "@/lib/birth-profile";
 
 // Client-side auth gate. Only redirects to /auth when we've deterministically
 // confirmed no valid session exists — never on a transient hydration tick,
@@ -41,5 +42,26 @@ export function useRequireAuth() {
       cancelled = true;
     };
   }, [loading, user, navigate]);
+  return user;
+}
+
+// Guards routes that require a fully onboarded account (consent + birth
+// details saved). Redirects to whichever onboarding step is still pending
+// so home/today/settings/chat can't be reached by direct navigation while
+// onboarding is incomplete.
+export function useRequireOnboarding() {
+  const user = useRequireAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void getOnboardingState().then((state) => {
+      if (cancelled || state === "ready") return;
+      navigate({ to: routeForOnboardingState(state), replace: true });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, navigate]);
   return user;
 }

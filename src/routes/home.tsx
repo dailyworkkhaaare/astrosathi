@@ -13,7 +13,7 @@ import {
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
-import { useRequireAuth } from "@/lib/require-auth";
+import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
 
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
@@ -70,7 +70,7 @@ export const Route = createFileRoute("/home")({
 });
 
 function HomePage() {
-  useRequireAuth();
+  useRequireOnboarding();
   const { t } = useTranslation();
   const [profile, setProfile] = useState<BirthProfile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);

@@ -9,7 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { useRequireAuth } from "@/lib/require-auth";
+import { useRequireOnboarding } from "@/lib/require-auth";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -239,7 +239,7 @@ function buildSuggestedPrompts(
 // ---------- Page ----------
 
 function ChatPage() {
-  useRequireAuth();
+  useRequireOnboarding();
   const { t } = useTranslation();
   const { seed } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });

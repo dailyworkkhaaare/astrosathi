@@ -8,6 +8,7 @@ import { APP_NAME } from "@/lib/brand";
 import { useAuthSession } from "@/lib/auth";
 import { getOnboardingState, routeForOnboardingState } from "@/lib/birth-profile";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/BrandMark";
 import { Starfield } from "@/components/Starfield";
 import { LoadingState } from "@/components/states/LoadingState";
 
@@ -63,21 +64,25 @@ function Landing() {
   return (
     <div className="flex min-h-[calc(100vh-8rem)] flex-col">
       <section
-        className="motion-fade-up relative isolate flex flex-1 items-center overflow-hidden rounded-3xl px-6 py-20 text-center sm:px-10 sm:py-28"
+        className="motion-fade-up relative isolate overflow-hidden rounded-3xl px-6 py-14 text-center sm:px-10 sm:py-20"
         style={{ boxShadow: "var(--shadow-elevated)" }}
       >
         <Starfield density={90} />
         <div className="relative mx-auto w-full">
+          <BrandMark
+            withWordmark={false}
+            className="motion-fade-up mx-auto mb-5 h-9 w-9 sm:h-10 sm:w-10"
+          />
           <p className="motion-fade-up text-xs font-medium uppercase tracking-[0.28em] text-accent sm:text-sm">
             {APP_NAME}
           </p>
-          <h1 className="motion-fade-up motion-delay-1 font-display mx-auto mt-5 max-w-2xl text-4xl font-semibold leading-[1.05] text-on-night sm:text-6xl">
+          <h1 className="motion-fade-up motion-delay-1 font-display mx-auto mt-4 max-w-2xl text-balance text-4xl font-semibold leading-[1.05] text-on-night sm:text-6xl lg:text-7xl">
             {t("landing.title")}
           </h1>
-          <p className="motion-fade-up motion-delay-2 mx-auto mt-4 max-w-xl text-base text-on-night-muted sm:text-lg">
+          <p className="motion-fade-up motion-delay-2 mx-auto mt-4 max-w-xl text-pretty text-base text-on-night-muted sm:text-lg">
             {t("landing.subtitle")}
           </p>
-          <div className="motion-fade-up motion-delay-3 mt-10 flex flex-col items-center gap-4">
+          <div className="motion-fade-up motion-delay-3 mt-8 flex flex-col items-center gap-3">
             <Button
               variant="primary"
               size="lg"

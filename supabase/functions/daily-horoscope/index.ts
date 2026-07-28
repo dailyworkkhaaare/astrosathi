@@ -13,8 +13,9 @@ import {
   createClient,
   type SupabaseClient,
 } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-// @ts-ignore - esm.sh import. Same validated engine as transit-compute/astrologer-chat.
-import { getAscendant } from "https://esm.sh/gh/heirmez/vedic-ephemeris@main/index.mjs";
+// Live ascendant now uses the LOCAL Swiss engine (astronomy-engine), loaded
+// dynamically inside the handler — the same validated engine as chart-gateway.
+// (Removed the old vedic-ephemeris getAscendant + blind +180deg hack.)
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Deno: any;
@@ -250,6 +251,31 @@ const SIGN_FULL = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Sco
 function skyNorm360(x: number): number { return ((x % 360) + 360) % 360; }
 function skySignName(idx: number): string { return Number.isInteger(idx) && idx >= 0 && idx < 12 ? SIGN_FULL[idx] : "?"; }
 function skyNakName(idx: number | null): string { return idx != null && Number.isInteger(idx) && idx >= 0 && idx < 27 ? NAKSHATRAS[idx] : "?"; }
+
+// ---------- Live sidereal ascendant (local Swiss engine, Lahiri) ----------
+// Ported verbatim from chart-gateway / positions.mjs. Resolves the 180deg
+// ascendant ambiguity via the MC — fixing the exact bug the old vedic-ephemeris
+// path patched over with a blind +180.
+const ASC_AYANAMSA_J2000 = 23.85292;
+const ascNorm360 = (x: number): number => ((x % 360) + 360) % 360;
+const ascD2r = (d: number): number => (d * Math.PI) / 180;
+const ascR2d = (r: number): number => (r * 180) / Math.PI;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ascJulianCenturiesTT(A: any, date: Date): number { return A.MakeTime(date).tt / 36525; }
+function ascAyanamsaDeg(T: number): number { return ASC_AYANAMSA_J2000 + 1.3969713 * T + 0.0003086 * T * T; }
+function ascMeanObliquity(T: number): number { return 23.4392911 - 0.0130041667 * T - 1.638889e-7 * T * T + 5.036111e-7 * T * T * T; }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function eSiderealAscendant(A: any, date: Date, latDeg: number, lonDeg: number): number {
+  const T = ascJulianCenturiesTT(A, date);
+  const gastHours = A.SiderealTime(date); // Greenwich apparent sidereal time (hours)
+  const ramc = ascNorm360(gastHours * 15 + lonDeg);
+  const eps = ascMeanObliquity(T);
+  const R = ascD2r(ramc), E = ascD2r(eps), P = ascD2r(latDeg);
+  const mc = ascNorm360(ascR2d(Math.atan2(Math.sin(R), Math.cos(R) * Math.cos(E))));
+  let asc = ascNorm360(ascR2d(Math.atan2(Math.cos(R), -(Math.sin(R) * Math.cos(E) + Math.tan(P) * Math.sin(E)))));
+  if (ascNorm360(asc - mc) > 180) asc = ascNorm360(asc + 180);
+  return ascNorm360(asc - ascAyanamsaDeg(T));
+}
 function skyHouse(signIdx: number, refSignIdx: number | null): number | null {
   if (refSignIdx == null || !Number.isInteger(signIdx)) return null;
   return ((signIdx - refSignIdx + 12) % 12) + 1;
@@ -451,12 +477,9 @@ Deno.serve(async (req: Request) => {
     const lon = ctxNum(birth?.longitude);
     if (lat != null && lon != null) {
       try {
-        const a = getAscendant({ date: new Date(), lat, lon });
-        const sid = ctxNum(a?.siderealLon);
-        if (sid != null) {
-          const corrected = skyNorm360(sid + 180);
-          liveAsc = { sign: Math.floor(corrected / 30) % 12, deg: corrected % 30 };
-        }
+        const A = await import("https://esm.sh/astronomy-engine@2.1.19");
+        const ascLon = eSiderealAscendant(A, new Date(), lat, lon);
+        liveAsc = { sign: Math.floor(ascLon / 30) % 12, deg: ascLon % 30 };
       } catch (_e) { liveAsc = null; }
     }
     skyText = formatCurrentSky({

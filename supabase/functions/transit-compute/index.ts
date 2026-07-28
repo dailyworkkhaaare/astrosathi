@@ -1,20 +1,26 @@
-// transit-compute
+// transit-compute  (Swiss / astronomy-engine edition)
 // ---------------------------------------------------------------------------
-// Fills the shared "sky" tables using the FREE, validated vedic-ephemeris engine.
-// This step writes ONLY the parts the free engine is accurate for:
+// Fills the shared "sky" tables using the LOCAL, validated astronomy-engine
+// (Lahiri sidereal) — the SAME engine chart-gateway uses for natal charts.
+// Replaces the old FREE-but-buggy vedic-ephemeris (which had the +180° issue).
+//
+// This step writes:
 //   - transit_moon_hourly : 24 hourly Moon rows for the current UTC day
 //   - transit_planets      : the Sun row (+ its next sign-ingress)
-// It does NOT touch Prokerala and costs ZERO credits.
-// The slow planets (Mercury..Ketu) are filled by the NEXT step (ingress-aware).
+// The slow planets (Mercury..Ketu) are written by transit-planets-refresh.
+//
+// Cost: ZERO (pure local compute, no external API).
+// Table columns, onConflict keys, and the response shape are unchanged so the
+// scheduler and downstream readers (daily-horoscope, market-predict) keep
+// working exactly as before.
 // ---------------------------------------------------------------------------
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { getSkySnapshot } from "https://esm.sh/gh/heirmez/vedic-ephemeris@main/index.mjs";
 
 const CORS_HEADERS = {
 	"Access-Control-Allow-Origin": "*",
 	"Access-Control-Allow-Headers":
-		"authorization, x-client-info, apikey, content-type",
+		"authorization, x-client-info, apikey, content-type, x-cron-secret",
 	"Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -29,7 +35,7 @@ function err(message, status = 400, extra = {}) {
 	return json({ ok: false, error: message, ...extra }, status);
 }
 
-// --- sidereal math helpers (everything derived from siderealLon only) -------
+// --- sidereal presentation helpers (sign / degree / nakshatra / pada) -------
 const SIGN = 30;
 const NAK = 360 / 27; // 13.3333.. degrees per nakshatra
 const PADA = NAK / 4; // 3.3333.. degrees per pada
@@ -39,21 +45,6 @@ function norm360(x) {
 	if (v < 0) v += 360;
 	return v;
 }
-
-// Robustly read the sidereal longitude from a planet object.
-function lonOf(p) {
-	if (p && typeof p.siderealLon === "number") return norm360(p.siderealLon);
-	if (
-		p &&
-		p.rashi &&
-		typeof p.rashi.index === "number" &&
-		typeof p.rashiDeg === "number"
-	) {
-		return norm360(p.rashi.index * SIGN + p.rashiDeg);
-	}
-	throw new Error("Cannot read sidereal longitude from planet object");
-}
-
 function signOf(lon) {
 	return Math.floor(norm360(lon) / SIGN); // 0..11
 }
@@ -67,25 +58,68 @@ function padaOf(lon) {
 	return Math.floor((norm360(lon) % NAK) / PADA) + 1; // 1..4
 }
 
-function moonLon(date) {
-	return lonOf(getSkySnapshot(date).planets.Moon);
+// ===========================================================================
+// Swiss sidereal engine (astronomy-engine) — validated Lahiri, ported verbatim
+// from chart-gateway / positions.mjs. sidereal = ecliptic-of-date − ayanamsa(T).
+// Only the Sun and Moon are needed here.
+// ===========================================================================
+const AYANAMSA_J2000 = 23.85292; // Lahiri ayanamsa at J2000.0 (deg)
+const eNorm360 = (x) => ((x % 360) + 360) % 360;
+function eJulianCenturiesTT(A, date) {
+	return A.MakeTime(date).tt / 36525;
 }
-function sunLon(date) {
-	return lonOf(getSkySnapshot(date).planets.Sun);
+function ePrecessionSinceJ2000(T) {
+	return 1.3969713 * T + 0.0003086 * T * T;
+}
+function eAyanamsaDeg(T) {
+	return AYANAMSA_J2000 + ePrecessionSinceJ2000(T);
+}
+function eEclipticLonOfDate(A, body, date, aberration) {
+	const vec = A.GeoVector(body, date, aberration);
+	const ecl = A.Ecliptic(vec);
+	return eNorm360(ecl.elon);
+}
+function eSiderealLonOfBody(A, body, date, aberration, T) {
+	return eNorm360(eEclipticLonOfDate(A, body, date, aberration) - eAyanamsaDeg(T));
 }
 
-// Scan forward to find when a body next crosses into a new sign.
-// lonFn(date) -> sidereal longitude. Returns { ts, sign } or nulls if not found.
+// Sun: apparent place (aberration=true). Moon: geocentric (aberration=false).
+// Both are never retrograde. Matches positions.mjs GRAHAS definitions.
+function sunLon(A, date) {
+	const T = eJulianCenturiesTT(A, date);
+	return eSiderealLonOfBody(A, A.Body.Sun, date, true, T);
+}
+function moonLon(A, date) {
+	const T = eJulianCenturiesTT(A, date);
+	return eSiderealLonOfBody(A, A.Body.Moon, date, false, T);
+}
+
+// Exact next sign-ingress: coarse scan to bracket the crossing, then bisect to
+// ~1 minute. Direction-agnostic. lonFn(date) -> sidereal longitude (deg).
 function nextIngress(lonFn, from, maxDays, stepHours) {
-	const startSign = signOf(lonFn(from));
 	const stepMs = stepHours * 3600 * 1000;
 	const maxMs = maxDays * 24 * 3600 * 1000;
-	for (let t = stepMs; t <= maxMs; t += stepMs) {
-		const d = new Date(from.getTime() + t);
-		const s = signOf(lonFn(d));
-		if (s !== startSign) {
-			return { ts: d.toISOString(), sign: s };
+	const startSign = signOf(lonFn(from));
+	let prevT = from.getTime();
+	let prevSign = startSign;
+	for (let dt = stepMs; dt <= maxMs; dt += stepMs) {
+		const t = from.getTime() + dt;
+		const s = signOf(lonFn(new Date(t)));
+		if (s !== prevSign) {
+			let lo = prevT;
+			let hi = t;
+			for (let i = 0; i < 48 && hi - lo > 60000; i++) {
+				const mid = (lo + hi) / 2;
+				if (signOf(lonFn(new Date(mid))) === prevSign) lo = mid;
+				else hi = mid;
+			}
+			return {
+				ts: new Date(hi).toISOString(),
+				sign: signOf(lonFn(new Date(hi))),
+			};
 		}
+		prevT = t;
+		prevSign = s;
 	}
 	return { ts: null, sign: null };
 }
@@ -99,9 +133,7 @@ Deno.serve(async (req) => {
 	const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 	if (!SUPABASE_URL || !SERVICE_ROLE) return err("Missing Supabase env", 500);
 
-	// Background job: no user login required (a scheduler will call this).
-	// Optional protection: if TRANSIT_CRON_SECRET is set, callers must send a
-	// matching x-cron-secret header. If it is not set, the call is allowed.
+	// Optional shared-secret guard (same behavior as before).
 	const cronSecret = Deno.env.get("TRANSIT_CRON_SECRET");
 	if (cronSecret) {
 		const provided = req.headers.get("x-cron-secret") || "";
@@ -110,9 +142,16 @@ Deno.serve(async (req) => {
 	}
 
 	const svc = createClient(SUPABASE_URL, SERVICE_ROLE);
-
 	const now = new Date();
 	const nowIso = now.toISOString();
+
+	// --- Load the local engine (dynamic import isolates any load failure) -----
+	let A;
+	try {
+		A = await import("https://esm.sh/astronomy-engine@2.1.19");
+	} catch (e) {
+		return err("Astronomy engine load failed: " + String(e), 502);
+	}
 
 	// ---- 1) Hourly Moon for the current UTC day (24 rows, overwritten) ----
 	const dayStart = new Date(
@@ -130,7 +169,7 @@ Deno.serve(async (req) => {
 	const moonRows = [];
 	for (let h = 0; h < 24; h++) {
 		const slotTs = new Date(dayStart.getTime() + h * 3600 * 1000);
-		const lon = moonLon(slotTs);
+		const lon = norm360(moonLon(A, slotTs));
 		moonRows.push({
 			slot_hour: h,
 			for_date: forDate,
@@ -148,9 +187,10 @@ Deno.serve(async (req) => {
 		.upsert(moonRows, { onConflict: "slot_hour" });
 	if (moonErr) return err("Failed to write moon rows: " + moonErr.message, 500);
 
-	// ---- 2) Sun (free + accurate) with its next sign-ingress ----
-	const sLon = sunLon(now);
-	const sunIngress = nextIngress(sunLon, now, 60, 6); // Sun changes sign ~monthly
+	// ---- 2) Sun (accurate + free) with its next sign-ingress ----
+	const sunLonFn = (d) => sunLon(A, d);
+	const sLon = norm360(sunLonFn(now));
+	const sunIngress = nextIngress(sunLonFn, now, 60, 6); // Sun changes sign ~monthly
 	const sunRow = {
 		planet: 0,
 		planet_name: "Sun",
@@ -161,7 +201,7 @@ Deno.serve(async (req) => {
 		retrograde: false,
 		next_ingress_ts: sunIngress.ts,
 		next_sign: sunIngress.sign,
-		source: "local",
+		source: "astronomy-engine",
 		updated_at: nowIso,
 	};
 
@@ -172,6 +212,7 @@ Deno.serve(async (req) => {
 
 	return json({
 		ok: true,
+		engine: "astronomy-engine",
 		computedAt: nowIso,
 		for_date: forDate,
 		wrote: { moon_hourly_rows: moonRows.length, sun: sunRow },

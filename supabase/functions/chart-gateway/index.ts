@@ -785,7 +785,7 @@ serve(async (req: Request) => {
           chart_jsonb: numerologyData,
           supersedes_id: null,
         },
-        { onConflict: "user_id,chart_type" },
+        { onConflict: "user_id,chart_type,input_hash" },
       )
       .select("id")
       .single();
@@ -1360,7 +1360,7 @@ serve(async (req: Request) => {
           chart_jsonb: loShuData,
           supersedes_id: null,
         },
-        { onConflict: "user_id,chart_type" },
+        { onConflict: "user_id,chart_type,input_hash" },
       )
       .select("id")
       .single();
@@ -1643,7 +1643,7 @@ serve(async (req: Request) => {
               chart_jsonb: swissPayload,
               supersedes_id: null,
             },
-            { onConflict: "user_id,chart_type" },
+            { onConflict: "user_id,chart_type,input_hash" },
           )
           .select("id")
           .single();
@@ -1885,7 +1885,7 @@ serve(async (req: Request) => {
         chart_jsonb: chartPayload,
         supersedes_id: supersedesId,
       },
-      { onConflict: "user_id,chart_type" },
+      { onConflict: "user_id,chart_type,input_hash" },
     )
     .select("id")
     .single();

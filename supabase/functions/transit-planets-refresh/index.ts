@@ -1,21 +1,20 @@
-// transit-planets-refresh
+// transit-planets-refresh  (Swiss / astronomy-engine edition)
 // ---------------------------------------------------------------------------
-// Ingress-aware refresh of the 7 SLOW bodies (Mercury, Venus, Mars, Jupiter,
-// Saturn, Rahu, Ketu) in transit_planets, using Prokerala planet-position.
+// Refreshes the 7 SLOW bodies (Mercury, Venus, Mars, Jupiter, Saturn, Rahu,
+// Ketu) in transit_planets using the LOCAL astronomy-engine (Lahiri sidereal),
+// the same validated engine chart-gateway uses for natal charts.
 //
-// This is the ONLY transit function that spends credits. It self-decides
-// whether a Prokerala call is actually needed, so a dumb daily scheduler can
-// call it and it stays free most of the time:
-//   - seeds the rows if any slow body is missing
-//   - re-verifies when a body is NEAR a sign boundary (an ingress is due)
-//   - a safety refresh if data is older than MAX_STALE_DAYS
-//   - otherwise does NOTHING and returns 0 credits
+// Cost: ZERO. No Prokerala token, no paid API call, no credit accounting, no
+// budget cap. Compute is free and deterministic, so this simply computes all 7
+// bodies at "now" and upserts them every time it is called.
 //
-// One Prokerala planet-position call returns ALL bodies, so refreshing any
-// number of slow planets costs exactly ONE call.
+// next_ingress_ts / next_sign are now computed EXACTLY (coarse scan + bisection
+// to ~1 minute), direction-agnostic so retrograde crossings are handled
+// correctly — replacing the old rough mean-motion estimate.
 //
-// Guards: optional TRANSIT_CRON_SECRET (x-cron-secret header) + the existing
-// PROKERALA_MONTHLY_CREDIT_CAP budget cap (prokerala_month_spend RPC).
+// Table columns, response shape, the optional TRANSIT_CRON_SECRET guard, and
+// the astrology_provider_runs audit row are all preserved so the scheduler and
+// downstream readers (daily-horoscope, market-predict) keep working unchanged.
 // ---------------------------------------------------------------------------
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -37,7 +36,7 @@ function err(message, status = 400, extra = {}) {
 	return json({ ok: false, error: message, ...extra }, status);
 }
 
-// --- sidereal math (everything derived from the absolute sidereal longitude) --
+// --- sidereal presentation helpers (sign / degree / nakshatra / pada) --------
 const SIGN = 30;
 const NAK = 360 / 27;
 const PADA = NAK / 4;
@@ -74,61 +73,100 @@ function padaOf(lon) {
 	return Math.floor((norm360(lon) % NAK) / PADA) + 1;
 }
 
-// Slow bodies. `motion` is the rough mean daily motion (deg/day, magnitude);
-// it is used ONLY to estimate the next-ingress date, which just needs to be
-// good enough to know "we are getting close" — the near-boundary re-verify
-// pins the exact crossing.
+// ===========================================================================
+// Swiss sidereal engine (astronomy-engine) — validated Lahiri, ported verbatim
+// from chart-gateway / positions.mjs. sidereal = ecliptic-of-date − ayanamsa(T).
+// ===========================================================================
+const SWISS_ENGINE_VERSION = "astronomy-engine@2.1.19+lahiri-v1";
+const AYANAMSA_J2000 = 23.85292; // Lahiri ayanamsa at J2000.0 (deg)
+
+const eNorm360 = (x) => ((x % 360) + 360) % 360;
+const eNorm180 = (x) => {
+	const v = eNorm360(x);
+	return v > 180 ? v - 360 : v;
+};
+function eJulianCenturiesTT(A, date) {
+	return A.MakeTime(date).tt / 36525;
+}
+function ePrecessionSinceJ2000(T) {
+	return 1.3969713 * T + 0.0003086 * T * T;
+}
+function eAyanamsaDeg(T) {
+	return AYANAMSA_J2000 + ePrecessionSinceJ2000(T);
+}
+function eEclipticLonOfDate(A, body, date, aberration) {
+	const vec = A.GeoVector(body, date, aberration);
+	const ecl = A.Ecliptic(vec);
+	return eNorm360(ecl.elon);
+}
+function eSiderealLonOfBody(A, body, date, aberration, T) {
+	return eNorm360(eEclipticLonOfDate(A, body, date, aberration) - eAyanamsaDeg(T));
+}
+function eMeanNodeOfDate(T) {
+	const om =
+		125.0445479 -
+		1934.1362891 * T +
+		0.0020754 * T * T +
+		(T * T * T) / 467441 -
+		(T * T * T * T) / 60616000;
+	return eNorm360(om);
+}
+function eIsRetrograde(A, body, date, aberration) {
+	const l1 = eEclipticLonOfDate(A, body, date, aberration);
+	const later = new Date(date.getTime() + 3600 * 1000);
+	const l2 = eEclipticLonOfDate(A, body, later, aberration);
+	return eNorm180(l2 - l1) < 0;
+}
+
+// Slow bodies. Planets resolve against A.Body[...]; nodes are analytic.
 const SLOW = [
-	{ id: 2, name: "Mercury", motion: 1.2 },
-	{ id: 3, name: "Venus", motion: 1.2 },
-	{ id: 4, name: "Mars", motion: 0.52 },
-	{ id: 5, name: "Jupiter", motion: 0.083 },
-	{ id: 6, name: "Saturn", motion: 0.034 },
-	{ id: 101, name: "Rahu", motion: 0.0529, alwaysRetro: true },
-	{ id: 102, name: "Ketu", motion: 0.0529, alwaysRetro: true },
+	{ id: 2, name: "Mercury", body: "Mercury", ab: true, canRetro: true },
+	{ id: 3, name: "Venus", body: "Venus", ab: true, canRetro: true },
+	{ id: 4, name: "Mars", body: "Mars", ab: true, canRetro: true },
+	{ id: 5, name: "Jupiter", body: "Jupiter", ab: true, canRetro: true },
+	{ id: 6, name: "Saturn", body: "Saturn", ab: true, canRetro: true },
+	{ id: 101, name: "Rahu", node: "rahu", alwaysRetro: true },
+	{ id: 102, name: "Ketu", node: "ketu", alwaysRetro: true },
 ];
-const SLOW_IDS = SLOW.map((s) => s.id);
 
-function numEnv(name, dflt) {
-	const v = Number(Deno.env.get(name));
-	return Number.isFinite(v) && v > 0 ? v : dflt;
+// Sidereal longitude of a slow body at an arbitrary instant (deg).
+function slowLonAt(A, b, date) {
+	const T = eJulianCenturiesTT(A, date);
+	if (b.node === "rahu") return eNorm360(eMeanNodeOfDate(T) - eAyanamsaDeg(T));
+	if (b.node === "ketu")
+		return eNorm360(eMeanNodeOfDate(T) - eAyanamsaDeg(T) + 180);
+	return eSiderealLonOfBody(A, A.Body[b.body], date, b.ab, T);
 }
 
-// Prokerala wants datetime as YYYY-MM-DDTHH:MM:SS+00:00 (no milliseconds, no Z).
-function utcOffsetString(d) {
-	const p = (n, w = 2) => String(n).padStart(w, "0");
-	return (
-		`${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}` +
-		`T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}+00:00`
-	);
-}
-
-function estimateIngress(lon, retro, motion, from) {
-	const s = signOf(lon);
-	const deg = degInSignOf(lon);
-	let daysToGo;
-	let nextSign;
-	if (retro) {
-		daysToGo = deg / motion; // moving back toward 0deg of the current sign
-		nextSign = (s + 11) % 12;
-	} else {
-		daysToGo = (SIGN - deg) / motion; // moving forward toward 30deg
-		nextSign = (s + 1) % 12;
+// Exact next sign-ingress: coarse 12h scan to bracket the crossing, then
+// bisect to ~1 minute. Direction-agnostic, so it works whether the body is
+// direct or retrograde. Returns null/null if none within the horizon.
+function nextIngress(A, b, from) {
+	const STEP_MS = 12 * 3600 * 1000;
+	const HORIZON_MS = 1000 * 86400000; // covers even Saturn (~882 days / sign)
+	const startSign = signOf(slowLonAt(A, b, from));
+	let prevT = from.getTime();
+	let prevSign = startSign;
+	for (let dt = STEP_MS; dt <= HORIZON_MS; dt += STEP_MS) {
+		const t = from.getTime() + dt;
+		const s = signOf(slowLonAt(A, b, new Date(t)));
+		if (s !== prevSign) {
+			let lo = prevT;
+			let hi = t;
+			for (let i = 0; i < 48 && hi - lo > 60000; i++) {
+				const mid = (lo + hi) / 2;
+				if (signOf(slowLonAt(A, b, new Date(mid))) === prevSign) lo = mid;
+				else hi = mid;
+			}
+			return {
+				ts: new Date(hi).toISOString(),
+				nextSign: signOf(slowLonAt(A, b, new Date(hi))),
+			};
+		}
+		prevT = t;
+		prevSign = s;
 	}
-	return {
-		ts: new Date(from.getTime() + daysToGo * 86400000).toISOString(),
-		nextSign,
-	};
-}
-
-async function fetchWithTimeout(url, init, timeoutMs) {
-	const ctrl = new AbortController();
-	const t = setTimeout(() => ctrl.abort(), timeoutMs);
-	try {
-		return await fetch(url, { ...init, signal: ctrl.signal });
-	} finally {
-		clearTimeout(t);
-	}
+	return { ts: null, nextSign: null };
 }
 
 Deno.serve(async (req) => {
@@ -140,104 +178,29 @@ Deno.serve(async (req) => {
 	const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 	if (!SUPABASE_URL || !SERVICE_ROLE) return err("Missing Supabase env", 500);
 
-	// Optional shared-secret guard (protects credits from random callers).
+	// Optional shared-secret guard (protects against random callers spamming
+	// compute + DB writes). Preserved so the existing cron keeps working.
 	const cronSecret = Deno.env.get("TRANSIT_CRON_SECRET");
 	if (cronSecret) {
 		const provided = req.headers.get("x-cron-secret") || "";
-		if (provided !== cronSecret)
-			return err("Bad or missing x-cron-secret", 401);
+		if (provided !== cronSecret) return err("Bad or missing x-cron-secret", 401);
 	}
 
-	let body = {};
+	let reqBody = {};
 	try {
 		const raw = await req.text();
-		body = raw ? JSON.parse(raw) : {};
+		reqBody = raw ? JSON.parse(raw) : {};
 	} catch {
-		body = {};
+		reqBody = {};
 	}
-	const force = body && body.force === true;
+	const force = reqBody && reqBody.force === true;
 
 	const svc = createClient(SUPABASE_URL, SERVICE_ROLE);
 	const now = new Date();
 	const nowIso = now.toISOString();
 
-	// --- Read current slow rows and decide whether a paid call is needed ------
-	const { data: existing, error: readErr } = await svc
-		.from("transit_planets")
-		.select("planet, planet_name, sign, deg, next_ingress_ts, updated_at")
-		.in("planet", SLOW_IDS);
-	if (readErr)
-		return err("Failed to read transit_planets: " + readErr.message, 500);
-
-	const present = existing || [];
-	const byId = new Map(present.map((r) => [r.planet, r]));
-
-	const WATCH_DAYS = numEnv("TRANSIT_INGRESS_WATCH_DAYS", 10);
-	const WATCH_DEG = numEnv("TRANSIT_INGRESS_WATCH_DEG", 2);
-	const MAX_STALE_DAYS = numEnv("TRANSIT_MAX_STALE_DAYS", 30);
-
-	const reasons = [];
-	if (force) reasons.push("force");
-	const missing = SLOW_IDS.filter((id) => !byId.has(id));
-	if (missing.length) reasons.push("missing:" + missing.join(","));
-
-	for (const r of present) {
-		const deg = Number(r.deg);
-		if (Number.isFinite(deg) && (deg <= WATCH_DEG || deg >= SIGN - WATCH_DEG)) {
-			reasons.push(`near_boundary:${r.planet}`);
-		}
-		if (r.next_ingress_ts) {
-			const dueMs = Date.parse(r.next_ingress_ts) - now.getTime();
-			if (Number.isFinite(dueMs) && dueMs <= WATCH_DAYS * 86400000) {
-				reasons.push(`ingress_due:${r.planet}`);
-			}
-		}
-		if (r.updated_at) {
-			const ageMs = now.getTime() - Date.parse(r.updated_at);
-			if (Number.isFinite(ageMs) && ageMs >= MAX_STALE_DAYS * 86400000) {
-				reasons.push(`stale:${r.planet}`);
-			}
-		}
-	}
-
-	const callNeeded = reasons.length > 0;
-	if (!callNeeded) {
-		return json({
-			ok: true,
-			refreshed: false,
-			reason: "idle",
-			cost_units: 0,
-			planets: present,
-			checkedAt: nowIso,
-		});
-	}
-
-	// --- Budget guard: never let transit spending run away --------------------
-	const MONTHLY_CAP = Number(
-		Deno.env.get("PROKERALA_MONTHLY_CREDIT_CAP") ?? "0",
-	);
-	if (Number.isFinite(MONTHLY_CAP) && MONTHLY_CAP > 0) {
-		const { data: spent, error: spendErr } = await svc.rpc(
-			"prokerala_month_spend",
-		);
-		if (spendErr) {
-			console.error("[transit] budget check failed:", spendErr.message);
-		} else if (typeof spent === "number" && spent >= MONTHLY_CAP) {
-			return err("Monthly astrology API budget reached.", 503, {
-				code: "budget_exceeded",
-				spent,
-				cap: MONTHLY_CAP,
-			});
-		}
-	}
-
-	const CLIENT_ID = Deno.env.get("PROKERALA_CLIENT_ID");
-	const CLIENT_SECRET = Deno.env.get("PROKERALA_CLIENT_SECRET");
-	if (!CLIENT_ID || !CLIENT_SECRET)
-		return err("Prokerala credentials missing", 500);
-
-	// Audit helper (feeds prokerala_month_spend). user_id is nullable for these
-	// system-initiated calls; set TRANSIT_ACTOR_USER_ID to attribute them.
+	// Audit helper (kept for observability). provider is now the local engine and
+	// cost is always 0, so prokerala_month_spend never counts these.
 	const actorUserId = Deno.env.get("TRANSIT_ACTOR_USER_ID") || null;
 	const audit = async (p) => {
 		try {
@@ -245,12 +208,12 @@ Deno.serve(async (req) => {
 				.from("astrology_provider_runs")
 				.insert({
 					user_id: actorUserId,
-					provider: "prokerala",
-					endpoint: "/v2/astrology/planet-position",
+					provider: "astronomy-engine",
+					endpoint: "local/transit-slow",
 					input_hash: "transit-slow",
 					http_status: p.http_status,
 					success: p.success,
-					cost_units: p.cost_units ?? 0,
+					cost_units: 0,
 					error: p.error ?? null,
 				});
 			if (auditErr)
@@ -260,183 +223,65 @@ Deno.serve(async (req) => {
 		}
 	};
 
-	// --- Token ----------------------------------------------------------------
-	let accessToken;
+	// --- Load the local engine (dynamic import isolates any load failure) -----
+	let A;
 	try {
-		const tokRes = await fetchWithTimeout(
-			"https://api.prokerala.com/token",
-			{
-				method: "POST",
-				headers: { "content-type": "application/x-www-form-urlencoded" },
-				body: new URLSearchParams({
-					grant_type: "client_credentials",
-					client_id: CLIENT_ID,
-					client_secret: CLIENT_SECRET,
-				}).toString(),
-			},
-			15000,
-		);
-		const tokJson = await tokRes.json().catch(() => ({}));
-		if (!tokRes.ok || !tokJson.access_token) {
-			await audit({
-				http_status: tokRes.status,
-				success: false,
-				error: "provider_auth_failed",
-			});
-			return err("Provider authentication failed", 502);
-		}
-		accessToken = tokJson.access_token;
-	} catch {
-		await audit({
-			http_status: 0,
-			success: false,
-			error: "provider_auth_failed",
-		});
-		return err("Provider authentication failed", 502);
+		A = await import("https://esm.sh/astronomy-engine@2.1.19");
+	} catch (e) {
+		await audit({ http_status: 502, success: false, error: "engine_load_failed" });
+		return err("Astronomy engine load failed: " + String(e), 502);
 	}
 
-	// --- Planet-position call (one call returns ALL bodies) -------------------
-	// Planet SIGNS are geocentric/global, so the reference coordinates only
-	// satisfy the required API param; the returned ascendant is ignored.
-	const coordinates = Deno.env.get("TRANSIT_REF_COORDS") || "28.6139,77.2090";
-	const params = new URLSearchParams();
-	params.set("ayanamsa", "1");
-	params.set("coordinates", coordinates);
-	params.set("datetime", utcOffsetString(now));
-	params.set("la", "en");
-	const url =
-		"https://api.prokerala.com/v2/astrology/planet-position?" +
-		params.toString();
-
-	let provRes;
-	try {
-		provRes = await fetchWithTimeout(
-			url,
-			{ method: "GET", headers: { Authorization: `Bearer ${accessToken}` } },
-			20000,
-		);
-		if (provRes.status === 429) {
-			await new Promise((r) => setTimeout(r, 1500));
-			provRes = await fetchWithTimeout(
-				url,
-				{ method: "GET", headers: { Authorization: `Bearer ${accessToken}` } },
-				20000,
-			);
-		}
-	} catch {
-		await audit({ http_status: 0, success: false, error: "provider_error" });
-		return err("Provider request failed", 502);
-	}
-
-	const provText = await provRes.text();
-	let provJson = null;
-	try {
-		provJson = provText ? JSON.parse(provText) : null;
-	} catch {
-		provJson = null;
-	}
-
-	// Cost is reported in response HEADERS, not the body.
-	const costFromHeader = Number(
-		provRes.headers.get("x-credit-used") ??
-			provRes.headers.get("x-credits-used") ??
-			provRes.headers.get("x-ratelimit-credit-used") ??
-			"",
-	);
-	const costUnits =
-		Number.isFinite(costFromHeader) && costFromHeader > 0 ? costFromHeader : 1;
-
-	if (!provRes.ok) {
-		let msg = null;
-		if (provJson && typeof provJson === "object") {
-			msg =
-				provJson.message ??
-				provJson.error?.message ??
-				(Array.isArray(provJson.errors) && provJson.errors[0]?.detail) ??
-				null;
-		}
-		if (!msg)
-			msg = provText?.trim() ? provText.trim() : `HTTP ${provRes.status}`;
-		await audit({
-			http_status: provRes.status,
-			success: false,
-			error: String(msg).slice(0, 500),
-		});
-		return err("Provider error: " + String(msg).slice(0, 300), 502, {
-			cost_units: costUnits,
-		});
-	}
-
-	const list =
-		provJson && provJson.data && Array.isArray(provJson.data.planet_position)
-			? provJson.data.planet_position
-			: null;
-	if (!list) {
-		await audit({
-			http_status: provRes.status,
-			success: false,
-			error: "unexpected_shape",
-		});
-		return err("Unexpected provider response shape", 502, {
-			cost_units: costUnits,
-		});
-	}
-
-	// --- Build + upsert the 7 slow rows ---------------------------------------
+	// --- Compute the 7 slow rows locally --------------------------------------
 	const rows = [];
-	const byProviderId = new Map(list.map((p) => [p.id, p]));
-	for (const b of SLOW) {
-		const item = byProviderId.get(b.id);
-		if (!item) continue;
-		const lon = norm360(Number(item.longitude));
-		if (!Number.isFinite(lon)) continue;
-		const retro = b.alwaysRetro ? true : Boolean(item.is_retrograde);
-		const ing = estimateIngress(lon, retro, b.motion, now);
-		rows.push({
-			planet: b.id,
-			planet_name: b.name,
-			sign: signOf(lon),
-			deg: degInSignOf(lon),
-			nakshatra: nakOf(lon),
-			pada: padaOf(lon),
-			retrograde: retro,
-			next_ingress_ts: ing.ts,
-			next_sign: ing.nextSign,
-			source: "prokerala",
-			updated_at: nowIso,
-		});
-	}
-
-	if (!rows.length) {
+	try {
+		for (const b of SLOW) {
+			const lon = norm360(slowLonAt(A, b, now));
+			const retro = b.alwaysRetro
+				? true
+				: eIsRetrograde(A, A.Body[b.body], now, b.ab);
+			const ing = nextIngress(A, b, now);
+			rows.push({
+				planet: b.id,
+				planet_name: b.name,
+				sign: signOf(lon),
+				deg: degInSignOf(lon),
+				nakshatra: nakOf(lon),
+				pada: padaOf(lon),
+				retrograde: retro,
+				next_ingress_ts: ing.ts,
+				next_sign: ing.nextSign,
+				source: "astronomy-engine",
+				updated_at: nowIso,
+			});
+		}
+	} catch (e) {
 		await audit({
-			http_status: provRes.status,
+			http_status: 500,
 			success: false,
-			error: "no_slow_bodies_parsed",
+			error: "compute_failed: " + String(e).slice(0, 400),
 		});
-		return err("Could not parse any slow bodies", 502, {
-			cost_units: costUnits,
-		});
+		return err("Local compute failed: " + String(e).slice(0, 300), 502);
 	}
 
 	const { error: upErr } = await svc
 		.from("transit_planets")
 		.upsert(rows, { onConflict: "planet" });
 	await audit({
-		http_status: provRes.status,
+		http_status: 200,
 		success: !upErr,
-		cost_units: costUnits,
 		error: upErr?.message ?? null,
 	});
 	if (upErr)
-		return err("Failed to write slow planets: " + upErr.message, 500, {
-			cost_units: costUnits,
-		});
+		return err("Failed to write slow planets: " + upErr.message, 500);
 
 	return json({
 		ok: true,
 		refreshed: true,
-		reason: reasons.join("; "),
-		cost_units: costUnits,
+		engine: "astronomy-engine",
+		engine_version: SWISS_ENGINE_VERSION,
+		reason: force ? "force; swiss-local" : "swiss-local",
+		cost_units: 0,
 		computedAt: nowIso,
 		planets: rows.map((r) => ({
 			planet_name: r.planet_name,
@@ -446,7 +291,7 @@ Deno.serve(async (req) => {
 			retrograde: r.retrograde,
 			next_ingress_ts: r.next_ingress_ts,
 			next_sign: r.next_sign,
-			nextSignName: SIGN_NAMES[r.next_sign],
+			nextSignName: r.next_sign != null ? SIGN_NAMES[r.next_sign] : null,
 		})),
 	});
 });

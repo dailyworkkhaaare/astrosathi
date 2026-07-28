@@ -574,7 +574,8 @@
       "bandMoonHouse": "The Moon is moving through your house {{house}} today.",
       "bandDismiss": "Dismiss",
       "bandIngressSeed": "{{planet}} is entering {{sign}} in {{days}} days — what shifts for me?",
-      "bandMoonHouseSeed": "The Moon is moving through my house {{house}} today — what does that mean for me?"
+      "bandMoonHouseSeed": "The Moon is moving through my house {{house}} today — what does that mean for me?",
+      "bandLoadError": "Couldn't load today's highlight."
     },
     "market": {
       "title": "Metals outlook",

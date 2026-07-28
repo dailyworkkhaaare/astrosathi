@@ -1,4 +1,4 @@
-import { Sparkles, X } from "lucide-react";
+import { RefreshCw, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
@@ -102,6 +102,37 @@ export function TransitHighlightBand() {
     }
   }, [storageKey]);
 
+  const loading = transitsQuery.isPending || planetsQuery.isPending;
+  const hasError = transitsQuery.isError || planetsQuery.isError;
+
+  if (loading) {
+    return (
+      <div
+        aria-hidden="true"
+        className="h-[52px] animate-pulse rounded-xl border border-accent/20 bg-accent/[0.05]"
+      />
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/[0.05] px-3 py-2.5">
+        <span className="text-sm text-muted-foreground">{t("sections.today.bandLoadError")}</span>
+        <button
+          type="button"
+          onClick={() => {
+            void transitsQuery.refetch();
+            void planetsQuery.refetch();
+          }}
+          className="tap-press inline-flex min-h-11 w-fit shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <RefreshCw size={14} aria-hidden="true" />
+          {t("states.retry")}
+        </button>
+      </div>
+    );
+  }
+
   if (!highlight || !signature || dismissedSignature === signature) return null;
 
   const handleDismiss = () => {
@@ -144,7 +175,7 @@ export function TransitHighlightBand() {
       : t("sections.today.bandMoonHouse", { house: highlight.house });
 
   return (
-    <div className="flex items-center gap-1 rounded-xl border border-accent/20 bg-accent/[0.05] pl-1 pr-1">
+    <div className="motion-fade-up flex items-center gap-1 rounded-xl border border-accent/20 bg-accent/[0.05] pl-1 pr-1">
       <button
         type="button"
         onClick={handleTap}

@@ -62,6 +62,8 @@
   --color-on-night: var(--on-night);
   --color-on-night-muted: var(--on-night-muted);
   --color-on-night-subtle: var(--on-night-subtle);
+  --color-glow-gold: var(--glow-gold);
+  --color-glow-violet: var(--glow-violet);
   --font-sans: "DM Sans", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
   --font-devanagari: "Noto Sans Devanagari", "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Cormorant Garamond", "Noto Serif Devanagari", ui-serif, Georgia, serif;

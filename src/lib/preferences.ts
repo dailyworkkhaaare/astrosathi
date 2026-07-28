@@ -20,7 +20,7 @@ export type Preferences = {
 const THEME_KEY = "astrosaathi.theme";
 
 const DEFAULTS: Preferences = {
-  theme: "dark",
+  theme: "light",
   tone: "calm",
   answer_length: "balanced",
   memory_opt_in: false,

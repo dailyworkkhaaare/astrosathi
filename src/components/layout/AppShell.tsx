@@ -118,10 +118,10 @@ function DesktopRail({ pathname }: { pathname: string }) {
     <aside className="sticky top-0 hidden h-screen w-20 shrink-0 flex-col items-center border-r border-border/60 bg-background/60 py-4 backdrop-blur md:flex">
       <Link
         to="/home"
-        className="mb-4 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-11 min-w-11 grid place-items-center [&_svg]:h-7 [&_svg]:w-7"
+        className="mb-4 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-11 min-w-11 grid place-items-center"
         aria-label="Home"
       >
-        <BrandMark withWordmark={false} />
+        <BrandMark withWordmark={false} className="h-7 w-7" />
       </Link>
       <nav aria-label="Primary" className="flex w-full flex-1 flex-col items-center gap-2">
         {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => {

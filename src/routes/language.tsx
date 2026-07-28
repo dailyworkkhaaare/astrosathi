@@ -49,9 +49,7 @@ function LanguagePage() {
       <div className="flex w-full max-w-[480px] flex-1 flex-col md:flex-initial md:gap-2">
         {/* Header */}
         <div className="flex flex-col items-center text-center">
-          <div className="[&_svg]:h-12 [&_svg]:w-12">
-            <BrandMark withWordmark={false} />
-          </div>
+          <BrandMark withWordmark={false} className="h-12 w-12" />
           <h1 className="mt-3 font-display text-3xl font-semibold text-foreground">{APP_NAME}</h1>
         </div>
 

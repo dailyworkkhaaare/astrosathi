@@ -181,10 +181,10 @@ function AuthPage() {
         >
           <Link
             to="/"
-            className="inline-flex items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:h-10 [&_svg]:w-10"
+            className="inline-flex items-center rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={APP_NAME}
           >
-            <BrandMark withWordmark={false} />
+            <BrandMark withWordmark={false} className="h-10 w-10" />
           </Link>
           <span className="font-display mt-2 text-3xl font-semibold tracking-tight text-on-night">
             {APP_NAME}

@@ -142,7 +142,7 @@ export function TodaySection() {
                 </button>
               </h3>
               {slowPlanetsOpen && (
-                <ul id="slow-planets-list" className="mt-2 space-y-2">
+                <ul id="slow-planets-list" className="motion-fade-up mt-2 space-y-2">
                   {planets.map((p) => (
                     <TodayPlanetRow
                       key={p.planet}

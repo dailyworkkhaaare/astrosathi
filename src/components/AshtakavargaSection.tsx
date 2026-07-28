@@ -64,7 +64,7 @@ export function AshtakavargaSection() {
 
         {!loading && !hasError && houses.length > 0 && (
           <>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="motion-fade-up mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {houses.map((h) => (
                 <HouseCard key={h.house.number} h={h} />
               ))}
@@ -163,7 +163,7 @@ function BhinnashtakavargaSection() {
 
       {!loading && !hasError && houses.length > 0 && (
         <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="motion-fade-up mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {houses.map((h) => (
               <BhinnaHouseCard key={h.house.number} h={h} />
             ))}

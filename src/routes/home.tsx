@@ -318,272 +318,180 @@ function ChartsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-5">
-        <Card className="xl:col-span-2">
-          <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
-                <Compass size={15} className="text-accent" aria-hidden="true" />
-              </span>
-              <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
-            </div>
-            <div className="w-full min-w-0 sm:w-auto">
-              <label htmlFor="varga-select" className="sr-only">
-                {t("home.varga.pickerLabel")}
-              </label>
-              <select
-                id="varga-select"
-                value={varga}
-                onChange={(e) => setVarga(e.target.value as VargaKey)}
-                className="h-11 w-full max-w-full truncate rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
-              >
-                {VARGA_KEYS.map((k) => (
-                  <option key={k} value={k}>
-                    {t(`home.varga.${k.toLowerCase()}`)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div
-            role="region"
-            aria-live="polite"
-            aria-label={t(`home.varga.${varga.toLowerCase()}`)}
-            className="relative w-full"
-          >
-            {loading && <ChartSkeleton />}
-            {!loading && errorMessageKey && (
-              <div className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-                <p className="text-sm text-foreground">{t(errorMessageKey)}</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  {errorCode === "birth_profile_incomplete" && (
-                    <Link
-                      to="/onboarding/birth"
-                      className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                    >
-                      {t("home.chartErrors.finishBirth")}
-                    </Link>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onRetry}
-                    className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-                  >
-                    {t("states.retry")}
-                  </button>
-                </div>
-              </div>
-            )}
-            {!loading && !errorMessageKey && svg && (
-              <div
-                className="mx-auto w-full max-w-md overflow-hidden rounded-lg border border-border bg-background p-2 [&_svg]:block [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-full [&_svg_line]:stroke-primary [&_svg_path]:stroke-primary [&_svg_rect]:stroke-primary [&_svg_polygon]:stroke-primary [&_svg_text]:fill-foreground"
-                dangerouslySetInnerHTML={{ __html: svg }}
-              />
-            )}
-          </div>
-        </Card>
-
-        <Card className="xl:col-span-3">
-          <div className="mb-3 flex items-center gap-2.5">
+      <Card>
+        <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
-              <Orbit size={15} className="text-accent" aria-hidden="true" />
+              <Compass size={15} className="text-accent" aria-hidden="true" />
             </span>
-            <h2 className="text-base font-semibold text-foreground">
-              {t("home.planetsTitle")}
-              {isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : ""}
-            </h2>
+            <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
           </div>
-          {tablesLoading && <PlanetsTableSkeleton />}
-          {!tablesLoading && tablesErrorKey && (
-            <ErrorInline
-              messageKey={tablesErrorKey}
-              code={tablesErrorCode}
-              onRetry={onRetryTables}
+          <div className="w-full min-w-0 sm:w-auto">
+            <label htmlFor="varga-select" className="sr-only">
+              {t("home.varga.pickerLabel")}
+            </label>
+            <select
+              id="varga-select"
+              value={varga}
+              onChange={(e) => setVarga(e.target.value as VargaKey)}
+              className="h-11 w-full max-w-full truncate rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
+            >
+              {VARGA_KEYS.map((k) => (
+                <option key={k} value={k}>
+                  {t(`home.varga.${k.toLowerCase()}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div
+          role="region"
+          aria-live="polite"
+          aria-label={t(`home.varga.${varga.toLowerCase()}`)}
+          className="relative w-full"
+        >
+          {loading && <ChartSkeleton />}
+          {!loading && errorMessageKey && (
+            <div className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm text-foreground">{t(errorMessageKey)}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {errorCode === "birth_profile_incomplete" && (
+                  <Link
+                    to="/onboarding/birth"
+                    className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    {t("home.chartErrors.finishBirth")}
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                >
+                  {t("states.retry")}
+                </button>
+              </div>
+            </div>
+          )}
+          {!loading && !errorMessageKey && svg && (
+            <div
+              className="mx-auto w-full max-w-md overflow-hidden rounded-lg border border-border bg-background p-2 [&_svg]:block [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-full [&_svg_line]:stroke-primary [&_svg_path]:stroke-primary [&_svg_rect]:stroke-primary [&_svg_polygon]:stroke-primary [&_svg_text]:fill-foreground"
+              dangerouslySetInnerHTML={{ __html: svg }}
             />
           )}
-          {!tablesLoading && !tablesErrorKey && displayPlanets.length === 0 && (
-            <p className="text-sm text-muted-foreground">{t("home.noPlanetData")}</p>
-          )}
-          {!tablesLoading && !tablesErrorKey && displayPlanets.length > 0 && (
-            <>
-              <ul className="space-y-3 md:hidden">
-                {displayPlanets.map((p) => {
-                  const statesExcludeRetro = p.states.filter((s) => s !== "Retrograde");
-                  return (
-                    <li key={p.key} className="rounded-xl border border-border bg-background p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">
-                            {t(`home.planets.${p.key}`)}
-                          </span>
-                          {p.degInSign != null && (
-                            <span className="text-xs text-muted-foreground">
-                              {formatDeg(p.degInSign)}
-                            </span>
-                          )}
-                          {p.retrograde && (
-                            <span
-                              aria-label={t("home.motionRetro")}
-                              className="inline-flex items-center rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
-                            >
-                              {t("home.retroShort")}
-                            </span>
-                          )}
-                        </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 flex items-center gap-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
+            <Orbit size={15} className="text-accent" aria-hidden="true" />
+          </span>
+          <h2 className="text-base font-semibold text-foreground">
+            {t("home.planetsTitle")}
+            {isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : ""}
+          </h2>
+        </div>
+        {tablesLoading && <PlanetsTableSkeleton />}
+        {!tablesLoading && tablesErrorKey && (
+          <ErrorInline messageKey={tablesErrorKey} code={tablesErrorCode} onRetry={onRetryTables} />
+        )}
+        {!tablesLoading && !tablesErrorKey && displayPlanets.length === 0 && (
+          <p className="text-sm text-muted-foreground">{t("home.noPlanetData")}</p>
+        )}
+        {!tablesLoading && !tablesErrorKey && displayPlanets.length > 0 && (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {displayPlanets.map((p) => {
+              const statesExcludeRetro = p.states.filter((s) => s !== "Retrograde");
+              return (
+                <li
+                  key={p.key}
+                  className="rounded-xl border border-border bg-background p-4 transition-colors hover:border-accent/30"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">
+                        {t(`home.planets.${p.key}`)}
+                      </span>
+                      {p.degInSign != null && (
                         <span className="text-xs text-muted-foreground">
-                          {p.house != null ? t("home.houseLabel", { n: p.house }) : "—"}
+                          {formatDeg(p.degInSign)}
                         </span>
+                      )}
+                      {p.retrograde && (
+                        <span
+                          aria-label={t("home.motionRetro")}
+                          className="inline-flex items-center rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
+                        >
+                          {t("home.retroShort")}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {p.house != null ? t("home.houseLabel", { n: p.house }) : "—"}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        {t("home.colSign")}
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <div className="text-foreground">
+                        {p.signKey ? t(`signs.${p.signKey}`) : p.signName || "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        {t("home.colSignLord")}
+                      </div>
+                      <div className="text-foreground">
+                        {p.signLordKey ? t(`home.planets.${p.signLordKey}`) : p.signLordName || "—"}
+                      </div>
+                    </div>
+                    {!isDivisional && (
+                      <>
                         <div>
                           <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colSign")}
+                            {t("home.colNakshatra")}
                           </div>
-                          <div className="text-foreground">
-                            {p.signKey ? t(`signs.${p.signKey}`) : p.signName || "—"}
-                          </div>
+                          <div className="text-foreground">{p.nakshatraName || "—"}</div>
                         </div>
                         <div>
                           <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colSignLord")}
+                            {t("home.colNakshatraLord")}
                           </div>
                           <div className="text-foreground">
-                            {p.signLordKey
-                              ? t(`home.planets.${p.signLordKey}`)
-                              : p.signLordName || "—"}
+                            {p.nakshatraLordKey
+                              ? t(`home.planets.${p.nakshatraLordKey}`)
+                              : p.nakshatraLordName || "—"}
                           </div>
                         </div>
-                        {!isDivisional && (
-                          <>
-                            <div>
-                              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                                {t("home.colNakshatra")}
-                              </div>
-                              <div className="text-foreground">{p.nakshatraName || "—"}</div>
-                            </div>
-                            <div>
-                              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                                {t("home.colNakshatraLord")}
-                              </div>
-                              <div className="text-foreground">
-                                {p.nakshatraLordKey
-                                  ? t(`home.planets.${p.nakshatraLordKey}`)
-                                  : p.nakshatraLordName || "—"}
-                              </div>
-                            </div>
-                          </>
-                        )}
+                      </>
+                    )}
+                  </div>
+                  {statesExcludeRetro.length > 0 && (
+                    <div className="mt-3">
+                      <div className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                        {t("home.colStates")}
                       </div>
-                      {statesExcludeRetro.length > 0 && (
-                        <div className="mt-3">
-                          <div className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colStates")}
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {statesExcludeRetro.map((s) => (
-                              <span
-                                key={s}
-                                className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-foreground"
-                              >
-                                {s}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="py-2 pr-3 font-medium">{t("home.colPlanet")}</th>
-                      <th className="py-2 pr-3 font-medium">{t("home.colSign")}</th>
-                      <th className="py-2 pr-3 font-medium">{t("home.colSignLord")}</th>
-                      <th className="py-2 pr-3 font-medium">{t("home.colHouse")}</th>
-                      {!isDivisional && (
-                        <>
-                          <th className="py-2 pr-3 font-medium">{t("home.colNakshatra")}</th>
-                          <th className="py-2 pr-3 font-medium">{t("home.colNakshatraLord")}</th>
-                        </>
-                      )}
-                      <th className="py-2 pr-3 font-medium">{t("home.colRetro")}</th>
-                      <th className="py-2 font-medium">{t("home.colStates")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayPlanets.map((p) => (
-                      <tr key={p.key} className="border-b border-border/60 last:border-0">
-                        <td className="py-2 pr-3 font-medium text-foreground">
-                          {t(`home.planets.${p.key}`)}
-                          {p.degInSign != null && (
-                            <span className="ml-1 text-xs font-normal text-muted-foreground">
-                              {formatDeg(p.degInSign)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-3 text-muted-foreground">
-                          {p.signKey ? t(`signs.${p.signKey}`) : p.signName || "—"}
-                        </td>
-                        <td className="py-2 pr-3 text-muted-foreground">
-                          {p.signLordKey
-                            ? t(`home.planets.${p.signLordKey}`)
-                            : p.signLordName || "—"}
-                        </td>
-                        <td className="py-2 pr-3 text-muted-foreground">{p.house ?? "—"}</td>
-                        {!isDivisional && (
-                          <>
-                            <td className="py-2 pr-3 text-muted-foreground">
-                              {p.nakshatraName || "—"}
-                            </td>
-                            <td className="py-2 pr-3 text-muted-foreground">
-                              {p.nakshatraLordKey
-                                ? t(`home.planets.${p.nakshatraLordKey}`)
-                                : p.nakshatraLordName || "—"}
-                            </td>
-                          </>
-                        )}
-                        <td className="py-2 text-muted-foreground">
-                          {p.retrograde ? (
-                            <span
-                              aria-label={t("home.motionRetro")}
-                              className="inline-flex items-center rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
-                            >
-                              {t("home.retroShort")}
-                            </span>
-                          ) : (
-                            <span className="text-xs">{t("home.motionDirect")}</span>
-                          )}
-                        </td>
-                        <td className="py-2 text-muted-foreground">
-                          {p.states.filter((s) => s !== "Retrograde").length ? (
-                            <span className="flex flex-wrap gap-1">
-                              {p.states
-                                .filter((s) => s !== "Retrograde")
-                                .map((s) => (
-                                  <span
-                                    key={s}
-                                    className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-foreground"
-                                  >
-                                    {s}
-                                  </span>
-                                ))}
-                            </span>
-                          ) : (
-                            <span className="text-xs">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </Card>
-      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {statesExcludeRetro.map((s) => (
+                          <span
+                            key={s}
+                            className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-foreground"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
 
       <Card>
         <div className="mb-3 flex items-baseline justify-between gap-3">

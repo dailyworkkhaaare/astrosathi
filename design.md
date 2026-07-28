@@ -79,7 +79,7 @@ Any new screen, feature, or edit must follow this document exactly.
 - **Typing state:** three tiny gold bouncing dots in a subtle pill + italic muted "Consulting your chart…" (`chat.typing`).
 - **Composer:** `rounded-3xl border-border/70 bg-card/80 p-2 backdrop-blur-xl`, muted plus icon, circular gold send button (ArrowUp icon) — the screen's one glow.
 - **Kundli chart (provider SVG):** never parse/modify the SVG string. Style via CSS wrapper only: container `mx-auto w-full max-w-md overflow-hidden rounded-lg border border-border bg-background p-2`; selectors `[&_svg]:block [&_svg]:h-auto [&_svg]:w-full [&_svg_line]:stroke-primary [&_svg_path]:stroke-primary [&_svg_rect]:stroke-primary [&_svg_polygon]:stroke-primary [&_svg_text]:fill-foreground`.
-- **Data tables on mobile:** desktop keeps the full table (`hidden md:block overflow-x-auto`); mobile gets a **native card list** (`md:hidden space-y-3`, cards `rounded-xl border-border bg-background p-4` with uppercase 11px mini-labels) — same data, all columns preserved.
+- **Planets data (Home):** one responsive card grid at every breakpoint — no separate desktop table. `grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3`; cards `rounded-xl border-border bg-background p-4 hover:border-accent/30` with uppercase 11px mini-labels — same fields/data as before, nothing dropped.
 - **Onboarding shell:** flat (no glass panel, no nebula) — `max-w-xl`, StepIndicator, eyebrow → serif H1 → subtitle → content.
 
 ## 8. Screen inventory (all implemented)
@@ -89,7 +89,7 @@ Any new screen, feature, or edit must follow this document exactly.
 3. **Auth** — mobile starfield hero band, pill tabs, `auth.privacyNote` line, Google button with official logo colors.
 4. **Consent** — flattened shell, custom-checkbox consent cards, gold disclosure card.
 5. **Birth details** — no card wrapper, date+time 2-col grid, gender pills ("prefer not to say" muted, not gold), place search with MapPin dropdown, ShieldCheck privacy line → **casting ceremony** interstitial (only when data changed).
-6. **Home** — greeting + serif H1, chat-invitation hero card, 6 chip tabs (charts/details/doshas/ashtakavarga/numerology/loshu — never rename), chart card with varga select in the title row, planets table→cards on mobile, 12-house grid (`grid-cols-2 gap-3 sm:grid-cols-3`), centered serif nakshatra card. Desktop: `xl:grid-cols-5` (chart 2 / planets 3).
+6. **Home** — greeting + serif H1, chat-invitation hero card, 6 chip tabs (charts/details/doshas/ashtakavarga/numerology/loshu — never rename), chart card with varga select in the title row, unified planets card grid, 12-house grid (`grid-cols-2 gap-3 sm:grid-cols-3`), centered serif nakshatra card. All four cards (chart, planets, houses, nakshatra) stack full-width at every breakpoint — no side-by-side split; each stays proportioned to its own content instead of stretching to match a sibling's height.
 7. **Settings** — rashi-glyph avatar, responsive rows, segmented pills, centered italic serif about, amber delete.
 8. **Chat** — the hero screen. Slim top bar, manuscript replies, user bubbles, empty state (sigil in gold ring, serif namaste, mid-screen composer, "✦ TRY ASKING" suggestion cards), 280px history sidebar (secondary New chat, search, TODAY/YESTERDAY/PREVIOUS 7 DAYS groups, gold-washed active pill; drawer on mobile). No plans/user footer in the sidebar.
 - **App shell:** logged-out header only; signed-in gets icon-only rail `w-20` on md+ with BrandMark on top; mobile bottom tab bar (chat is full-screen immersive, no tab bar).

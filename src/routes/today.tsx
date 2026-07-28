@@ -40,19 +40,27 @@ function TodayPage() {
 
   return (
     <section className="space-y-6">
-      <header>
+      <header className="motion-fade-up">
         <p className="text-sm text-muted-foreground">{dateLabel}</p>
         <h1 className="mt-1 font-display text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
           {t("today.title")}
         </h1>
       </header>
 
-      <DailyMantraSection />
-      <TransitHighlightBand />
-      <TodaySection />
-      <PanchangSection />
-      <DailyHoroscopeSection />
-      <MarketOutlookSection />
+      <div className="motion-fade-up motion-delay-1 space-y-6">
+        <DailyMantraSection />
+        <TransitHighlightBand />
+      </div>
+      <div className="motion-fade-up motion-delay-2">
+        <TodaySection />
+      </div>
+      <div className="motion-fade-up motion-delay-3 space-y-6">
+        <PanchangSection />
+        <DailyHoroscopeSection />
+      </div>
+      <div className="motion-fade-up motion-delay-4">
+        <MarketOutlookSection />
+      </div>
     </section>
   );
 }

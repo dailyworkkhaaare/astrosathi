@@ -128,7 +128,11 @@ function SettingsPage() {
       </div>
 
       {/* Profile */}
-      <Group title={t("settings.profile.title")} icon={<UserCircle size={14} aria-hidden="true" />}>
+      <Group
+        title={t("settings.profile.title")}
+        icon={<UserCircle size={14} aria-hidden="true" />}
+        delay={1}
+      >
         <div className="flex items-center gap-3 px-4 py-3 min-h-11">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent/15 text-primary">
             {moonGlyph ? (
@@ -163,7 +167,11 @@ function SettingsPage() {
       </Group>
 
       {/* Preferences */}
-      <Group title={t("settings.prefs.title")} icon={<Palette size={14} aria-hidden="true" />}>
+      <Group
+        title={t("settings.prefs.title")}
+        icon={<Palette size={14} aria-hidden="true" />}
+        delay={2}
+      >
         <Row label={t("settings.prefs.language")}>
           <LanguageSwitcher />
         </Row>
@@ -230,7 +238,11 @@ function SettingsPage() {
       <WhatsAppGuidanceCard />
 
       {/* Legal & about */}
-      <Group title={t("settings.legal.title")} icon={<ScrollText size={14} aria-hidden="true" />}>
+      <Group
+        title={t("settings.legal.title")}
+        icon={<ScrollText size={14} aria-hidden="true" />}
+        delay={3}
+      >
         <LegalRow
           to="/terms"
           label={t("settings.legal.terms")}
@@ -248,7 +260,11 @@ function SettingsPage() {
       </Group>
 
       {/* Account */}
-      <Group title={t("settings.account.title")} icon={<LogOut size={14} aria-hidden="true" />}>
+      <Group
+        title={t("settings.account.title")}
+        icon={<LogOut size={14} aria-hidden="true" />}
+        delay={4}
+      >
         <Button
           type="button"
           variant="ghost"
@@ -288,13 +304,15 @@ function Group({
   title,
   icon,
   children,
+  delay,
 }: {
   title: string;
   icon?: ReactNode;
   children: ReactNode;
+  delay?: 1 | 2 | 3 | 4;
 }) {
   return (
-    <div className="motion-fade-up">
+    <div className={"motion-fade-up" + (delay ? ` motion-delay-${delay}` : "")}>
       <h2 className="mb-2.5 flex items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {icon ? <span className="text-accent">{icon}</span> : null}
         {title}

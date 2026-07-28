@@ -128,7 +128,7 @@ export function NumerologySection() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="motion-fade-up motion-delay-1">
         <Header note={d.systems_note} />
         <section aria-labelledby="core-numbers-heading" className="mt-5">
           <SectionHeading id="core-numbers-heading" text={t("numerology.coreTitle")} />
@@ -145,7 +145,7 @@ export function NumerologySection() {
         </section>
       </Card>
 
-      <Card>
+      <Card className="motion-fade-up motion-delay-2">
         <section aria-labelledby="name-numbers-heading">
           <SectionHeading id="name-numbers-heading" text={t("numerology.nameTitle")} />
           <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -158,10 +158,16 @@ export function NumerologySection() {
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div
-      className="rounded-2xl border border-border bg-card p-5"
+      className={`rounded-2xl border border-border bg-card p-5 ${className}`}
       style={{ boxShadow: "var(--shadow-soft)" }}
     >
       {children}

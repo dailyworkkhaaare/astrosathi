@@ -30,9 +30,15 @@ export function DoshasSection() {
       </header>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
-        <MangalCard />
-        <KaalSarpCard />
-        <SadeSatiCard />
+        <div className="motion-fade-up motion-delay-1">
+          <MangalCard />
+        </div>
+        <div className="motion-fade-up motion-delay-2">
+          <KaalSarpCard />
+        </div>
+        <div className="motion-fade-up motion-delay-3">
+          <SadeSatiCard />
+        </div>
       </div>
     </section>
   );

@@ -212,7 +212,7 @@ export function DashaSection() {
           <button
             type="button"
             onClick={() => query.refetch()}
-            className="inline-flex min-h-[44px] items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+            className="inline-flex min-h-11 items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("sections.dasha.retry")}
           </button>

@@ -50,7 +50,7 @@ export function AshtakavargaSection() {
             <button
               type="button"
               onClick={() => q.refetch()}
-              className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+              className="inline-flex min-h-11 w-fit items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <RefreshCw size={14} aria-hidden="true" />
               {t("sections.ashtakavarga.retry")}
@@ -147,7 +147,7 @@ function BhinnashtakavargaSection() {
           <button
             type="button"
             onClick={() => q.refetch()}
-            className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+            className="inline-flex min-h-11 w-fit items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RefreshCw size={14} aria-hidden="true" />
             {t("sections.ashtakavarga.retry")}

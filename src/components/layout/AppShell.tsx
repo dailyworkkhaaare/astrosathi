@@ -199,7 +199,7 @@ function FloatingChatButton() {
       to="/chat"
       aria-label={t("nav.chat")}
       title={t("nav.chat")}
-      className="tap-press fixed right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg ring-1 ring-accent/40 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6"
+      className="tap-press motion-glow-pulse fixed right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground ring-1 ring-accent/40 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6"
     >
       <MessageCircle size={24} aria-hidden="true" />
     </Link>

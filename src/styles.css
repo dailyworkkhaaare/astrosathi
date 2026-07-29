@@ -279,6 +279,17 @@
       background-position: 200% 0;
     }
   }
+  @keyframes as-glow-pulse {
+    0%,
+    100% {
+      box-shadow: var(--shadow-glow-gold);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px oklch(0.8 0.15 78 / 0.45),
+        0 16px 56px -12px oklch(0.8 0.15 78 / 0.55);
+    }
+  }
 
   .motion-fade-up {
     animation: as-fade-up var(--motion-spatial) var(--ease-standard) both;
@@ -313,6 +324,11 @@
   }
   .tap-press:active {
     transform: scale(0.96);
+  }
+
+  /* Slow ambient glow — floating chat button only (one glow per screen law) */
+  .motion-glow-pulse {
+    animation: as-glow-pulse 3s var(--ease-standard) infinite;
   }
 
   /* Skeleton shimmer */

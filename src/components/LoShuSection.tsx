@@ -455,7 +455,7 @@ function RemedyCard({ remedy }: { remedy: LoShuMissingRemedy }) {
         </div>
       </div>
       {rows.length > 0 && (
-        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-t border-border/60 pt-3 text-sm">
+        <dl className="mt-4 grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2 border-t border-border/60 pt-3 text-sm">
           {rows.map((r) => (
             <Fragment key={r.label}>
               <dt className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">

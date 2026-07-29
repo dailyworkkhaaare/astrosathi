@@ -1216,6 +1216,24 @@ function TopBar({
 
 // ---------- Messages ----------
 
+// While a reply is still streaming in, the tail of the buffer can briefly
+// contain a dangling markdown token (an opening **/* or ``` fence with no
+// closing partner yet). Rendered as-is that flashes a stray literal marker
+// or an open-ended code block for a frame until the next chunk arrives, so
+// we trim just the trailing partial token — only during the live stream;
+// the final commit always renders the untouched text.
+function sanitizeStreamingMarkdown(text: string, streaming: boolean): string {
+  if (!streaming || !text) return text;
+
+  let out = text;
+  const fenceCount = (out.match(/```/g) ?? []).length;
+  if (fenceCount % 2 === 1) {
+    out = out.slice(0, out.lastIndexOf("```"));
+  }
+
+  return out.replace(/(\*\*|\*|`)$/, "");
+}
+
 function MessageRow({
   message,
   streaming,
@@ -1270,50 +1288,44 @@ function MessageRow({
           )}
         </div>
         <div className="prose max-w-none text-foreground [&_a]:text-primary [&_a]:underline [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&>h1]:max-w-[34rem] [&_h1]:text-lg [&_h1]:font-semibold [&>h2]:max-w-[34rem] [&_h2]:text-base [&_h2]:font-semibold [&>p]:max-w-[34rem] [&_p]:my-2 [&_p]:leading-relaxed [&>ul]:max-w-[34rem] [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&>ol]:max-w-[34rem] [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5">
-          {streaming ? (
-            <div className="max-w-[34rem] whitespace-pre-wrap text-base leading-relaxed text-foreground">
-              {message.content}
-            </div>
-          ) : (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                pre: (props) => <CodeBlock {...props} />,
-                blockquote: ({ children }) => (
-                  <blockquote className="my-3 max-w-[34rem] border-l-2 border-accent/60 bg-accent/5 py-2 pl-4 pr-3 text-sm italic text-foreground/90 rounded-r-lg">
-                    {children}
-                  </blockquote>
-                ),
-                code: ({ className, children, ...rest }) => (
-                  <code className={className} {...rest}>
-                    {children}
-                  </code>
-                ),
-                table: ({ node: _node, ...props }) => (
-                  <div className="my-4 w-full overflow-x-auto rounded-lg border border-border">
-                    <table {...props} className="w-full border-collapse text-left text-sm" />
-                  </div>
-                ),
-                thead: ({ node: _node, ...props }) => <thead {...props} className="bg-muted" />,
-                tbody: ({ node: _node, ...props }) => <tbody {...props} />,
-                tr: ({ node: _node, ...props }) => <tr {...props} className="even:bg-muted/40" />,
-                th: ({ node: _node, ...props }) => (
-                  <th
-                    {...props}
-                    className="!border !border-border px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground whitespace-nowrap"
-                  />
-                ),
-                td: ({ node: _node, ...props }) => (
-                  <td
-                    {...props}
-                    className="!border !border-border px-4 py-2.5 align-top text-foreground"
-                  />
-                ),
-              }}
-            >
-              {message.content || ""}
-            </ReactMarkdown>
-          )}
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              pre: (props) => <CodeBlock {...props} />,
+              blockquote: ({ children }) => (
+                <blockquote className="my-3 max-w-[34rem] border-l-2 border-accent/60 bg-accent/5 py-2 pl-4 pr-3 text-sm italic text-foreground/90 rounded-r-lg">
+                  {children}
+                </blockquote>
+              ),
+              code: ({ className, children, ...rest }) => (
+                <code className={className} {...rest}>
+                  {children}
+                </code>
+              ),
+              table: ({ node: _node, ...props }) => (
+                <div className="my-4 w-full overflow-x-auto rounded-lg border border-border">
+                  <table {...props} className="w-full border-collapse text-left text-sm" />
+                </div>
+              ),
+              thead: ({ node: _node, ...props }) => <thead {...props} className="bg-muted" />,
+              tbody: ({ node: _node, ...props }) => <tbody {...props} />,
+              tr: ({ node: _node, ...props }) => <tr {...props} className="even:bg-muted/40" />,
+              th: ({ node: _node, ...props }) => (
+                <th
+                  {...props}
+                  className="!border !border-border px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground whitespace-nowrap"
+                />
+              ),
+              td: ({ node: _node, ...props }) => (
+                <td
+                  {...props}
+                  className="!border !border-border px-4 py-2.5 align-top text-foreground"
+                />
+              ),
+            }}
+          >
+            {sanitizeStreamingMarkdown(message.content ?? "", streaming)}
+          </ReactMarkdown>
         </div>
         {!streaming && message.content && (
           <div className="mt-2 flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">

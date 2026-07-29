@@ -335,26 +335,34 @@ function DirList({
   items: KuaDirection[];
 }) {
   const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive";
+  const badgeTone =
+    tone === "gold"
+      ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
+      : "text-destructive border-destructive/[33%] bg-destructive/10";
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <h4 className={"text-sm font-semibold " + textTone}>{title}</h4>
-      <ul className="mt-2 flex flex-col gap-1.5">
+      <ul className="mt-2 divide-y divide-border/60">
         {items.map((d) => (
-          <li key={d.direction + d.name} className="text-sm leading-snug text-foreground">
+          <li
+            key={d.direction + d.name}
+            className="flex items-start gap-3 py-2 first:pt-0 last:pb-0"
+          >
             <span
-              className={"font-semibold " + textTone}
+              className={
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-semibold " +
+                badgeTone
+              }
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
               {d.direction}
             </span>
-            <span className="text-muted-foreground"> — </span>
-            <span className="font-medium text-foreground">{d.name}</span>
-            {d.theme && (
-              <>
-                <span className="text-muted-foreground"> — </span>
-                <span className="text-muted-foreground">{d.theme}</span>
-              </>
-            )}
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p className="text-sm font-medium leading-snug text-foreground">{d.name}</p>
+              {d.theme && (
+                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{d.theme}</p>
+              )}
+            </div>
           </li>
         ))}
       </ul>

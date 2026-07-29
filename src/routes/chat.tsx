@@ -862,14 +862,14 @@ function ChatPage() {
                   <div
                     role="group"
                     aria-label={t("chat.suggestionsLabel")}
-                    className="flex flex-wrap items-center justify-center gap-2"
+                    className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
                   >
                     {suggestions.map((text, i) => (
                       <button
                         key={i}
                         type="button"
                         onClick={() => handleSuggestionClick(text)}
-                        className="tap-press min-h-11 max-w-[22rem] rounded-full border border-border bg-card/60 px-4 py-2 text-center text-sm text-foreground transition-all hover:border-accent/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="tap-press flex min-h-[3.25rem] items-center justify-center rounded-2xl border border-border bg-card/60 px-5 py-3 text-center text-sm leading-snug text-foreground transition-all hover:border-accent/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {text}
                       </button>

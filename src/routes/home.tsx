@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -49,6 +49,32 @@ function formatDeg(deg: number | null): string | null {
   }
   return `${d}°${String(m).padStart(2, "0")}′`;
 }
+
+// Hit-region polygons for the North-Indian chart overlay — a fixed geometric
+// constant of the chart format (square + both diagonals + inner diamond),
+// derived by intersecting those lines. Each region is tagged directly with
+// its house number (1-12): the provider always draws the ascendant in the
+// same top-centre box and numbers every other box sequentially from there,
+// so a box's HOUSE is a fixed screen-position constant — verified by parsing
+// two different charts with different ascendants (D1 and D12) and confirming
+// every one of the 12 boxes lands on the identical house both times. (The
+// bare numbers 1..12 *printed* in the boxes are rasi/sign numbers, which
+// rotate with the ascendant — that printed digit is a red herring for this
+// mapping.) Never derived from the provider SVG itself.
+const NORTH_CHART_HOUSE_REGIONS: { house: number; points: string }[] = [
+  { house: 1, points: "242,10 356.5,125.5 241,241 126,126" },
+  { house: 2, points: "10,10 242,10 126,126" },
+  { house: 3, points: "10,10 126,126 10,242" },
+  { house: 4, points: "10,242 126,126 241,241 125.5,356.5" },
+  { house: 5, points: "10,472 10,242 125.5,356.5" },
+  { house: 6, points: "242,472 10,472 125.5,356.5" },
+  { house: 7, points: "242,472 125.5,356.5 241,241 357,357" },
+  { house: 8, points: "472,472 242,472 357,357" },
+  { house: 9, points: "472,242 472,472 357,357" },
+  { house: 10, points: "472,242 357,357 241,241 356.5,125.5" },
+  { house: 11, points: "472,10 472,242 356.5,125.5" },
+  { house: 12, points: "242,10 472,10 356.5,125.5" },
+];
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -202,6 +228,7 @@ function Tabs({ current, onChange }: { current: TabKey; onChange: (k: TabKey) =>
 
 function ChartsTab() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [varga, setVarga] = useState<VargaKey>("D1");
   const [style] = useState<ChartStyle>("north");
   // Debounce the (varga, style) pair to avoid hammering the query cache when
@@ -300,6 +327,15 @@ function ChartsTab() {
       ? buildHousesFromPlanets(realPlanets)
       : [];
 
+  // Handles a click on the chart overlay's fixed house region (see
+  // NORTH_CHART_HOUSE_REGIONS above for why the box position is a fixed
+  // house number, not the rotating rasi digit printed inside it).
+  const handleChartHouseClick = (houseNumber: number) => {
+    const h = displayHouses.find((house) => house.house === houseNumber);
+    if (!h) return;
+    void navigate({ to: "/chat", search: { seed: buildHouseSeed(t, debounced.varga, h) } });
+  };
+
   // Divisional tables are parsed from the chart SVG, so they also depend on the
   // chart query; D1 tables only need the planets query.
   const tablesLoading = planetsLoading || (isDivisional && loading);
@@ -374,10 +410,29 @@ function ChartsTab() {
             </div>
           )}
           {!loading && !errorMessageKey && svg && (
-            <div
-              className="mx-auto w-full max-w-md overflow-hidden rounded-lg border border-border bg-background p-2 [&_svg]:block [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-full [&_svg_line]:stroke-primary [&_svg_path]:stroke-primary [&_svg_rect]:stroke-primary [&_svg_polygon]:stroke-primary [&_svg_text]:fill-foreground"
-              dangerouslySetInnerHTML={{ __html: svg }}
-            />
+            <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-lg border border-border bg-background p-2">
+              <div
+                className="[&_svg]:block [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-full [&_svg_line]:stroke-primary [&_svg_path]:stroke-primary [&_svg_rect]:stroke-primary [&_svg_polygon]:stroke-primary [&_svg_text]:fill-foreground"
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
+              {style === "north" && (
+                <svg
+                  viewBox="0 0 480 480"
+                  preserveAspectRatio="none"
+                  className="pointer-events-none absolute inset-2"
+                  aria-hidden="true"
+                >
+                  {NORTH_CHART_HOUSE_REGIONS.map((r) => (
+                    <polygon
+                      key={r.house}
+                      points={r.points}
+                      className="pointer-events-auto cursor-pointer fill-transparent transition-colors hover:fill-accent/10"
+                      onClick={() => handleChartHouseClick(r.house)}
+                    />
+                  ))}
+                </svg>
+              )}
+            </div>
           )}
         </div>
       </Card>
@@ -516,25 +571,28 @@ function ChartsTab() {
         {!tablesLoading && !tablesErrorKey && displayHouses.length > 0 && (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {displayHouses.map((h) => (
-              <li
-                key={h.house}
-                className="rounded-lg border border-border bg-background px-3 py-3 text-sm"
-              >
-                <div className="text-xs text-muted-foreground">
-                  {t("home.houseLabel", { n: h.house })}
-                </div>
-                <div className="font-medium text-foreground">
-                  {h.signKey ? t(`signs.${h.signKey}`) : h.signName || "—"}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {t("home.colLord")}:{" "}
-                  {h.lordKey ? t(`home.planets.${h.lordKey}`) : h.lordName || "—"}
-                </div>
-                {h.planetKeys.length > 0 && (
-                  <div className="mt-1 text-xs text-primary">
-                    {h.planetKeys.map((pk) => t(`home.planets.${pk}`)).join(", ")}
+              <li key={h.house}>
+                <Link
+                  to="/chat"
+                  search={{ seed: buildHouseSeed(t, debounced.varga, h) }}
+                  className="tap-press block h-full rounded-lg border border-border bg-background px-3 py-3 text-sm transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div className="text-xs text-muted-foreground">
+                    {t("home.houseLabel", { n: h.house })}
                   </div>
-                )}
+                  <div className="font-medium text-foreground">
+                    {h.signKey ? t(`signs.${h.signKey}`) : h.signName || "—"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {t("home.colLord")}:{" "}
+                    {h.lordKey ? t(`home.planets.${h.lordKey}`) : h.lordName || "—"}
+                  </div>
+                  {h.planetKeys.length > 0 && (
+                    <div className="mt-1 text-xs text-primary">
+                      {h.planetKeys.map((pk) => t(`home.planets.${pk}`)).join(", ")}
+                    </div>
+                  )}
+                </Link>
               </li>
             ))}
           </ul>
@@ -605,6 +663,29 @@ type DisplayHouse = {
   lordName: string;
   planetKeys: PlanetKey[];
 };
+
+// Builds the "ask about this house" chat seed — same house/sign/lord/planet
+// data already shown on the card, just phrased as a question. Reuses the
+// existing /chat?seed= bridge (see chat.tsx) unmodified.
+function buildHouseSeed(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  varga: VargaKey,
+  h: DisplayHouse,
+): string {
+  const vargaLabel = t(`home.varga.${varga.toLowerCase()}`);
+  const sign = h.signKey ? t(`signs.${h.signKey}`) : h.signName || "—";
+  const lord = h.lordKey ? t(`home.planets.${h.lordKey}`) : h.lordName || "—";
+  if (h.planetKeys.length > 0) {
+    return t("home.houseAskSeedWithPlanets", {
+      house: h.house,
+      varga: vargaLabel,
+      sign,
+      lord,
+      planets: h.planetKeys.map((pk) => t(`home.planets.${pk}`)).join(", "),
+    });
+  }
+  return t("home.houseAskSeed", { house: h.house, varga: vargaLabel, sign, lord });
+}
 
 const SIGN_ORDER: SignKey[] = [
   "aries",

@@ -242,6 +242,8 @@
     "motionRetro": "Retrograde",
     "retroShort": "R",
     "housesSubtitle": "Sign and lord per bhava.",
+    "houseAskSeed": "Tell me about house {{house}} in my {{varga}} chart — it's in {{sign}}, ruled by {{lord}}. What does this placement mean for me?",
+    "houseAskSeedWithPlanets": "Tell me about house {{house}} in my {{varga}} chart — it's in {{sign}}, ruled by {{lord}}, with {{planets}} placed there. What does this mean for me?",
     "dasha": {
       "title": "Vimshottari Dasha",
       "subtitle": "Current maha and antar periods.",

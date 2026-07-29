@@ -449,6 +449,10 @@ function ChatPage() {
   // was active in the last 15 minutes. After a longer gap the user is most
   // likely here to ask something new, so land on the empty composer instead
   // of resuming a stale conversation — still browsable from the sidebar.
+  // Skipped entirely when a `?seed=` is present (e.g. tapping a house on
+  // Home): that's an explicit signal to ask something new, so resuming an
+  // old conversation would both land on the wrong thread and silently drop
+  // the seed (its pre-fill effect below only applies to an empty thread).
   const RESUME_WINDOW_MS = 15 * 60 * 1000;
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   useEffect(() => {
@@ -459,7 +463,7 @@ function ChatPage() {
       const mostRecent = list[0];
       const lastActiveMs = mostRecent ? new Date(mostRecent.updated_at).getTime() : NaN;
       const isRecent = Number.isFinite(lastActiveMs) && Date.now() - lastActiveMs < RESUME_WINDOW_MS;
-      if (mostRecent && isRecent) {
+      if (mostRecent && isRecent && !seed) {
         await loadConversation(mostRecent.id);
       }
       if (!cancelled) setInitialLoadDone(true);
@@ -467,6 +471,7 @@ function ChatPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; `seed` is read once by design, not re-triggered on later changes (e.g. once cleared by the pre-fill effect below).
   }, [loadConversation, refetchConversations]);
 
   // Autofocus the composer once we land on a genuinely empty conversation —

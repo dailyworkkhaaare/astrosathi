@@ -13,6 +13,10 @@ export function PanchangSection() {
   const panchang = data ? computePanchang(data.sunLon, data.moonLon) : null;
   const nakshatra =
     data?.nakshatraIndex != null ? NAKSHATRAS[data.nakshatraIndex] ?? "—" : "—";
+  const nakshatraDisplay =
+    panchang && data?.nakshatraIndex != null
+      ? `${nakshatra} · ${t("sections.panchang.pada")} ${panchang.nakshatraPada}`
+      : nakshatra;
 
   const tz = data?.timezone ?? "Asia/Kolkata";
   const times =
@@ -57,12 +61,16 @@ export function PanchangSection() {
         ) : (
           <div className="space-y-4">
             <dl className="space-y-2.5">
+              {times ? (
+                <Row label={t("sections.panchang.vara")} value={times.varaName} />
+              ) : null}
               <Row
                 label={t("sections.panchang.tithi")}
                 value={`${t(`sections.panchang.paksha.${panchang.paksha}`)} ${panchang.tithiName}`}
               />
-              <Row label={t("sections.panchang.nakshatra")} value={nakshatra} />
+              <Row label={t("sections.panchang.nakshatra")} value={nakshatraDisplay} />
               <Row label={t("sections.panchang.yoga")} value={panchang.yogaName} />
+              <Row label={t("sections.panchang.karana")} value={panchang.karanaName} />
             </dl>
 
             <div className="border-t border-border/60" />

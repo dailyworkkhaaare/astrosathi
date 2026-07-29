@@ -18,6 +18,17 @@ export const YOGA_NAMES = [
   "Indra", "Vaidhriti",
 ] as const;
 
+// 7 movable (chara) karanas; the 4 fixed (sthira) karanas are handled inline.
+export const KARANA_MOVABLE = [
+  "Bava", "Balava", "Kaulava", "Taitila", "Gara", "Vanija", "Vishti",
+] as const;
+
+// Vara (weekday) names, indexed 0=Sunday .. 6=Saturday.
+export const VARA_NAMES = [
+  "Ravivara", "Somavara", "Mangalavara", "Budhavara",
+  "Guruvara", "Shukravara", "Shanivara",
+] as const;
+
 const norm360 = (d: number) => ((d % 360) + 360) % 360;
 
 export type PakshaKey = "shukla" | "krishna";
@@ -29,6 +40,10 @@ export type PanchangResult = {
   paksha: PakshaKey; // waxing / waning half
   yogaIndex: number; // 0..26
   yogaName: string;
+  karanaIndex: number; // 0..59 half-tithis in the lunar month
+  karanaName: string;
+  nakshatraIndex: number; // 0..26 from Moon's sidereal longitude
+  nakshatraPada: number; // 1..4 quarter within the nakshatra
 };
 
 export function computePanchang(sunLon: number, moonLon: number): PanchangResult {
@@ -43,7 +58,29 @@ export function computePanchang(sunLon: number, moonLon: number): PanchangResult
   const yogaIndex = Math.floor(norm360(sunLon + moonLon) / (360 / 27)); // 0..26
   const yogaName = YOGA_NAMES[yogaIndex] ?? "";
 
-  return { tithiIndex, tithiName, tithiNumber, paksha, yogaIndex, yogaName };
+  // Karana: 60 half-tithis per lunar month (each = 6 deg of elongation).
+  // n=0 -> Kimstughna; n=1..56 -> 8 cycles of the 7 movable karanas;
+  // n=57 -> Shakuni, n=58 -> Chatushpada, n=59 -> Naga.
+  const karanaIndex = Math.floor(elong / 6); // 0..59
+  let karanaName: string;
+  if (karanaIndex === 0) karanaName = "Kimstughna";
+  else if (karanaIndex === 57) karanaName = "Shakuni";
+  else if (karanaIndex === 58) karanaName = "Chatushpada";
+  else if (karanaIndex === 59) karanaName = "Naga";
+  else karanaName = KARANA_MOVABLE[(karanaIndex - 1) % 7];
+
+  // Nakshatra index + pada from the Moon's sidereal longitude.
+  const NAK_ARC = 360 / 27; // 13deg20' per nakshatra
+  const moonSid = norm360(moonLon);
+  const nakshatraIndex = Math.floor(moonSid / NAK_ARC); // 0..26
+  const nakshatraPada = Math.floor((moonSid % NAK_ARC) / (NAK_ARC / 4)) + 1; // 1..4
+
+  return {
+    tithiIndex, tithiName, tithiNumber, paksha,
+    yogaIndex, yogaName,
+    karanaIndex, karanaName,
+    nakshatraIndex, nakshatraPada,
+  };
 }
 
 // ---- Step B: Sunrise / Sunset / Rahu Kaal (no API, ~±5 min accuracy) ----
@@ -93,6 +130,8 @@ export type DayTimes = {
   rahuEnd: Date
   abhijitStart: Date
   abhijitEnd: Date
+  vara: number // 0=Sunday .. 6=Saturday (calendar-day convention)
+  varaName: string
 } | null
 
 export function computeDayTimes(
@@ -116,5 +155,9 @@ export function computeDayTimes(
   const muhurta = (s.sunset.getTime() - s.sunrise.getTime()) / 15
   const abhijitStart = new Date(s.sunrise.getTime() + 7 * muhurta)
   const abhijitEnd = new Date(s.sunrise.getTime() + 8 * muhurta)
-  return { sunrise: s.sunrise, sunset: s.sunset, rahuStart, rahuEnd, abhijitStart, abhijitEnd }
+  const varaName = VARA_NAMES[weekday] ?? ""
+  return {
+    sunrise: s.sunrise, sunset: s.sunset, rahuStart, rahuEnd,
+    abhijitStart, abhijitEnd, vara: weekday, varaName,
+  }
 }

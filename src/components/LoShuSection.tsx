@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { AlertTriangle, RefreshCw, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -424,14 +425,14 @@ function RemedyCard({ remedy }: { remedy: LoShuMissingRemedy }) {
     { label: t("sections.loshu.practice"), value: remedy.practice },
   ].filter((r) => !!r.value);
   return (
-    <li className="rounded-lg border border-border bg-background p-3">
+    <li className="rounded-xl border border-border bg-background p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-glow-violet border-glow-violet/[33%] bg-glow-violet/10">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-glow-violet border-glow-violet/[33%] bg-glow-violet/10">
           <span className="text-lg font-semibold leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
             {remedy.number}
           </span>
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pt-0.5">
           <p className="text-sm font-semibold text-foreground">
             {remedy.planet}
             {remedy.element ? (
@@ -441,19 +442,19 @@ function RemedyCard({ remedy }: { remedy: LoShuMissingRemedy }) {
             ) : null}
           </p>
           {remedy.meaning && (
-            <p className="mt-0.5 text-xs text-muted-foreground">{remedy.meaning}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{remedy.meaning}</p>
           )}
         </div>
       </div>
       {rows.length > 0 && (
-        <dl className="mt-3 grid grid-cols-1 gap-1.5 text-sm">
+        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-t border-border/60 pt-3 text-sm">
           {rows.map((r) => (
-            <div key={r.label} className="flex flex-wrap items-baseline gap-x-2">
-              <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            <Fragment key={r.label}>
+              <dt className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {r.label}
               </dt>
-              <dd className="min-w-0 flex-1 text-sm text-foreground">{r.value}</dd>
-            </div>
+              <dd className="min-w-0 text-sm text-foreground">{r.value}</dd>
+            </Fragment>
           ))}
         </dl>
       )}

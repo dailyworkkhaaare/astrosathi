@@ -1126,6 +1126,50 @@ function dlog(reqId: string, stage: string, extra?: Record<string, unknown>) {
   );
 }
 
+// One human-readable block per completed request, printed once at the very
+// end, so a single grep for the reqId gives the full timing picture without
+// having to reconstruct it from the individual stage logs above.
+function dlogSummary(
+  reqId: string,
+  s: {
+    model: string;
+    totalPromptChars: number;
+    totalMessages: number;
+    timings: Record<string, number>;
+    totalRequestDurationMs: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tokens?: any;
+  },
+) {
+  const t = s.timings;
+  console.log(
+    [
+      `[astro-chat-debug] Request Summary (reqId=${reqId})`,
+      "---------------",
+      `Request ID: ${reqId}`,
+      `Model: ${s.model}`,
+      `Total Prompt Characters: ${s.totalPromptChars}`,
+      `Total Messages: ${s.totalMessages}`,
+      `Authentication Time: ${t.authMs ?? "n/a"}ms`,
+      `Chart Retrieval Time: ${t.chartRetrievalMs ?? "n/a"}ms`,
+      `Memory Retrieval Time: ${
+        (t.conversationResolveMs ?? 0) + (t.memoryRetrievalMs ?? 0) + (t.historyLoadMs ?? 0)
+      }ms (conversation=${t.conversationResolveMs ?? "n/a"}ms, facts=${
+        t.memoryRetrievalMs ?? "n/a"
+      }ms, history=${t.historyLoadMs ?? "n/a"}ms)`,
+      `Prompt Build Time: ${t.promptBuildMs ?? "n/a"}ms`,
+      `OpenRouter TTFT: ${t.openRouterTtftMs ?? "n/a (no response received)"}${
+        typeof t.openRouterTtftMs === "number" ? "ms" : ""
+      }`,
+      `Streaming Duration: ${
+        t.streamingDurationMs !== undefined ? t.streamingDurationMs + "ms" : "n/a"
+      }`,
+      `Total Request Duration: ${s.totalRequestDurationMs}ms`,
+      `Tokens: ${s.tokens ? JSON.stringify(s.tokens) : "not reported"}`,
+    ].join("\n"),
+  );
+}
+
 Deno.serve(async (req: Request) => {
   // Correlation id: reuse the frontend's X-Request-ID so a single id threads
   // through frontend logs -> Supabase logs -> the OpenRouter request. Only
@@ -1187,22 +1231,29 @@ Deno.serve(async (req: Request) => {
     stream: wantStream,
   });
 
+  // TEMPORARY DEBUG INSTRUMENTATION — per-stage timings for a single request
+  // summary at the end. Remove alongside the rest of the debug logging.
+  const timings: Record<string, number> = {};
+
   // Auth client (caller identity via forwarded Authorization header)
+  const authStart = Date.now();
   const authHeader = req.headers.get("Authorization") ?? "";
   const authClient: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
     global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: userData, error: userErr } = await authClient.auth.getUser();
+  timings.authMs = Date.now() - authStart;
   if (userErr || !userData?.user) {
     dlog(reqId, "auth_failed", {
       hasAuthHeader: !!authHeader,
       error: userErr?.message ?? null,
+      authMs: timings.authMs,
     });
     return err(401, "not_authenticated");
   }
   const userId = userData.user.id;
-  dlog(reqId, "auth_ok", { userId });
+  dlog(reqId, "auth_ok", { userId, authMs: timings.authMs });
 
   // Service-role client (bypasses RLS)
   const svc: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
@@ -1210,6 +1261,7 @@ Deno.serve(async (req: Request) => {
   });
 
   // ---------- Load grounding context ----------
+  const chartRetrievalStart = Date.now();
   const { data: birth } = await svc
     .from("birth_profiles")
     .select(
@@ -1522,6 +1574,10 @@ Deno.serve(async (req: Request) => {
     // A transit-table hiccup must never break the chat; just omit the section.
   }
 
+  timings.chartRetrievalMs = Date.now() - chartRetrievalStart;
+  dlog(reqId, "chart_retrieval_done", { chartRetrievalMs: timings.chartRetrievalMs });
+
+  const promptBuildStart = Date.now();
   const contextJson = sections.join("\n\n");
 
   // Current date/time in the user's own timezone, so the model always reasons
@@ -1612,8 +1668,10 @@ Deno.serve(async (req: Request) => {
     "Here are this person's real, pre-computed birth and chart details. Treat every value below as ground truth:",
     contextJson,
   ].join("\n");
+  timings.promptTextBuildMs = Date.now() - promptBuildStart;
 
   // ---------- Resolve conversation ----------
+  const conversationResolveStart = Date.now();
   let conversationId = "";
   let memorySummary: string | null = null;
   let summarizedCount = 0;
@@ -1644,10 +1702,12 @@ Deno.serve(async (req: Request) => {
     }
     conversationId = created.id;
   }
+  timings.conversationResolveMs = Date.now() - conversationResolveStart;
 
   // ---------- Load durable, cross-conversation memory (privacy-gated) ----------
   // profiles.memory_enabled defaults to true; only load and inject stored
   // facts when the person has memory turned on.
+  const memoryRetrievalStart = Date.now();
   let memoryEnabled = true;
   let userFacts: string | null = null;
   {
@@ -1671,10 +1731,12 @@ Deno.serve(async (req: Request) => {
       userFacts = (mem as { facts?: string | null } | null)?.facts ?? null;
     }
   }
+  timings.memoryRetrievalMs = Date.now() - memoryRetrievalStart;
 
   // ---------- Load verbatim history ----------
   // Everything NOT yet folded into the rolling summary, oldest-first. The
   // summary block below covers the older turns, so there is no context gap.
+  const historyLoadStart = Date.now();
   const { data: historyRows } = await svc
     .from("chat_messages")
     .select("role, content")
@@ -1686,6 +1748,7 @@ Deno.serve(async (req: Request) => {
     role: m.role as string,
     content: m.content as string,
   }));
+  timings.historyLoadMs = Date.now() - historyLoadStart;
 
   const factsBlock =
     memoryEnabled && userFacts && userFacts.trim()
@@ -1718,25 +1781,28 @@ Deno.serve(async (req: Request) => {
     { role: "user", content: message },
   ];
 
-  {
-    const totalChars = messages.reduce(
-      (n, m) => n + (typeof m.content === "string" ? m.content.length : 0),
-      0,
-    );
-    dlog(reqId, "messages_built", {
-      messagesCount: messages.length,
-      systemPromptLength: systemPrompt.length,
-      systemPromptPreview: systemPrompt.slice(0, 500),
-      historyCount: history.length,
-      hasFactsBlock: factsBlock.length > 0,
-      hasMemoryBlock: memoryBlock.length > 0,
-      lastUserMessagePreview: message.slice(0, 200),
-      totalPromptChars: totalChars,
-      model: MODEL,
-      wantStream,
-      elapsedMsSinceRequestStart: Date.now() - reqStart,
-    });
-  }
+  const totalPromptChars = messages.reduce(
+    (n, m) => n + (typeof m.content === "string" ? m.content.length : 0),
+    0,
+  );
+  // Prompt construction is just the system-prompt text assembly — the final
+  // messages-array concatenation (facts/memory/history/user turn) is sync
+  // string concatenation with no I/O, negligible next to everything else.
+  timings.promptBuildMs = timings.promptTextBuildMs ?? 0;
+  dlog(reqId, "messages_built", {
+    messagesCount: messages.length,
+    systemPromptLength: systemPrompt.length,
+    systemPromptPreview: systemPrompt.slice(0, 500),
+    historyCount: history.length,
+    hasFactsBlock: factsBlock.length > 0,
+    hasMemoryBlock: memoryBlock.length > 0,
+    lastUserMessagePreview: message.slice(0, 200),
+    totalPromptChars,
+    model: MODEL,
+    wantStream,
+    timingsSoFarMs: { ...timings },
+    elapsedMsSinceRequestStart: Date.now() - reqStart,
+  });
 
   // ---------- Streaming path (Server-Sent Events) ----------
   // Emits: `meta` (conversation_id + model) first, then a series of `delta`
@@ -1767,6 +1833,8 @@ Deno.serve(async (req: Request) => {
         sse("meta", { conversation_id: conversationId, model: MODEL });
 
         let full = "";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let capturedUsage: any = null;
         const orBody = {
           model: MODEL,
           messages,
@@ -1786,6 +1854,7 @@ Deno.serve(async (req: Request) => {
           hasApiKey: !!OPENROUTER_API_KEY,
           elapsedMsSinceRequestStart: Date.now() - reqStart,
         });
+        const orSendStart = Date.now();
         try {
           const orRes = await fetchWithTimeout(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -1842,8 +1911,10 @@ Deno.serve(async (req: Request) => {
             chunkCount++;
             if (firstChunkAt === null) {
               firstChunkAt = Date.now();
+              timings.openRouterTtftMs = firstChunkAt - orSendStart;
               dlog(reqId, "openrouter_first_chunk_received", {
                 elapsedMsSinceRequestStart: firstChunkAt - reqStart,
+                openRouterTtftMs: timings.openRouterTtftMs,
                 chunkBytes: value?.length ?? 0,
               });
             }
@@ -1870,6 +1941,10 @@ Deno.serve(async (req: Request) => {
                     full += delta;
                     sse("delta", { text: delta });
                   }
+                  // OpenRouter/upstream may include a usage object on the
+                  // final chunk even without an explicit request for it —
+                  // opportunistically capture it for the summary log only.
+                  if (parsed?.usage) capturedUsage = parsed.usage;
                 } catch {
                   parseFailures++;
                   if (parseFailures <= 3) {
@@ -1881,11 +1956,15 @@ Deno.serve(async (req: Request) => {
               }
             }
           }
+          const streamEndAt = Date.now();
+          timings.streamingDurationMs = firstChunkAt !== null ? streamEndAt - firstChunkAt : 0;
           dlog(reqId, "openrouter_stream_loop_ended", {
             chunkCount,
             deltaCount,
             parseFailures,
             fullLength: full.length,
+            streamingDurationMs: timings.streamingDurationMs,
+            usage: capturedUsage,
             elapsedMsSinceRequestStart: Date.now() - reqStart,
           });
         } catch (e) {
@@ -1960,6 +2039,16 @@ Deno.serve(async (req: Request) => {
           /* best-effort persistence */
         }
 
+        timings.totalRequestDurationMs = Date.now() - reqStart;
+        dlogSummary(reqId, {
+          model: MODEL,
+          totalPromptChars,
+          totalMessages: messages.length,
+          timings,
+          totalRequestDurationMs: timings.totalRequestDurationMs,
+          tokens: capturedUsage,
+        });
+
         sse("done", { conversation_id: conversationId, model: MODEL });
         controller.close();
       },
@@ -1970,6 +2059,8 @@ Deno.serve(async (req: Request) => {
 
   // ---------- Call OpenRouter (non-streaming JSON) ----------
   let reply = "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let nonStreamUsage: any = null;
   {
     const orBodyNonStream = {
       model: MODEL,
@@ -1982,6 +2073,7 @@ Deno.serve(async (req: Request) => {
       messagesLength: orBodyNonStream.messages.length,
       elapsedMsSinceRequestStart: Date.now() - reqStart,
     });
+    const orSendStart = Date.now();
     try {
       const orRes = await fetchWithTimeout(
         "https://openrouter.ai/api/v1/chat/completions",
@@ -1997,9 +2089,11 @@ Deno.serve(async (req: Request) => {
         },
         45000,
       );
+      timings.openRouterTtftMs = Date.now() - orSendStart;
       dlog(reqId, "openrouter_nonstream_fetch_returned", {
         ok: orRes.ok,
         status: orRes.status,
+        openRouterTtftMs: timings.openRouterTtftMs,
         elapsedMsSinceRequestStart: Date.now() - reqStart,
       });
       const orJson = await orRes.json();
@@ -2015,9 +2109,10 @@ Deno.serve(async (req: Request) => {
         );
       }
       reply = String(orJson?.choices?.[0]?.message?.content ?? "").trim();
+      nonStreamUsage = orJson?.usage ?? null;
       dlog(reqId, "openrouter_nonstream_reply_extracted", {
         replyLength: reply.length,
-        usage: orJson?.usage ?? null,
+        usage: nonStreamUsage,
       });
       if (!reply) {
         return err(502, "provider_empty", "Model returned an empty response");
@@ -2075,6 +2170,16 @@ Deno.serve(async (req: Request) => {
       currentFacts: userFacts,
     }),
   );
+
+  timings.totalRequestDurationMs = Date.now() - reqStart;
+  dlogSummary(reqId, {
+    model: MODEL,
+    totalPromptChars,
+    totalMessages: messages.length,
+    timings,
+    totalRequestDurationMs: timings.totalRequestDurationMs,
+    tokens: nonStreamUsage,
+  });
 
   return json(200, {
     conversation_id: conversationId,

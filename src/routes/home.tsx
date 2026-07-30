@@ -76,7 +76,20 @@ const NORTH_CHART_HOUSE_REGIONS: { house: number; points: string }[] = [
   { house: 12, points: "242,10 472,10 356.5,125.5" },
 ];
 
+const TAB_KEYS = ["charts", "details", "doshas", "ashtakavarga", "numerology", "loshu"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
+type HomeSearch = { tab?: TabKey };
+
 export const Route = createFileRoute("/home")({
+  validateSearch: (search: Record<string, unknown>): HomeSearch => {
+    const raw = search.tab;
+    const tab =
+      typeof raw === "string" && (TAB_KEYS as readonly string[]).includes(raw)
+        ? (raw as TabKey)
+        : undefined;
+    return { tab };
+  },
   head: () => ({
     meta: [
       { title: "Your chart — AstroSaathi" },
@@ -107,7 +120,10 @@ function HomePage() {
     });
   }, []);
   const name = profile?.name?.split(" ")[0] ?? "AstroSaathi";
-  const [tab, setTab] = useState<TabKey>("charts");
+  const navigate = useNavigate({ from: Route.fullPath });
+  const { tab: tabParam } = Route.useSearch();
+  const tab: TabKey = tabParam ?? "charts";
+  const setTab = (k: TabKey) => void navigate({ search: { tab: k }, replace: true });
   const isProfileIncomplete = profileLoaded && (!profile || !profile.dob);
 
   return (
@@ -162,8 +178,6 @@ function IncompleteProfileHeroCard() {
     </div>
   );
 }
-
-type TabKey = "charts" | "details" | "doshas" | "ashtakavarga" | "numerology" | "loshu";
 
 const TAB_CONFIG: {
   key: TabKey;

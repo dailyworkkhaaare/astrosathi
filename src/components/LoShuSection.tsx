@@ -10,6 +10,7 @@ import {
   type LoShuKua,
   type KuaDirection,
 } from "@/lib/queries";
+import { ExpandableSection } from "@/components/ExpandableSection";
 
 export function LoShuSection() {
   const { t } = useTranslation();
@@ -42,53 +43,64 @@ function isValid(d: LoShuData | null): boolean {
 function Body({ data }: { data: LoShuData }) {
   const { t } = useTranslation();
   return (
-    <div className="mt-5 space-y-6">
+    <div className="mt-5 space-y-4">
       {/* Grid */}
-      <div className="flex flex-col items-center gap-4">
-        <div role="grid" aria-label={t("sections.loshu.title")} className="grid grid-cols-3 gap-2 sm:gap-3">
-          {data.grid.flat().map((cell, i) => (
-            <GridCell key={i} cell={cell} />
-          ))}
+      <ExpandableSection title={t("sections.loshu.gridTitle")} defaultOpen>
+        <div className="flex flex-col items-center gap-4">
+          <div role="grid" aria-label={t("sections.loshu.title")} className="grid grid-cols-3 gap-2 sm:gap-3">
+            {data.grid.flat().map((cell, i) => (
+              <GridCell key={i} cell={cell} />
+            ))}
+          </div>
+          {data.added_to_grid && data.added_to_grid.length > 0 && (
+            <p
+              className="max-w-xs text-center text-[11px] text-muted-foreground"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              {t("sections.loshu.gridIncludes", { numbers: data.added_to_grid.join(", ") })}
+            </p>
+          )}
+          <div className="flex flex-wrap justify-center gap-2">
+            <Chip label={t("sections.loshu.driver")} value={data.driver} tone="gold" />
+            <Chip label={t("sections.loshu.destiny")} value={data.destiny} tone="gold" />
+          </div>
         </div>
-        {data.added_to_grid && data.added_to_grid.length > 0 && (
-          <p
-            className="max-w-xs text-center text-[11px] text-muted-foreground"
-            style={{ fontVariantNumeric: "tabular-nums" }}
-          >
-            {t("sections.loshu.gridIncludes", { numbers: data.added_to_grid.join(", ") })}
-          </p>
-        )}
-        <div className="flex flex-wrap justify-center gap-2">
-          <Chip label={t("sections.loshu.driver")} value={data.driver} tone="gold" />
-          <Chip label={t("sections.loshu.destiny")} value={data.destiny} tone="gold" />
-        </div>
-      </div>
+      </ExpandableSection>
 
-      {/* Present / Missing */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Present numbers */}
+      <ExpandableSection
+        title={t("sections.loshu.presentNumbers")}
+        badge={data.present?.length ?? 0}
+        defaultOpen
+      >
         <NumberList
-          title={t("sections.loshu.presentNumbers")}
           numbers={data.present}
           meanings={data.meanings}
           tone="present"
           emptyText={t("sections.loshu.noNumbersPresent")}
         />
+      </ExpandableSection>
+
+      {/* Missing numbers */}
+      <ExpandableSection
+        title={t("sections.loshu.missingNumbers")}
+        badge={data.missing?.length ?? 0}
+      >
         <NumberList
-          title={t("sections.loshu.missingNumbers")}
           numbers={data.missing}
           meanings={data.meanings}
           tone="missing"
           emptyText={t("sections.loshu.noMissingNumbers")}
         />
-      </div>
+      </ExpandableSection>
 
       {/* Repeated */}
       {data.repeated_details && data.repeated_details.length > 0 && (
-        <section aria-labelledby="loshu-repeated">
-          <h3 id="loshu-repeated" className="text-sm font-semibold text-foreground">
-            {t("sections.loshu.repeated")}
-          </h3>
-          <ul className="mt-3 flex flex-col gap-2">
+        <ExpandableSection
+          title={t("sections.loshu.repeated")}
+          badge={data.repeated_details.length}
+        >
+          <ul className="flex flex-col gap-2">
             {data.repeated_details.map((r) => (
               <li key={r.number} className="rounded-lg border border-border bg-background p-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -113,16 +125,13 @@ function Body({ data }: { data: LoShuData }) {
               </li>
             ))}
           </ul>
-        </section>
+        </ExpandableSection>
       )}
 
       {/* Arrows */}
       {data.arrows && data.arrows.length > 0 && (
-        <section aria-labelledby="loshu-arrows">
-          <h3 id="loshu-arrows" className="text-sm font-semibold text-foreground">
-            {t("sections.loshu.arrows")}
-          </h3>
-          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <ExpandableSection title={t("sections.loshu.arrows")} badge={data.arrows.length}>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {data.arrows.map((a, i) => {
               const tone = a.type === "strength" ? "gold" : "destructive";
               const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive";
@@ -153,28 +162,30 @@ function Body({ data }: { data: LoShuData }) {
               );
             })}
           </ul>
-        </section>
+        </ExpandableSection>
       )}
 
       {/* Remedies for missing numbers */}
       {data.missing_remedies && data.missing_remedies.length > 0 && (
-        <section aria-labelledby="loshu-remedies">
-          <h3 id="loshu-remedies" className="text-sm font-semibold text-foreground">
-            {t("sections.loshu.remediesTitle")}
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+        <ExpandableSection
+          title={t("sections.loshu.remediesTitle")}
+          badge={data.missing_remedies.length}
+        >
+          <p className="mb-3 text-xs text-muted-foreground">
             {t("sections.loshu.remediesSubtitle")}
           </p>
-          <ul className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {data.missing_remedies.map((r) => (
               <RemedyCard key={r.number} remedy={r} />
             ))}
           </ul>
-        </section>
+        </ExpandableSection>
       )}
 
       {/* Kua directions */}
-      <KuaCard kua={data.kua} />
+      <ExpandableSection title={t("sections.loshu.kuaTitle")}>
+        <KuaCard kua={data.kua} />
+      </ExpandableSection>
     </div>
   );
 }
@@ -197,16 +208,8 @@ function KuaCard({ kua }: { kua?: LoShuKua }) {
   const { t } = useTranslation();
   const ready = kua && kua.available === true;
   return (
-    <section
-      aria-labelledby="loshu-kua"
-      className="rounded-xl border border-border bg-background p-4"
-    >
-      <div>
-        <h3 id="loshu-kua" className="text-sm font-semibold text-foreground">
-          {t("sections.loshu.kuaTitle")}
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground">{t("sections.loshu.kuaSubtitle")}</p>
-      </div>
+    <div>
+      <p className="text-xs text-muted-foreground">{t("sections.loshu.kuaSubtitle")}</p>
 
       {!ready ? (
         <div className="mt-4 flex flex-col items-start gap-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-5">
@@ -221,7 +224,7 @@ function KuaCard({ kua }: { kua?: LoShuKua }) {
       ) : (
         <KuaBody kua={kua as Extract<LoShuKua, { available: true }>} />
       )}
-    </section>
+    </div>
   );
 }
 
@@ -485,13 +488,11 @@ function Chip({ label, value, tone }: { label: string; value: number; tone: "gol
 }
 
 function NumberList({
-  title,
   numbers,
   meanings,
   tone,
   emptyText,
 }: {
-  title: string;
   numbers: number[];
   meanings: Record<string, string>;
   tone: "present" | "missing";
@@ -501,35 +502,30 @@ function NumberList({
     tone === "present"
       ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
       : "text-glow-violet border-glow-violet/[33%] bg-glow-violet/10";
-  return (
-    <div className="rounded-xl border border-border bg-background p-4">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      {!numbers || numbers.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">{emptyText}</p>
-      ) : (
-        <ul className="mt-3 flex flex-col gap-2">
-          {numbers.map((n) => (
-            <li
-              key={n}
-              className="flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3"
-            >
-              <div
-                className={
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border " + pillTone
-                }
-              >
-                <span className="text-lg font-semibold leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
-                  {n}
-                </span>
-              </div>
-              <p className="min-w-0 flex-1 text-sm leading-snug text-foreground">
-                {meanings?.[String(n)] ?? ""}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+  return !numbers || numbers.length === 0 ? (
+    <p className="text-sm text-muted-foreground">{emptyText}</p>
+  ) : (
+    <ul className="flex flex-col gap-2">
+      {numbers.map((n) => (
+        <li
+          key={n}
+          className="flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3"
+        >
+          <div
+            className={
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border " + pillTone
+            }
+          >
+            <span className="text-lg font-semibold leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {n}
+            </span>
+          </div>
+          <p className="min-w-0 flex-1 text-sm leading-snug text-foreground">
+            {meanings?.[String(n)] ?? ""}
+          </p>
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -694,6 +694,7 @@
     "loshu": {
       "title": "Lo Shu grid",
       "subtitle": "Your numerology grid from your date of birth",
+      "gridTitle": "Your grid",
       "gridIncludes": "Grid includes your Driver + Conductor numbers ({{numbers}})",
       "driver": "Driver (Mulank)",
       "destiny": "Destiny (Bhagyank)",

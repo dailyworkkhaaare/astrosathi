@@ -716,6 +716,68 @@ export function useMarketOutlook(): UseQueryResult<MarketOutlookValue> {
   });
 }
 
+// ---------------------------------------------------------------- composite barometer
+
+export type BarometerBias = "bullish" | "neutral" | "bearish";
+export type BarometerAsset = {
+  assetKey: string;
+  fusedProbability: number; // 0..1 P(up)
+  confidenceScore: number; // 0..100, coverage-adjusted
+  bias: BarometerBias;
+  sourceCoverage: number | null; // 0..1 fraction of active sources present
+};
+export type BarometerValue = {
+  barometerDate: string | null;
+  assets: BarometerAsset[];
+};
+
+// Reads the latest Composite Financial Barometer rows (one per asset) written
+// by the barometer-compute Edge Function. Global market data — RLS allows
+// authenticated reads via the "read barometer" policy on
+// financial_barometer_daily. Mirrors the useMarketOutlook direct-table pattern.
+export function useBarometer(): UseQueryResult<BarometerValue> {
+  const userId = useCurrentUserId();
+  return useQuery<BarometerValue>({
+    queryKey: [...ROOT, "barometer", userId],
+    enabled: userId !== null,
+    staleTime: 15 * 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    refetchOnWindowFocus: true,
+    queryFn: async (): Promise<BarometerValue> => {
+      // Pull a small recent window (3 assets/day) and keep only the latest date.
+      const { data: rows } = await supabase
+        .from("financial_barometer_daily")
+        .select(
+          "barometer_date, asset_key, fused_probability, confidence_score, directional_bias, inputs",
+        )
+        .order("barometer_date", { ascending: false })
+        .limit(12);
+
+      const all = rows ?? [];
+      if (all.length === 0) return { barometerDate: null, assets: [] };
+
+      const latestDate = String(all[0].barometer_date);
+      const assets: BarometerAsset[] = all
+        .filter((r) => String(r.barometer_date) === latestDate)
+        .map((r) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cov = (r.inputs as any)?.source_coverage;
+          return {
+            assetKey: String(r.asset_key),
+            fusedProbability: Number(r.fused_probability),
+            confidenceScore: Number(r.confidence_score),
+            bias: (r.directional_bias as BarometerBias) ?? "neutral",
+            sourceCoverage: cov != null ? Number(cov) : null,
+          };
+        })
+        .sort((a, b) => a.assetKey.localeCompare(b.assetKey));
+
+      return { barometerDate: latestDate, assets };
+    },
+  });
+}
+
 // ---------------------------------------------------------------- daily horoscope
 
 export type DailyHoroscopeArea = { key: string; text: string };

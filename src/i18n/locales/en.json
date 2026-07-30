@@ -630,6 +630,16 @@
         }
       }
     },
+    "barometer": {
+      "title": "Composite Barometer",
+      "subtitle": "Fused SBC + Bradley + Panchanga signal",
+      "loadError": "Couldn't load the barometer right now.",
+      "empty": "No barometer reading yet for today.",
+      "confidence": "Confidence",
+      "coverage": "Coverage",
+      "assets": { "nifty50": "Nifty 50", "mcxgold": "MCX Gold", "mcxsilver": "MCX Silver" },
+      "bias": { "bullish": "Bullish", "neutral": "Neutral", "bearish": "Bearish" }
+    },
     "dasha": {
       "title": "Vimshottari Dasha",
       "subtitle": "Planetary periods",

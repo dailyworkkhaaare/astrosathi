@@ -346,7 +346,7 @@ function DirList({
         {items.map((d) => (
           <li
             key={d.direction + d.name}
-            className="flex items-start gap-3 py-2 first:pt-0 last:pb-0"
+            className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
           >
             <span
               className={
@@ -357,7 +357,7 @@ function DirList({
             >
               {d.direction}
             </span>
-            <div className="min-w-0 flex-1 pt-0.5">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-medium leading-snug text-foreground">{d.name}</p>
               {d.theme && (
                 <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{d.theme}</p>

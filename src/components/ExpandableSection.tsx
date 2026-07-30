@@ -7,26 +7,36 @@ import { cn } from "@/lib/utils";
 export function ExpandableSection({
   title,
   defaultOpen = false,
+  open: openProp,
+  onOpenChange,
   icon: Icon,
   badge,
   children,
   className,
+  id,
 }: {
   title: string;
   defaultOpen?: boolean;
+  /** Controlled open state. Omit to let the section manage its own state. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   icon?: LucideIcon;
   badge?: string | number;
   children: ReactNode;
   className?: string;
+  /** Anchor id on the outer card, e.g. for a jump-nav to scroll to. */
+  id?: string;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => (onOpenChange ? onOpenChange(next) : setUncontrolledOpen(next));
   const contentId = useId();
 
   return (
-    <Card className={cn("rounded-2xl p-0", className)}>
+    <Card id={id} className={cn("rounded-2xl p-0", className)}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-controls={contentId}
         className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl px-5 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"

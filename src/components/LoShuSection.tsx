@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { AlertTriangle, RefreshCw, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -40,12 +40,88 @@ function isValid(d: LoShuData | null): boolean {
 
 // ---------------------------------------------------------------- body
 
+type SectionKey = "grid" | "present" | "missing" | "repeated" | "arrows" | "remedies" | "kua";
+
+const SECTION_ANCHOR_ID: Record<SectionKey, string> = {
+  grid: "loshu-section-grid",
+  present: "loshu-section-present",
+  missing: "loshu-section-missing",
+  repeated: "loshu-section-repeated",
+  arrows: "loshu-section-arrows",
+  remedies: "loshu-section-remedies",
+  kua: "loshu-section-kua",
+};
+
 function Body({ data }: { data: LoShuData }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState<Record<SectionKey, boolean>>({
+    grid: true,
+    present: true,
+    missing: false,
+    repeated: false,
+    arrows: false,
+    remedies: false,
+    kua: false,
+  });
+  const setSectionOpen = (key: SectionKey, value: boolean) =>
+    setOpen((o) => ({ ...o, [key]: value }));
+
+  // Opens the target section (if not already) and scrolls it into view once
+  // its expanded height has been laid out. setTimeout, not
+  // requestAnimationFrame, since rAF is throttled in backgrounded tabs.
+  const jumpTo = (key: SectionKey) => {
+    setSectionOpen(key, true);
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(() => {
+      document
+        .getElementById(SECTION_ANCHOR_ID[key])
+        ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    }, 0);
+  };
+
+  const hasRepeated = !!data.repeated_details && data.repeated_details.length > 0;
+  const hasArrows = !!data.arrows && data.arrows.length > 0;
+  const hasRemedies = !!data.missing_remedies && data.missing_remedies.length > 0;
+
+  const jumpNavItems: { key: SectionKey; label: string }[] = [
+    { key: "grid", label: t("sections.loshu.gridTitle") },
+    { key: "present", label: t("sections.loshu.presentNumbers") },
+    { key: "missing", label: t("sections.loshu.missingNumbers") },
+    ...(hasRepeated ? [{ key: "repeated" as const, label: t("sections.loshu.repeated") }] : []),
+    ...(hasArrows ? [{ key: "arrows" as const, label: t("sections.loshu.arrows") }] : []),
+    ...(hasRemedies
+      ? [{ key: "remedies" as const, label: t("sections.loshu.remediesTitle") }]
+      : []),
+    { key: "kua", label: t("sections.loshu.kuaTitle") },
+  ];
+
   return (
     <div className="mt-5 space-y-4">
+      <nav
+        aria-label={t("sections.loshu.jumpNavLabel")}
+        className="sticky top-0 z-10 -mx-1 flex gap-2 overflow-x-auto bg-card/95 px-1 py-2 backdrop-blur [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {jumpNavItems.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => jumpTo(item.key)}
+            className="tap-press inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-border/80 bg-card/60 px-3.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
       {/* Grid */}
-      <ExpandableSection title={t("sections.loshu.gridTitle")} defaultOpen>
+      <ExpandableSection
+        id={SECTION_ANCHOR_ID.grid}
+        title={t("sections.loshu.gridTitle")}
+        open={open.grid}
+        onOpenChange={(v) => setSectionOpen("grid", v)}
+      >
         <div className="flex flex-col items-center gap-4">
           <div role="grid" aria-label={t("sections.loshu.title")} className="grid grid-cols-3 gap-2 sm:gap-3">
             {data.grid.flat().map((cell, i) => (
@@ -69,9 +145,11 @@ function Body({ data }: { data: LoShuData }) {
 
       {/* Present numbers */}
       <ExpandableSection
+        id={SECTION_ANCHOR_ID.present}
         title={t("sections.loshu.presentNumbers")}
         badge={data.present?.length ?? 0}
-        defaultOpen
+        open={open.present}
+        onOpenChange={(v) => setSectionOpen("present", v)}
       >
         <NumberList
           numbers={data.present}
@@ -83,8 +161,11 @@ function Body({ data }: { data: LoShuData }) {
 
       {/* Missing numbers */}
       <ExpandableSection
+        id={SECTION_ANCHOR_ID.missing}
         title={t("sections.loshu.missingNumbers")}
         badge={data.missing?.length ?? 0}
+        open={open.missing}
+        onOpenChange={(v) => setSectionOpen("missing", v)}
       >
         <NumberList
           numbers={data.missing}
@@ -95,13 +176,16 @@ function Body({ data }: { data: LoShuData }) {
       </ExpandableSection>
 
       {/* Repeated */}
-      {data.repeated_details && data.repeated_details.length > 0 && (
+      {hasRepeated && (
         <ExpandableSection
+          id={SECTION_ANCHOR_ID.repeated}
           title={t("sections.loshu.repeated")}
-          badge={data.repeated_details.length}
+          badge={data.repeated_details!.length}
+          open={open.repeated}
+          onOpenChange={(v) => setSectionOpen("repeated", v)}
         >
           <ul className="flex flex-col gap-2">
-            {data.repeated_details.map((r) => (
+            {data.repeated_details!.map((r) => (
               <li key={r.number} className="rounded-lg border border-border bg-background p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
@@ -129,10 +213,16 @@ function Body({ data }: { data: LoShuData }) {
       )}
 
       {/* Arrows */}
-      {data.arrows && data.arrows.length > 0 && (
-        <ExpandableSection title={t("sections.loshu.arrows")} badge={data.arrows.length}>
+      {hasArrows && (
+        <ExpandableSection
+          id={SECTION_ANCHOR_ID.arrows}
+          title={t("sections.loshu.arrows")}
+          badge={data.arrows!.length}
+          open={open.arrows}
+          onOpenChange={(v) => setSectionOpen("arrows", v)}
+        >
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {data.arrows.map((a, i) => {
+            {data.arrows!.map((a, i) => {
               const tone = a.type === "strength" ? "gold" : "destructive";
               const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive";
               const pillTone =
@@ -166,16 +256,19 @@ function Body({ data }: { data: LoShuData }) {
       )}
 
       {/* Remedies for missing numbers */}
-      {data.missing_remedies && data.missing_remedies.length > 0 && (
+      {hasRemedies && (
         <ExpandableSection
+          id={SECTION_ANCHOR_ID.remedies}
           title={t("sections.loshu.remediesTitle")}
-          badge={data.missing_remedies.length}
+          badge={data.missing_remedies!.length}
+          open={open.remedies}
+          onOpenChange={(v) => setSectionOpen("remedies", v)}
         >
           <p className="mb-3 text-xs text-muted-foreground">
             {t("sections.loshu.remediesSubtitle")}
           </p>
           <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {data.missing_remedies.map((r) => (
+            {data.missing_remedies!.map((r) => (
               <RemedyCard key={r.number} remedy={r} />
             ))}
           </ul>
@@ -183,7 +276,12 @@ function Body({ data }: { data: LoShuData }) {
       )}
 
       {/* Kua directions */}
-      <ExpandableSection title={t("sections.loshu.kuaTitle")}>
+      <ExpandableSection
+        id={SECTION_ANCHOR_ID.kua}
+        title={t("sections.loshu.kuaTitle")}
+        open={open.kua}
+        onOpenChange={(v) => setSectionOpen("kua", v)}
+      >
         <KuaCard kua={data.kua} />
       </ExpandableSection>
     </div>

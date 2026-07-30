@@ -23,7 +23,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-request-id",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -1127,9 +1127,15 @@ function dlog(reqId: string, stage: string, extra?: Record<string, unknown>) {
 }
 
 Deno.serve(async (req: Request) => {
-  const reqId = Math.random().toString(36).slice(2, 10);
+  // Correlation id: reuse the frontend's X-Request-ID so a single id threads
+  // through frontend logs -> Supabase logs -> the OpenRouter request. Only
+  // generate one here as a fallback for callers that didn't send one.
+  const reqId = req.headers.get("X-Request-ID") || crypto.randomUUID();
   const reqStart = Date.now();
-  dlog(reqId, "request_received", { method: req.method });
+  dlog(reqId, "request_received", {
+    method: req.method,
+    reqIdSource: req.headers.get("X-Request-ID") ? "client" : "server_fallback",
+  });
 
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });

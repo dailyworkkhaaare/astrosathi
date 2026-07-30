@@ -76,7 +76,9 @@ async function streamAstrologerReply(
 
   // TEMPORARY DEBUG INSTRUMENTATION — pinpointing a chat regression. Remove
   // once the root cause is confirmed and fixed.
-  const debugReqId = Math.random().toString(36).slice(2, 10);
+  // Single correlation id sent as X-Request-ID so frontend logs, Supabase
+  // logs, and the OpenRouter request can all be matched on the same value.
+  const debugReqId = crypto.randomUUID();
   const debugStart = Date.now();
   console.log("[astro-chat-debug] fe reqId=" + debugReqId, "sending_request", {
     messageLength: args.message.length,
@@ -90,6 +92,7 @@ async function streamAstrologerReply(
     headers: {
       ...fnClient.headers,
       "content-type": "application/json",
+      "X-Request-ID": debugReqId,
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
     body: JSON.stringify({

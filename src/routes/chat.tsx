@@ -74,21 +74,45 @@ async function streamAstrologerReply(
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
 
-  const res = await fetch(`${fnClient.url}/astrologer-chat`, {
-    method: "POST",
-    headers: {
-      ...fnClient.headers,
-      "content-type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-    body: JSON.stringify({
-      message: args.message,
-      conversation_id: args.conversationId || undefined,
-      stream: true,
-    }),
-  });
+  // Idle-timeout abort: pushed back out on every chunk received (including
+  // the initial connection), so a normal-but-slow generation is never cut
+  // short, but a truly stalled connection can't hang the UI's loading state
+  // forever — it aborts and lets the caller fall back to the buffered path.
+  const IDLE_MS = 25000;
+  const abortController = new AbortController();
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const bumpIdle = () => {
+    if (idleTimer !== undefined) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => abortController.abort(), IDLE_MS);
+  };
+  bumpIdle();
+
+  let res: Response;
+  try {
+    res = await fetch(`${fnClient.url}/astrologer-chat`, {
+      method: "POST",
+      headers: {
+        ...fnClient.headers,
+        "content-type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({
+        message: args.message,
+        conversation_id: args.conversationId || undefined,
+        stream: true,
+      }),
+      signal: abortController.signal,
+    });
+  } catch (e) {
+    clearTimeout(idleTimer);
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new Error("stream_stalled");
+    }
+    throw e;
+  }
 
   if (!res.ok || !res.body) {
+    clearTimeout(idleTimer);
     let msg = `Request failed (${res.status})`;
     try {
       const j = await res.json();
@@ -104,41 +128,55 @@ async function streamAstrologerReply(
   let buffer = "";
   let streamError: string | null = null;
 
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    // SSE frames are separated by a blank line.
-    let sep: number;
-    while ((sep = buffer.indexOf("\n\n")) !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      let event = "message";
-      let dataStr = "";
-      for (const line of frame.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
-      }
-      if (!dataStr) continue;
-      let payload: {
-        conversation_id?: string;
-        text?: string;
-        message?: string;
-      } = {};
+  try {
+    for (;;) {
+      let value: Uint8Array | undefined;
+      let done: boolean;
       try {
-        payload = JSON.parse(dataStr);
-      } catch {
-        continue;
+        ({ value, done } = await reader.read());
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") {
+          throw new Error("stream_stalled");
+        }
+        throw e;
       }
-      if (event === "meta") {
-        if (payload.conversation_id) handlers.onMeta?.(payload.conversation_id);
-      } else if (event === "delta") {
-        if (payload.text) handlers.onDelta(payload.text);
-      } else if (event === "error") {
-        streamError = payload.message || "stream_error";
+      if (done) break;
+      bumpIdle();
+      buffer += decoder.decode(value, { stream: true });
+      // SSE frames are separated by a blank line.
+      let sep: number;
+      while ((sep = buffer.indexOf("\n\n")) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        let event = "message";
+        let dataStr = "";
+        for (const line of frame.split("\n")) {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
+        }
+        if (!dataStr) continue;
+        let payload: {
+          conversation_id?: string;
+          text?: string;
+          message?: string;
+        } = {};
+        try {
+          payload = JSON.parse(dataStr);
+        } catch {
+          continue;
+        }
+        if (event === "meta") {
+          if (payload.conversation_id) handlers.onMeta?.(payload.conversation_id);
+        } else if (event === "delta") {
+          if (payload.text) handlers.onDelta(payload.text);
+        } else if (event === "error") {
+          streamError = payload.message || "stream_error";
+        }
+        // `done` needs no action; the loop ends when the body closes.
       }
-      // `done` needs no action; the loop ends when the body closes.
     }
+  } finally {
+    clearTimeout(idleTimer);
   }
 
   if (streamError) throw new Error(streamError);

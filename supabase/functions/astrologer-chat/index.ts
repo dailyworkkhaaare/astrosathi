@@ -52,6 +52,31 @@ async function fetchWithTimeout(
   }
 }
 
+// An abort deadline that gets pushed back out each time `bump()` is called
+// (e.g. on every chunk of a stream), instead of a single flat ceiling. This
+// lets a long-but-actively-generating response run to completion while still
+// catching a genuinely stalled connection (no data for `idleMs`), which a
+// flat timeout tied only to `fetch()` resolving cannot do — that timer is
+// cleared as soon as headers arrive and gives zero protection to the body.
+class IdleAbort {
+  readonly controller = new AbortController();
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  constructor(private idleMs: number) {
+    this.arm();
+  }
+  private arm() {
+    if (this.timer !== undefined) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.controller.abort(), this.idleMs);
+  }
+  bump(idleMs?: number) {
+    if (idleMs !== undefined) this.idleMs = idleMs;
+    this.arm();
+  }
+  clear() {
+    if (this.timer !== undefined) clearTimeout(this.timer);
+  }
+}
+
 // Chart types we surface to the model as grounding context.
 const CONTEXT_CHART_TYPES = [
   "natal",
@@ -1713,29 +1738,33 @@ Deno.serve(async (req: Request) => {
         sse("meta", { conversation_id: conversationId, model: MODEL });
 
         let full = "";
+        // Connect timeout (45s) covers everything up to headers arriving;
+        // once streaming starts we switch to a much tighter idle window
+        // (bumped on every chunk) so a stalled upstream connection can never
+        // hang this request indefinitely.
+        const idle = new IdleAbort(45000);
+        const STREAM_IDLE_MS = 20000;
         try {
-          const orRes = await fetchWithTimeout(
-            "https://openrouter.ai/api/v1/chat/completions",
-            {
-              method: "POST",
-              headers: {
-                "content-type": "application/json",
-                Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-                "HTTP-Referer": "https://astrosathi.app",
-                "X-Title": "AstroSaathi",
-              },
-              body: JSON.stringify({
-                model: MODEL,
-                messages,
-                temperature: 0.7,
-                max_tokens: 1150,
-                stream: true,
-              }),
+          const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+              "HTTP-Referer": "https://astrosathi.app",
+              "X-Title": "AstroSaathi",
             },
-            45000,
-          );
+            body: JSON.stringify({
+              model: MODEL,
+              messages,
+              temperature: 0.7,
+              max_tokens: 1150,
+              stream: true,
+            }),
+            signal: idle.controller.signal,
+          } as never);
 
           if (!orRes.ok || !orRes.body) {
+            idle.clear();
             let msg = `OpenRouter HTTP ${orRes.status}`;
             try {
               const j = await orRes.json();
@@ -1748,6 +1777,9 @@ Deno.serve(async (req: Request) => {
             return;
           }
 
+          // Headers are in — from here on, only bound the gap between chunks.
+          idle.bump(STREAM_IDLE_MS);
+
           // Parse the upstream SSE stream frame by frame.
           const reader = orRes.body.getReader();
           const decoder = new TextDecoder();
@@ -1756,6 +1788,7 @@ Deno.serve(async (req: Request) => {
           while (!finished) {
             const { value, done: streamDone } = await reader.read();
             if (streamDone) break;
+            idle.bump(STREAM_IDLE_MS);
             buffer += decoder.decode(value, { stream: true });
             let sep: number;
             while ((sep = buffer.indexOf("\n\n")) !== -1) {
@@ -1784,10 +1817,15 @@ Deno.serve(async (req: Request) => {
               }
             }
           }
+          idle.clear();
         } catch (e) {
+          idle.clear();
+          const stalled = e instanceof Error && e.name === "AbortError";
           sse("error", {
-            code: "provider_timeout",
-            message: String((e as Error)?.message ?? e),
+            code: stalled ? "provider_stalled" : "provider_timeout",
+            message: stalled
+              ? "The astrologer's connection stalled — please try again."
+              : String((e as Error)?.message ?? e),
           });
           controller.close();
           return;

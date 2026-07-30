@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
+import { ExpandableSection } from "@/components/ExpandableSection";
 
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import {
@@ -451,16 +452,14 @@ function ChartsTab() {
         </div>
       </Card>
 
-      <Card>
-        <div className="mb-3 flex items-center gap-2.5">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
-            <Orbit size={15} className="text-accent" aria-hidden="true" />
-          </span>
-          <h2 className="text-base font-semibold text-foreground">
-            {t("home.planetsTitle")}
-            {isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : ""}
-          </h2>
-        </div>
+      <ExpandableSection
+        title={
+          t("home.planetsTitle") +
+          (isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : "")
+        }
+        icon={Orbit}
+        badge={!tablesLoading && !tablesErrorKey ? displayPlanets.length : undefined}
+      >
         {tablesLoading && <PlanetsTableSkeleton />}
         {!tablesLoading && tablesErrorKey && (
           <ErrorInline messageKey={tablesErrorKey} code={tablesErrorCode} onRetry={onRetryTables} />
@@ -560,21 +559,17 @@ function ChartsTab() {
             })}
           </ul>
         )}
-      </Card>
+      </ExpandableSection>
 
-      <Card>
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
-              <LayoutGrid size={15} className="text-accent" aria-hidden="true" />
-            </span>
-            <h2 className="text-base font-semibold text-foreground">
-              {t("home.housesTitle")}
-              {isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : ""}
-            </h2>
-          </div>
-          <p className="text-xs text-muted-foreground">{t("home.housesSubtitle")}</p>
-        </div>
+      <ExpandableSection
+        title={
+          t("home.housesTitle") +
+          (isDivisional ? ` · ${t(`home.varga.${debounced.varga.toLowerCase()}`)}` : "")
+        }
+        icon={LayoutGrid}
+        badge={!tablesLoading && !tablesErrorKey ? displayHouses.length : undefined}
+      >
+        <p className="-mt-1 mb-3 text-xs text-muted-foreground">{t("home.housesSubtitle")}</p>
         {tablesLoading && <HousesGridSkeleton />}
         {!tablesLoading && tablesErrorKey && (
           <ErrorInline messageKey={tablesErrorKey} code={tablesErrorCode} onRetry={onRetryTables} />
@@ -611,7 +606,7 @@ function ChartsTab() {
             ))}
           </ul>
         )}
-      </Card>
+      </ExpandableSection>
 
       <Card>
         <div className="flex flex-col items-center text-center">

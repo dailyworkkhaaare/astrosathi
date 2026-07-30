@@ -22,6 +22,10 @@ import { Route as TodayRouteImport } from './routes/today'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as OnboardingBirthRouteImport } from './routes/onboarding.birth'
 import { Route as OnboardingConsentRouteImport } from './routes/onboarding.consent'
+import { Route as TodayIndexRouteImport } from './routes/today.index'
+import { Route as TodayHoroscopeRouteImport } from './routes/today.horoscope'
+import { Route as TodayMarketsRouteImport } from './routes/today.markets'
+import { Route as TodayPanchangRouteImport } from './routes/today.panchang'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +92,26 @@ const OnboardingConsentRoute = OnboardingConsentRouteImport.update({
   path: '/onboarding/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TodayIndexRoute = TodayIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TodayRoute,
+} as any)
+const TodayHoroscopeRoute = TodayHoroscopeRouteImport.update({
+  id: '/horoscope',
+  path: '/horoscope',
+  getParentRoute: () => TodayRoute,
+} as any)
+const TodayMarketsRoute = TodayMarketsRouteImport.update({
+  id: '/markets',
+  path: '/markets',
+  getParentRoute: () => TodayRoute,
+} as any)
+const TodayPanchangRoute = TodayPanchangRouteImport.update({
+  id: '/panchang',
+  path: '/panchang',
+  getParentRoute: () => TodayRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -99,10 +123,14 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/today': typeof TodayRoute
+  '/today': typeof TodayRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
+  '/today/horoscope': typeof TodayHoroscopeRoute
+  '/today/markets': typeof TodayMarketsRoute
+  '/today/panchang': typeof TodayPanchangRoute
+  '/today/': typeof TodayIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -114,10 +142,13 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/today': typeof TodayRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
+  '/today/horoscope': typeof TodayHoroscopeRoute
+  '/today/markets': typeof TodayMarketsRoute
+  '/today/panchang': typeof TodayPanchangRoute
+  '/today': typeof TodayIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -130,10 +161,14 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/today': typeof TodayRoute
+  '/today': typeof TodayRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
+  '/today/horoscope': typeof TodayHoroscopeRoute
+  '/today/markets': typeof TodayMarketsRoute
+  '/today/panchang': typeof TodayPanchangRoute
+  '/today/': typeof TodayIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +186,10 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
+    | '/today/horoscope'
+    | '/today/markets'
+    | '/today/panchang'
+    | '/today/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -162,10 +201,13 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/settings'
     | '/terms'
-    | '/today'
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
+    | '/today/horoscope'
+    | '/today/markets'
+    | '/today/panchang'
+    | '/today'
   id:
     | '__root__'
     | '/'
@@ -181,6 +223,10 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
+    | '/today/horoscope'
+    | '/today/markets'
+    | '/today/panchang'
+    | '/today/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -193,7 +239,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   TermsRoute: typeof TermsRoute
-  TodayRoute: typeof TodayRoute
+  TodayRoute: typeof TodayRouteWithChildren
   OnboardingBirthRoute: typeof OnboardingBirthRoute
   OnboardingConsentRoute: typeof OnboardingConsentRoute
 }
@@ -291,6 +337,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/today/': {
+      id: '/today/'
+      path: '/'
+      fullPath: '/today/'
+      preLoaderRoute: typeof TodayIndexRouteImport
+      parentRoute: typeof TodayRoute
+    }
+    '/today/horoscope': {
+      id: '/today/horoscope'
+      path: '/horoscope'
+      fullPath: '/today/horoscope'
+      preLoaderRoute: typeof TodayHoroscopeRouteImport
+      parentRoute: typeof TodayRoute
+    }
+    '/today/markets': {
+      id: '/today/markets'
+      path: '/markets'
+      fullPath: '/today/markets'
+      preLoaderRoute: typeof TodayMarketsRouteImport
+      parentRoute: typeof TodayRoute
+    }
+    '/today/panchang': {
+      id: '/today/panchang'
+      path: '/panchang'
+      fullPath: '/today/panchang'
+      preLoaderRoute: typeof TodayPanchangRouteImport
+      parentRoute: typeof TodayRoute
+    }
   }
 }
 
@@ -304,6 +378,22 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface TodayRouteChildren {
+  TodayHoroscopeRoute: typeof TodayHoroscopeRoute
+  TodayMarketsRoute: typeof TodayMarketsRoute
+  TodayPanchangRoute: typeof TodayPanchangRoute
+  TodayIndexRoute: typeof TodayIndexRoute
+}
+
+const TodayRouteChildren: TodayRouteChildren = {
+  TodayHoroscopeRoute: TodayHoroscopeRoute,
+  TodayMarketsRoute: TodayMarketsRoute,
+  TodayPanchangRoute: TodayPanchangRoute,
+  TodayIndexRoute: TodayIndexRoute,
+}
+
+const TodayRouteWithChildren = TodayRoute._addFileChildren(TodayRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
@@ -314,7 +404,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   TermsRoute: TermsRoute,
-  TodayRoute: TodayRoute,
+  TodayRoute: TodayRouteWithChildren,
   OnboardingBirthRoute: OnboardingBirthRoute,
   OnboardingConsentRoute: OnboardingConsentRoute,
 }

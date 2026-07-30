@@ -139,7 +139,8 @@
     "castingSubtitle": "Reading the sky over {{place}}, {{date}}"
   },
   "today": {
-    "title": "Today"
+    "title": "Today",
+    "backToToday": "Back to Today"
   },
   "home": {
     "title": "Your chart",
@@ -532,7 +533,8 @@
       "sunset": "Sunset",
       "rahuKaal": "Rahu Kaal",
       "timesUnavailable": "Add your birth place to see local timings",
-      "abhijit": "Abhijit Muhurat"
+      "abhijit": "Abhijit Muhurat",
+      "viewFull": "View full Panchang"
     },
     "mantra": {
       "title": "Daily Mantra",
@@ -561,7 +563,8 @@
       "loadError": "Couldn't load today's reading right now.",
       "empty": "No reading yet.",
       "completeProfile": "Add your birth details to see your personal daily reading.",
-      "completeCta": "Complete birth profile"
+      "completeCta": "Complete birth profile",
+      "readFull": "Read full horoscope"
     },
     "today": {
       "title": "Today's sky",
@@ -592,6 +595,7 @@
       "accuracyPending": "Scoring starts the day after the first run",
       "loadError": "Could not load the metals outlook. Please try again.",
       "empty": "No outlook available yet.",
+      "viewFull": "View market outlook",
       "disclaimer": "A cultural, entertainment reading based on planetary positions — not investment advice. No buy or sell recommendations.",
       "reasons": {
         "sun": {

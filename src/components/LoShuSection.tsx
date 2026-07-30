@@ -19,8 +19,10 @@ export function LoShuSection() {
   const errorCode = query.isError ? "provider_error" : (query.data?.errorCode ?? null);
   const data = query.data?.data ?? null;
 
+  const showBody = !loading && !errorCode && isValid(data);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card>
         <Header />
         {loading && <LoadingBody />}
@@ -28,8 +30,10 @@ export function LoShuSection() {
           <ErrorBody code={errorCode} onRetry={() => query.refetch()} t={t} />
         )}
         {!loading && !errorCode && !isValid(data) && <EmptyBody t={t} />}
-        {!loading && !errorCode && isValid(data) && <Body data={data!} />}
       </Card>
+      {/* Body renders its own list of already-bordered accordion cards —
+          nesting it inside another Card here would double up borders. */}
+      {showBody && <Body data={data!} />}
     </div>
   );
 }
@@ -98,7 +102,7 @@ function Body({ data }: { data: LoShuData }) {
   ];
 
   return (
-    <div className="mt-5 space-y-4">
+    <div className="space-y-4">
       <nav
         aria-label={t("sections.loshu.jumpNavLabel")}
         className="sticky top-0 z-10 -mx-1 flex gap-2 overflow-x-auto bg-card/95 px-1 py-2 backdrop-blur [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
@@ -123,7 +127,11 @@ function Body({ data }: { data: LoShuData }) {
         onOpenChange={(v) => setSectionOpen("grid", v)}
       >
         <div className="flex flex-col items-center gap-4">
-          <div role="grid" aria-label={t("sections.loshu.title")} className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div
+            role="grid"
+            aria-label={t("sections.loshu.title")}
+            className="grid w-full max-w-xs grid-cols-3 gap-2 sm:gap-3"
+          >
             {data.grid.flat().map((cell, i) => (
               <GridCell key={i} cell={cell} />
             ))}
@@ -481,7 +489,7 @@ function GridCell({ cell }: { cell: LoShuCell }) {
       title={cell.meaning}
       aria-label={`${cell.number}: ${cell.meaning}${filled ? ` (x${cell.count})` : " — empty"}`}
       className={
-        "group relative flex h-24 w-24 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 sm:h-28 sm:w-28 " +
+        "group relative flex aspect-square w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 " +
         (filled ? "border-border bg-background" : "border-dashed border-border/60 bg-muted/20")
       }
     >
@@ -654,9 +662,9 @@ function LoadingBody() {
   return (
     <div className="mt-5 space-y-6" aria-hidden="true">
       <div className="flex justify-center">
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid w-full max-w-xs grid-cols-3 gap-2 sm:gap-3">
           {Array.from({ length: 9 }).map((_, i) => (
-            <div key={i} className="h-20 w-20 animate-pulse rounded-xl bg-muted sm:h-24 sm:w-24" />
+            <div key={i} className="aspect-square w-full animate-pulse rounded-xl bg-muted" />
           ))}
         </div>
       </div>

@@ -74,6 +74,17 @@ async function streamAstrologerReply(
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
 
+  // TEMPORARY DEBUG INSTRUMENTATION — pinpointing a chat regression. Remove
+  // once the root cause is confirmed and fixed.
+  const debugReqId = Math.random().toString(36).slice(2, 10);
+  const debugStart = Date.now();
+  console.log("[astro-chat-debug] fe reqId=" + debugReqId, "sending_request", {
+    messageLength: args.message.length,
+    conversationId: args.conversationId,
+    stream: true,
+    hasAccessToken: !!accessToken,
+  });
+
   const res = await fetch(`${fnClient.url}/astrologer-chat`, {
     method: "POST",
     headers: {
@@ -88,6 +99,13 @@ async function streamAstrologerReply(
     }),
   });
 
+  console.log("[astro-chat-debug] fe reqId=" + debugReqId, "fetch_returned", {
+    ok: res.ok,
+    status: res.status,
+    hasBody: !!res.body,
+    elapsedMs: Date.now() - debugStart,
+  });
+
   if (!res.ok || !res.body) {
     let msg = `Request failed (${res.status})`;
     try {
@@ -96,6 +114,7 @@ async function streamAstrologerReply(
     } catch {
       /* ignore non-JSON error body */
     }
+    console.log("[astro-chat-debug] fe reqId=" + debugReqId, "response_not_ok", { msg });
     throw new Error(msg);
   }
 
@@ -103,10 +122,20 @@ async function streamAstrologerReply(
   const decoder = new TextDecoder();
   let buffer = "";
   let streamError: string | null = null;
+  let debugFirstChunkAt: number | null = null;
+  let debugChunkCount = 0;
+  let debugDeltaCount = 0;
 
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
+    debugChunkCount++;
+    if (debugFirstChunkAt === null) {
+      debugFirstChunkAt = Date.now();
+      console.log("[astro-chat-debug] fe reqId=" + debugReqId, "first_chunk_received", {
+        elapsedMs: debugFirstChunkAt - debugStart,
+      });
+    }
     buffer += decoder.decode(value, { stream: true });
     // SSE frames are separated by a blank line.
     let sep: number;
@@ -133,13 +162,24 @@ async function streamAstrologerReply(
       if (event === "meta") {
         if (payload.conversation_id) handlers.onMeta?.(payload.conversation_id);
       } else if (event === "delta") {
-        if (payload.text) handlers.onDelta(payload.text);
+        if (payload.text) {
+          debugDeltaCount++;
+          handlers.onDelta(payload.text);
+        }
       } else if (event === "error") {
         streamError = payload.message || "stream_error";
+        console.log("[astro-chat-debug] fe reqId=" + debugReqId, "error_event", { streamError });
       }
       // `done` needs no action; the loop ends when the body closes.
     }
   }
+
+  console.log("[astro-chat-debug] fe reqId=" + debugReqId, "stream_loop_ended", {
+    chunkCount: debugChunkCount,
+    deltaCount: debugDeltaCount,
+    streamError,
+    elapsedMs: Date.now() - debugStart,
+  });
 
   if (streamError) throw new Error(streamError);
 }

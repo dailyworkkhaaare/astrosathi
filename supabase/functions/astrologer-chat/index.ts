@@ -1115,7 +1115,22 @@ async function maybeSummarizeConversation(opts: {
   }
 }
 
+// TEMPORARY DEBUG INSTRUMENTATION — pinpointing a chat regression (0 input/
+// output tokens, $0 cost, long TTFT in OpenRouter logs). Remove once the
+// root cause is confirmed and fixed. Logs go to Supabase function logs.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function dlog(reqId: string, stage: string, extra?: Record<string, unknown>) {
+  console.log(
+    `[astro-chat-debug] reqId=${reqId} t=${Date.now()} stage=${stage}` +
+      (extra ? " " + JSON.stringify(extra) : ""),
+  );
+}
+
 Deno.serve(async (req: Request) => {
+  const reqId = Math.random().toString(36).slice(2, 10);
+  const reqStart = Date.now();
+  dlog(reqId, "request_received", { method: req.method });
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
@@ -1144,11 +1159,13 @@ Deno.serve(async (req: Request) => {
   try {
     body = await req.json();
   } catch {
+    dlog(reqId, "invalid_json_body");
     return err(400, "invalid_json", "Request body must be valid JSON");
   }
 
   const message = String(body.message ?? "").trim();
   if (!message) {
+    dlog(reqId, "empty_message_rejected");
     return err(400, "empty_message", "A non-empty 'message' is required");
   }
   const requestedConversationId = body.conversation_id
@@ -1157,6 +1174,12 @@ Deno.serve(async (req: Request) => {
   // When true, reply is streamed token-by-token as Server-Sent Events.
   // When false/absent, the original single-shot JSON response is returned.
   const wantStream = body.stream === true;
+  dlog(reqId, "body_parsed", {
+    messageLength: message.length,
+    messagePreview: message.slice(0, 120),
+    conversationId: requestedConversationId || null,
+    stream: wantStream,
+  });
 
   // Auth client (caller identity via forwarded Authorization header)
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -1166,9 +1189,14 @@ Deno.serve(async (req: Request) => {
   });
   const { data: userData, error: userErr } = await authClient.auth.getUser();
   if (userErr || !userData?.user) {
+    dlog(reqId, "auth_failed", {
+      hasAuthHeader: !!authHeader,
+      error: userErr?.message ?? null,
+    });
     return err(401, "not_authenticated");
   }
   const userId = userData.user.id;
+  dlog(reqId, "auth_ok", { userId });
 
   // Service-role client (bypasses RLS)
   const svc: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
@@ -1684,6 +1712,26 @@ Deno.serve(async (req: Request) => {
     { role: "user", content: message },
   ];
 
+  {
+    const totalChars = messages.reduce(
+      (n, m) => n + (typeof m.content === "string" ? m.content.length : 0),
+      0,
+    );
+    dlog(reqId, "messages_built", {
+      messagesCount: messages.length,
+      systemPromptLength: systemPrompt.length,
+      systemPromptPreview: systemPrompt.slice(0, 500),
+      historyCount: history.length,
+      hasFactsBlock: factsBlock.length > 0,
+      hasMemoryBlock: memoryBlock.length > 0,
+      lastUserMessagePreview: message.slice(0, 200),
+      totalPromptChars: totalChars,
+      model: MODEL,
+      wantStream,
+      elapsedMsSinceRequestStart: Date.now() - reqStart,
+    });
+  }
+
   // ---------- Streaming path (Server-Sent Events) ----------
   // Emits: `meta` (conversation_id + model) first, then a series of `delta`
   // events ({ text }), then a final `done` event. Errors are sent as an
@@ -1713,6 +1761,25 @@ Deno.serve(async (req: Request) => {
         sse("meta", { conversation_id: conversationId, model: MODEL });
 
         let full = "";
+        const orBody = {
+          model: MODEL,
+          messages,
+          temperature: 0.7,
+          max_tokens: 1150,
+          stream: true,
+        };
+        dlog(reqId, "openrouter_request_about_to_send", {
+          model: orBody.model,
+          messagesLength: orBody.messages.length,
+          totalPromptChars: orBody.messages.reduce(
+            (n, m) => n + (typeof m.content === "string" ? m.content.length : 0),
+            0,
+          ),
+          stream: orBody.stream,
+          bodyBytes: JSON.stringify(orBody).length,
+          hasApiKey: !!OPENROUTER_API_KEY,
+          elapsedMsSinceRequestStart: Date.now() - reqStart,
+        });
         try {
           const orRes = await fetchWithTimeout(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -1724,25 +1791,31 @@ Deno.serve(async (req: Request) => {
                 "HTTP-Referer": "https://astrosathi.app",
                 "X-Title": "AstroSaathi",
               },
-              body: JSON.stringify({
-                model: MODEL,
-                messages,
-                temperature: 0.7,
-                max_tokens: 1150,
-                stream: true,
-              }),
+              body: JSON.stringify(orBody),
             },
             45000,
           );
+          dlog(reqId, "openrouter_fetch_returned", {
+            ok: orRes.ok,
+            status: orRes.status,
+            hasBody: !!orRes.body,
+            elapsedMsSinceRequestStart: Date.now() - reqStart,
+          });
 
           if (!orRes.ok || !orRes.body) {
             let msg = `OpenRouter HTTP ${orRes.status}`;
+            let rawErrBody = "";
             try {
               const j = await orRes.json();
+              rawErrBody = JSON.stringify(j).slice(0, 1000);
               msg = j?.error?.message || msg;
             } catch {
               /* ignore non-JSON error body */
             }
+            dlog(reqId, "openrouter_error_response", {
+              status: orRes.status,
+              body: rawErrBody,
+            });
             sse("error", { code: "provider_error", message: msg });
             controller.close();
             return;
@@ -1753,9 +1826,21 @@ Deno.serve(async (req: Request) => {
           const decoder = new TextDecoder();
           let buffer = "";
           let finished = false;
+          let chunkCount = 0;
+          let deltaCount = 0;
+          let firstChunkAt: number | null = null;
+          let parseFailures = 0;
           while (!finished) {
             const { value, done: streamDone } = await reader.read();
             if (streamDone) break;
+            chunkCount++;
+            if (firstChunkAt === null) {
+              firstChunkAt = Date.now();
+              dlog(reqId, "openrouter_first_chunk_received", {
+                elapsedMsSinceRequestStart: firstChunkAt - reqStart,
+                chunkBytes: value?.length ?? 0,
+              });
+            }
             buffer += decoder.decode(value, { stream: true });
             let sep: number;
             while ((sep = buffer.indexOf("\n\n")) !== -1) {
@@ -1775,16 +1860,34 @@ Deno.serve(async (req: Request) => {
                     parsed?.choices?.[0]?.delta?.content ?? "",
                   );
                   if (delta) {
+                    deltaCount++;
                     full += delta;
                     sse("delta", { text: delta });
                   }
                 } catch {
-                  /* ignore keep-alive / non-JSON frames */
+                  parseFailures++;
+                  if (parseFailures <= 3) {
+                    dlog(reqId, "openrouter_frame_parse_failed", {
+                      payloadPreview: payload.slice(0, 300),
+                    });
+                  }
                 }
               }
             }
           }
+          dlog(reqId, "openrouter_stream_loop_ended", {
+            chunkCount,
+            deltaCount,
+            parseFailures,
+            fullLength: full.length,
+            elapsedMsSinceRequestStart: Date.now() - reqStart,
+          });
         } catch (e) {
+          dlog(reqId, "openrouter_fetch_threw", {
+            errorName: e instanceof Error ? e.name : typeof e,
+            message: String((e as Error)?.message ?? e),
+            elapsedMsSinceRequestStart: Date.now() - reqStart,
+          });
           sse("error", {
             code: "provider_timeout",
             message: String((e as Error)?.message ?? e),
@@ -1795,6 +1898,7 @@ Deno.serve(async (req: Request) => {
 
         full = full.trim();
         if (!full) {
+          dlog(reqId, "openrouter_empty_final_reply");
           sse("error", {
             code: "provider_empty",
             message: "Model returned an empty response",
@@ -1860,40 +1964,66 @@ Deno.serve(async (req: Request) => {
 
   // ---------- Call OpenRouter (non-streaming JSON) ----------
   let reply = "";
-  try {
-    const orRes = await fetchWithTimeout(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "HTTP-Referer": "https://astrosathi.app",
-          "X-Title": "AstroSaathi",
+  {
+    const orBodyNonStream = {
+      model: MODEL,
+      messages,
+      temperature: 0.7,
+      max_tokens: 1150,
+    };
+    dlog(reqId, "openrouter_nonstream_request_about_to_send", {
+      model: orBodyNonStream.model,
+      messagesLength: orBodyNonStream.messages.length,
+      elapsedMsSinceRequestStart: Date.now() - reqStart,
+    });
+    try {
+      const orRes = await fetchWithTimeout(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "HTTP-Referer": "https://astrosathi.app",
+            "X-Title": "AstroSaathi",
+          },
+          body: JSON.stringify(orBodyNonStream),
         },
-        body: JSON.stringify({
-          model: MODEL,
-          messages,
-          temperature: 0.7,
-          max_tokens: 1150,
-        }),
-      },
-      45000,
-    );
-    const orJson = await orRes.json();
-    if (!orRes.ok) {
-      return err(
-        502,
-        "provider_error",
-        orJson?.error?.message || `OpenRouter HTTP ${orRes.status}`,
+        45000,
       );
+      dlog(reqId, "openrouter_nonstream_fetch_returned", {
+        ok: orRes.ok,
+        status: orRes.status,
+        elapsedMsSinceRequestStart: Date.now() - reqStart,
+      });
+      const orJson = await orRes.json();
+      if (!orRes.ok) {
+        dlog(reqId, "openrouter_nonstream_error_response", {
+          status: orRes.status,
+          body: JSON.stringify(orJson).slice(0, 1000),
+        });
+        return err(
+          502,
+          "provider_error",
+          orJson?.error?.message || `OpenRouter HTTP ${orRes.status}`,
+        );
+      }
+      reply = String(orJson?.choices?.[0]?.message?.content ?? "").trim();
+      dlog(reqId, "openrouter_nonstream_reply_extracted", {
+        replyLength: reply.length,
+        usage: orJson?.usage ?? null,
+      });
+      if (!reply) {
+        return err(502, "provider_empty", "Model returned an empty response");
+      }
+    } catch (e) {
+      dlog(reqId, "openrouter_nonstream_fetch_threw", {
+        errorName: e instanceof Error ? e.name : typeof e,
+        message: String((e as Error)?.message ?? e),
+        elapsedMsSinceRequestStart: Date.now() - reqStart,
+      });
+      return err(504, "provider_timeout", String((e as Error)?.message ?? e));
     }
-    reply = String(orJson?.choices?.[0]?.message?.content ?? "").trim();
-    if (!reply) {
-      return err(502, "provider_empty", "Model returned an empty response");
-    }
-  } catch (e) {
-    return err(504, "provider_timeout", String((e as Error)?.message ?? e));
   }
 
   // ---------- Persist both messages + bump conversation ----------

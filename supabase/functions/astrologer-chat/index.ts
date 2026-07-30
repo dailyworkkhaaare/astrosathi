@@ -1757,6 +1757,12 @@ Deno.serve(async (req: Request) => {
             const { value, done: streamDone } = await reader.read();
             if (streamDone) break;
             buffer += decoder.decode(value, { stream: true });
+            // Normalize CRLF to LF before frame-splitting: the SSE spec allows
+            // either, and some upstream routes emit "\r\n\r\n" as the blank-line
+            // frame separator, which "\n\n" alone never matches (there's a \r
+            // between the two \n's) — silently starving the parser of every
+            // frame and leaving the reply empty even though content was sent.
+            buffer = buffer.replace(/\r\n/g, "\n");
             let sep: number;
             while ((sep = buffer.indexOf("\n\n")) !== -1) {
               const frame = buffer.slice(0, sep);

@@ -23,7 +23,7 @@ const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-request-id",
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -1115,72 +1115,7 @@ async function maybeSummarizeConversation(opts: {
   }
 }
 
-// TEMPORARY DEBUG INSTRUMENTATION — pinpointing a chat regression (0 input/
-// output tokens, $0 cost, long TTFT in OpenRouter logs). Remove once the
-// root cause is confirmed and fixed. Logs go to Supabase function logs.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function dlog(reqId: string, stage: string, extra?: Record<string, unknown>) {
-  console.log(
-    `[astro-chat-debug] reqId=${reqId} t=${Date.now()} stage=${stage}` +
-      (extra ? " " + JSON.stringify(extra) : ""),
-  );
-}
-
-// One human-readable block per completed request, printed once at the very
-// end, so a single grep for the reqId gives the full timing picture without
-// having to reconstruct it from the individual stage logs above.
-function dlogSummary(
-  reqId: string,
-  s: {
-    model: string;
-    totalPromptChars: number;
-    totalMessages: number;
-    timings: Record<string, number>;
-    totalRequestDurationMs: number;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tokens?: any;
-  },
-) {
-  const t = s.timings;
-  console.log(
-    [
-      `[astro-chat-debug] Request Summary (reqId=${reqId})`,
-      "---------------",
-      `Request ID: ${reqId}`,
-      `Model: ${s.model}`,
-      `Total Prompt Characters: ${s.totalPromptChars}`,
-      `Total Messages: ${s.totalMessages}`,
-      `Authentication Time: ${t.authMs ?? "n/a"}ms`,
-      `Chart Retrieval Time: ${t.chartRetrievalMs ?? "n/a"}ms`,
-      `Memory Retrieval Time: ${
-        (t.conversationResolveMs ?? 0) + (t.memoryRetrievalMs ?? 0) + (t.historyLoadMs ?? 0)
-      }ms (conversation=${t.conversationResolveMs ?? "n/a"}ms, facts=${
-        t.memoryRetrievalMs ?? "n/a"
-      }ms, history=${t.historyLoadMs ?? "n/a"}ms)`,
-      `Prompt Build Time: ${t.promptBuildMs ?? "n/a"}ms`,
-      `OpenRouter TTFT: ${t.openRouterTtftMs ?? "n/a (no response received)"}${
-        typeof t.openRouterTtftMs === "number" ? "ms" : ""
-      }`,
-      `Streaming Duration: ${
-        t.streamingDurationMs !== undefined ? t.streamingDurationMs + "ms" : "n/a"
-      }`,
-      `Total Request Duration: ${s.totalRequestDurationMs}ms`,
-      `Tokens: ${s.tokens ? JSON.stringify(s.tokens) : "not reported"}`,
-    ].join("\n"),
-  );
-}
-
 Deno.serve(async (req: Request) => {
-  // Correlation id: reuse the frontend's X-Request-ID so a single id threads
-  // through frontend logs -> Supabase logs -> the OpenRouter request. Only
-  // generate one here as a fallback for callers that didn't send one.
-  const reqId = req.headers.get("X-Request-ID") || crypto.randomUUID();
-  const reqStart = Date.now();
-  dlog(reqId, "request_received", {
-    method: req.method,
-    reqIdSource: req.headers.get("X-Request-ID") ? "client" : "server_fallback",
-  });
-
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
@@ -1209,13 +1144,11 @@ Deno.serve(async (req: Request) => {
   try {
     body = await req.json();
   } catch {
-    dlog(reqId, "invalid_json_body");
     return err(400, "invalid_json", "Request body must be valid JSON");
   }
 
   const message = String(body.message ?? "").trim();
   if (!message) {
-    dlog(reqId, "empty_message_rejected");
     return err(400, "empty_message", "A non-empty 'message' is required");
   }
   const requestedConversationId = body.conversation_id
@@ -1224,36 +1157,18 @@ Deno.serve(async (req: Request) => {
   // When true, reply is streamed token-by-token as Server-Sent Events.
   // When false/absent, the original single-shot JSON response is returned.
   const wantStream = body.stream === true;
-  dlog(reqId, "body_parsed", {
-    messageLength: message.length,
-    messagePreview: message.slice(0, 120),
-    conversationId: requestedConversationId || null,
-    stream: wantStream,
-  });
-
-  // TEMPORARY DEBUG INSTRUMENTATION — per-stage timings for a single request
-  // summary at the end. Remove alongside the rest of the debug logging.
-  const timings: Record<string, number> = {};
 
   // Auth client (caller identity via forwarded Authorization header)
-  const authStart = Date.now();
   const authHeader = req.headers.get("Authorization") ?? "";
   const authClient: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
     global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: userData, error: userErr } = await authClient.auth.getUser();
-  timings.authMs = Date.now() - authStart;
   if (userErr || !userData?.user) {
-    dlog(reqId, "auth_failed", {
-      hasAuthHeader: !!authHeader,
-      error: userErr?.message ?? null,
-      authMs: timings.authMs,
-    });
     return err(401, "not_authenticated");
   }
   const userId = userData.user.id;
-  dlog(reqId, "auth_ok", { userId, authMs: timings.authMs });
 
   // Service-role client (bypasses RLS)
   const svc: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
@@ -1261,7 +1176,6 @@ Deno.serve(async (req: Request) => {
   });
 
   // ---------- Load grounding context ----------
-  const chartRetrievalStart = Date.now();
   const { data: birth } = await svc
     .from("birth_profiles")
     .select(
@@ -1574,10 +1488,6 @@ Deno.serve(async (req: Request) => {
     // A transit-table hiccup must never break the chat; just omit the section.
   }
 
-  timings.chartRetrievalMs = Date.now() - chartRetrievalStart;
-  dlog(reqId, "chart_retrieval_done", { chartRetrievalMs: timings.chartRetrievalMs });
-
-  const promptBuildStart = Date.now();
   const contextJson = sections.join("\n\n");
 
   // Current date/time in the user's own timezone, so the model always reasons
@@ -1668,10 +1578,8 @@ Deno.serve(async (req: Request) => {
     "Here are this person's real, pre-computed birth and chart details. Treat every value below as ground truth:",
     contextJson,
   ].join("\n");
-  timings.promptTextBuildMs = Date.now() - promptBuildStart;
 
   // ---------- Resolve conversation ----------
-  const conversationResolveStart = Date.now();
   let conversationId = "";
   let memorySummary: string | null = null;
   let summarizedCount = 0;
@@ -1702,12 +1610,10 @@ Deno.serve(async (req: Request) => {
     }
     conversationId = created.id;
   }
-  timings.conversationResolveMs = Date.now() - conversationResolveStart;
 
   // ---------- Load durable, cross-conversation memory (privacy-gated) ----------
   // profiles.memory_enabled defaults to true; only load and inject stored
   // facts when the person has memory turned on.
-  const memoryRetrievalStart = Date.now();
   let memoryEnabled = true;
   let userFacts: string | null = null;
   {
@@ -1731,12 +1637,10 @@ Deno.serve(async (req: Request) => {
       userFacts = (mem as { facts?: string | null } | null)?.facts ?? null;
     }
   }
-  timings.memoryRetrievalMs = Date.now() - memoryRetrievalStart;
 
   // ---------- Load verbatim history ----------
   // Everything NOT yet folded into the rolling summary, oldest-first. The
   // summary block below covers the older turns, so there is no context gap.
-  const historyLoadStart = Date.now();
   const { data: historyRows } = await svc
     .from("chat_messages")
     .select("role, content")
@@ -1748,7 +1652,6 @@ Deno.serve(async (req: Request) => {
     role: m.role as string,
     content: m.content as string,
   }));
-  timings.historyLoadMs = Date.now() - historyLoadStart;
 
   const factsBlock =
     memoryEnabled && userFacts && userFacts.trim()
@@ -1781,29 +1684,6 @@ Deno.serve(async (req: Request) => {
     { role: "user", content: message },
   ];
 
-  const totalPromptChars = messages.reduce(
-    (n, m) => n + (typeof m.content === "string" ? m.content.length : 0),
-    0,
-  );
-  // Prompt construction is just the system-prompt text assembly — the final
-  // messages-array concatenation (facts/memory/history/user turn) is sync
-  // string concatenation with no I/O, negligible next to everything else.
-  timings.promptBuildMs = timings.promptTextBuildMs ?? 0;
-  dlog(reqId, "messages_built", {
-    messagesCount: messages.length,
-    systemPromptLength: systemPrompt.length,
-    systemPromptPreview: systemPrompt.slice(0, 500),
-    historyCount: history.length,
-    hasFactsBlock: factsBlock.length > 0,
-    hasMemoryBlock: memoryBlock.length > 0,
-    lastUserMessagePreview: message.slice(0, 200),
-    totalPromptChars,
-    model: MODEL,
-    wantStream,
-    timingsSoFarMs: { ...timings },
-    elapsedMsSinceRequestStart: Date.now() - reqStart,
-  });
-
   // ---------- Streaming path (Server-Sent Events) ----------
   // Emits: `meta` (conversation_id + model) first, then a series of `delta`
   // events ({ text }), then a final `done` event. Errors are sent as an
@@ -1833,28 +1713,6 @@ Deno.serve(async (req: Request) => {
         sse("meta", { conversation_id: conversationId, model: MODEL });
 
         let full = "";
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let capturedUsage: any = null;
-        const orBody = {
-          model: MODEL,
-          messages,
-          temperature: 0.7,
-          max_tokens: 1150,
-          stream: true,
-        };
-        dlog(reqId, "openrouter_request_about_to_send", {
-          model: orBody.model,
-          messagesLength: orBody.messages.length,
-          totalPromptChars: orBody.messages.reduce(
-            (n, m) => n + (typeof m.content === "string" ? m.content.length : 0),
-            0,
-          ),
-          stream: orBody.stream,
-          bodyBytes: JSON.stringify(orBody).length,
-          hasApiKey: !!OPENROUTER_API_KEY,
-          elapsedMsSinceRequestStart: Date.now() - reqStart,
-        });
-        const orSendStart = Date.now();
         try {
           const orRes = await fetchWithTimeout(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -1866,31 +1724,25 @@ Deno.serve(async (req: Request) => {
                 "HTTP-Referer": "https://astrosathi.app",
                 "X-Title": "AstroSaathi",
               },
-              body: JSON.stringify(orBody),
+              body: JSON.stringify({
+                model: MODEL,
+                messages,
+                temperature: 0.7,
+                max_tokens: 1150,
+                stream: true,
+              }),
             },
             45000,
           );
-          dlog(reqId, "openrouter_fetch_returned", {
-            ok: orRes.ok,
-            status: orRes.status,
-            hasBody: !!orRes.body,
-            elapsedMsSinceRequestStart: Date.now() - reqStart,
-          });
 
           if (!orRes.ok || !orRes.body) {
             let msg = `OpenRouter HTTP ${orRes.status}`;
-            let rawErrBody = "";
             try {
               const j = await orRes.json();
-              rawErrBody = JSON.stringify(j).slice(0, 1000);
               msg = j?.error?.message || msg;
             } catch {
               /* ignore non-JSON error body */
             }
-            dlog(reqId, "openrouter_error_response", {
-              status: orRes.status,
-              body: rawErrBody,
-            });
             sse("error", { code: "provider_error", message: msg });
             controller.close();
             return;
@@ -1901,23 +1753,9 @@ Deno.serve(async (req: Request) => {
           const decoder = new TextDecoder();
           let buffer = "";
           let finished = false;
-          let chunkCount = 0;
-          let deltaCount = 0;
-          let firstChunkAt: number | null = null;
-          let parseFailures = 0;
           while (!finished) {
             const { value, done: streamDone } = await reader.read();
             if (streamDone) break;
-            chunkCount++;
-            if (firstChunkAt === null) {
-              firstChunkAt = Date.now();
-              timings.openRouterTtftMs = firstChunkAt - orSendStart;
-              dlog(reqId, "openrouter_first_chunk_received", {
-                elapsedMsSinceRequestStart: firstChunkAt - reqStart,
-                openRouterTtftMs: timings.openRouterTtftMs,
-                chunkBytes: value?.length ?? 0,
-              });
-            }
             buffer += decoder.decode(value, { stream: true });
             let sep: number;
             while ((sep = buffer.indexOf("\n\n")) !== -1) {
@@ -1937,42 +1775,16 @@ Deno.serve(async (req: Request) => {
                     parsed?.choices?.[0]?.delta?.content ?? "",
                   );
                   if (delta) {
-                    deltaCount++;
                     full += delta;
                     sse("delta", { text: delta });
                   }
-                  // OpenRouter/upstream may include a usage object on the
-                  // final chunk even without an explicit request for it —
-                  // opportunistically capture it for the summary log only.
-                  if (parsed?.usage) capturedUsage = parsed.usage;
                 } catch {
-                  parseFailures++;
-                  if (parseFailures <= 3) {
-                    dlog(reqId, "openrouter_frame_parse_failed", {
-                      payloadPreview: payload.slice(0, 300),
-                    });
-                  }
+                  /* ignore keep-alive / non-JSON frames */
                 }
               }
             }
           }
-          const streamEndAt = Date.now();
-          timings.streamingDurationMs = firstChunkAt !== null ? streamEndAt - firstChunkAt : 0;
-          dlog(reqId, "openrouter_stream_loop_ended", {
-            chunkCount,
-            deltaCount,
-            parseFailures,
-            fullLength: full.length,
-            streamingDurationMs: timings.streamingDurationMs,
-            usage: capturedUsage,
-            elapsedMsSinceRequestStart: Date.now() - reqStart,
-          });
         } catch (e) {
-          dlog(reqId, "openrouter_fetch_threw", {
-            errorName: e instanceof Error ? e.name : typeof e,
-            message: String((e as Error)?.message ?? e),
-            elapsedMsSinceRequestStart: Date.now() - reqStart,
-          });
           sse("error", {
             code: "provider_timeout",
             message: String((e as Error)?.message ?? e),
@@ -1983,7 +1795,6 @@ Deno.serve(async (req: Request) => {
 
         full = full.trim();
         if (!full) {
-          dlog(reqId, "openrouter_empty_final_reply");
           sse("error", {
             code: "provider_empty",
             message: "Model returned an empty response",
@@ -2039,16 +1850,6 @@ Deno.serve(async (req: Request) => {
           /* best-effort persistence */
         }
 
-        timings.totalRequestDurationMs = Date.now() - reqStart;
-        dlogSummary(reqId, {
-          model: MODEL,
-          totalPromptChars,
-          totalMessages: messages.length,
-          timings,
-          totalRequestDurationMs: timings.totalRequestDurationMs,
-          tokens: capturedUsage,
-        });
-
         sse("done", { conversation_id: conversationId, model: MODEL });
         controller.close();
       },
@@ -2059,72 +1860,40 @@ Deno.serve(async (req: Request) => {
 
   // ---------- Call OpenRouter (non-streaming JSON) ----------
   let reply = "";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let nonStreamUsage: any = null;
-  {
-    const orBodyNonStream = {
-      model: MODEL,
-      messages,
-      temperature: 0.7,
-      max_tokens: 1150,
-    };
-    dlog(reqId, "openrouter_nonstream_request_about_to_send", {
-      model: orBodyNonStream.model,
-      messagesLength: orBodyNonStream.messages.length,
-      elapsedMsSinceRequestStart: Date.now() - reqStart,
-    });
-    const orSendStart = Date.now();
-    try {
-      const orRes = await fetchWithTimeout(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "HTTP-Referer": "https://astrosathi.app",
-            "X-Title": "AstroSaathi",
-          },
-          body: JSON.stringify(orBodyNonStream),
+  try {
+    const orRes = await fetchWithTimeout(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://astrosathi.app",
+          "X-Title": "AstroSaathi",
         },
-        45000,
+        body: JSON.stringify({
+          model: MODEL,
+          messages,
+          temperature: 0.7,
+          max_tokens: 1150,
+        }),
+      },
+      45000,
+    );
+    const orJson = await orRes.json();
+    if (!orRes.ok) {
+      return err(
+        502,
+        "provider_error",
+        orJson?.error?.message || `OpenRouter HTTP ${orRes.status}`,
       );
-      timings.openRouterTtftMs = Date.now() - orSendStart;
-      dlog(reqId, "openrouter_nonstream_fetch_returned", {
-        ok: orRes.ok,
-        status: orRes.status,
-        openRouterTtftMs: timings.openRouterTtftMs,
-        elapsedMsSinceRequestStart: Date.now() - reqStart,
-      });
-      const orJson = await orRes.json();
-      if (!orRes.ok) {
-        dlog(reqId, "openrouter_nonstream_error_response", {
-          status: orRes.status,
-          body: JSON.stringify(orJson).slice(0, 1000),
-        });
-        return err(
-          502,
-          "provider_error",
-          orJson?.error?.message || `OpenRouter HTTP ${orRes.status}`,
-        );
-      }
-      reply = String(orJson?.choices?.[0]?.message?.content ?? "").trim();
-      nonStreamUsage = orJson?.usage ?? null;
-      dlog(reqId, "openrouter_nonstream_reply_extracted", {
-        replyLength: reply.length,
-        usage: nonStreamUsage,
-      });
-      if (!reply) {
-        return err(502, "provider_empty", "Model returned an empty response");
-      }
-    } catch (e) {
-      dlog(reqId, "openrouter_nonstream_fetch_threw", {
-        errorName: e instanceof Error ? e.name : typeof e,
-        message: String((e as Error)?.message ?? e),
-        elapsedMsSinceRequestStart: Date.now() - reqStart,
-      });
-      return err(504, "provider_timeout", String((e as Error)?.message ?? e));
     }
+    reply = String(orJson?.choices?.[0]?.message?.content ?? "").trim();
+    if (!reply) {
+      return err(502, "provider_empty", "Model returned an empty response");
+    }
+  } catch (e) {
+    return err(504, "provider_timeout", String((e as Error)?.message ?? e));
   }
 
   // ---------- Persist both messages + bump conversation ----------
@@ -2170,16 +1939,6 @@ Deno.serve(async (req: Request) => {
       currentFacts: userFacts,
     }),
   );
-
-  timings.totalRequestDurationMs = Date.now() - reqStart;
-  dlogSummary(reqId, {
-    model: MODEL,
-    totalPromptChars,
-    totalMessages: messages.length,
-    timings,
-    totalRequestDurationMs: timings.totalRequestDurationMs,
-    tokens: nonStreamUsage,
-  });
 
   return json(200, {
     conversation_id: conversationId,

@@ -7,7 +7,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "vite dev --host 0.0.0.0 --port 3000",
+    "dev": "vite dev",
     "build": "vite build",
     "postbuild": "cp dist/sw.js dist/workbox-*.js .output/public/ 2>/dev/null || true",
     "build:dev": "vite build --mode development",

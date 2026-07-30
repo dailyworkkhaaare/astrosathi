@@ -5,7 +5,8 @@
       "name": "astrosaathi-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "port": 8080,
+      "autoPort": true
     }
   ]
 }

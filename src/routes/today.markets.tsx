@@ -3,6 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
+import { BarometerSection } from "@/components/BarometerSection";
 import { MarketOutlookSection } from "@/components/MarketOutlookSection";
 
 export const Route = createFileRoute("/today/markets")({
@@ -31,6 +32,7 @@ function MarketsPage() {
         <ChevronLeft size={16} aria-hidden="true" />
         {t("today.backToToday")}
       </Link>
+      <BarometerSection />
       <MarketOutlookSection />
     </section>
   );

@@ -57,7 +57,8 @@ export async function saveConsent(input: ConsentInput): Promise<{ error?: string
 
   const { error: upErr } = await supabase
     .from("profiles")
-    .upsert({ user_id: userId, ...profilePatch }, { onConflict: "user_id" });
+    .update(profilePatch)
+    .eq("user_id", userId);
   if (upErr) return { error: upErr.message };
 
   return {};

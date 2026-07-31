@@ -331,6 +331,27 @@
     animation: as-glow-pulse 3s var(--ease-standard) infinite;
   }
 
+  @keyframes as-caret-blink {
+    to {
+      visibility: hidden;
+    }
+  }
+
+  .as-streaming > :last-child::after {
+    content: "▍";
+    margin-left: 1px;
+    color: var(--accent);
+    font-weight: 400;
+    animation: as-caret-blink 1s steps(2, start) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .as-streaming > :last-child::after {
+      animation: none;
+      opacity: 0.6;
+    }
+  }
+
   /* Skeleton shimmer */
   .motion-skeleton {
     background: linear-gradient(
@@ -341,5 +362,17 @@
     );
     background-size: 200% 100%;
     animation: as-shimmer 1.6s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .motion-fade-up,
+    .motion-fade-in,
+    .motion-pop-in {
+      animation: none !important;
+    }
+    .as-streaming > :last-child::after {
+      animation: none !important;
+      opacity: 0.6;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Gauge, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronDown, Gauge, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -40,7 +40,8 @@ export function BarometerSection() {
   const { t } = useTranslation();
   const { data, isLoading, isError } = useBarometer();
 
-  const assets = data?.assets ?? [];
+  // Gold and silver share the same reading, so show them as one "Gold & Silver" entry.
+  const assets = (data?.assets ?? []).filter((a) => a.assetKey !== "mcxsilver");
   const isEmpty = !isLoading && !isError && assets.length === 0;
 
   return (
@@ -61,8 +62,7 @@ export function BarometerSection() {
 
       <CardContent className="pt-4">
         {isLoading ? (
-          <div className="grid grid-cols-3 gap-2" aria-busy="true">
-            <div className="h-24 animate-pulse rounded-xl bg-muted" />
+          <div className="grid grid-cols-2 gap-2" aria-busy="true">
             <div className="h-24 animate-pulse rounded-xl bg-muted" />
             <div className="h-24 animate-pulse rounded-xl bg-muted" />
           </div>
@@ -75,12 +75,25 @@ export function BarometerSection() {
             {t("sections.barometer.empty")}
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {assets.map((asset) => (
               <AssetGauge key={asset.assetKey} asset={asset} t={t} />
             ))}
           </div>
         )}
+        <details className="group mt-3">
+          <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
+            <ChevronDown
+              size={13}
+              className="transition-transform group-open:rotate-180"
+              aria-hidden="true"
+            />
+            {t("sections.barometer.howTitle")}
+          </summary>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+            {t("sections.barometer.howBody")}
+          </p>
+        </details>
       </CardContent>
     </Card>
   );
@@ -97,7 +110,10 @@ function AssetGauge({
   const valuePath = arcPath(180, 180 - clamped * 180);
   const pct = Math.round(clamped * 100);
   const colorClass = biasColorClass(asset.bias);
-  const assetName = t(`sections.barometer.assets.${asset.assetKey}`);
+  const assetName =
+    asset.assetKey === "mcxgold"
+      ? t("sections.barometer.assets.bullion")
+      : t(`sections.barometer.assets.${asset.assetKey}`);
   const coverage =
     asset.sourceCoverage != null ? `${Math.round(asset.sourceCoverage * 100)}%` : "—";
 

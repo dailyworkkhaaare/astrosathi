@@ -1,4 +1,4 @@
-import { AlertCircle, Coins, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertCircle, ChevronDown, Coins, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useMarketOutlook, type MarketMetalOutlook } from "@/lib/queries";
@@ -137,6 +137,20 @@ export function MarketOutlookSection() {
           </p>
         </div>
       )}
+
+      <details className="group mt-4">
+        <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
+          <ChevronDown
+            size={13}
+            className="transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          />
+          {t("sections.market.howTitle")}
+        </summary>
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+          {t("sections.market.howBody")}
+        </p>
+      </details>
     </section>
   );
 }

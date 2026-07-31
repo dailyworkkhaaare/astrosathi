@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -24,6 +25,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Square,
   Trash2,
   X,
 } from "lucide-react";
@@ -55,6 +57,26 @@ function newId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+function SrAnnouncer({ text, assertive = false }: { text: string; assertive?: boolean }) {
+  return (
+    <div
+      className="sr-only"
+      role="status"
+      aria-live={assertive ? "assertive" : "polite"}
+      aria-atomic="true"
+    >
+      {text}
+    </div>
+  );
+}
+
+function commonPrefixLen(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i++;
+  return i;
+}
+
 // Calls the astrologer-chat Edge Function in streaming mode and invokes the
 // handlers as Server-Sent Events arrive. We can't use supabase.functions.invoke
 // here because it buffers the whole response; we need the raw streaming body.
@@ -64,6 +86,7 @@ async function streamAstrologerReply(
     onMeta?: (conversationId: string) => void;
     onDelta: (text: string) => void;
   },
+  opts?: { signal?: AbortSignal },
 ): Promise<void> {
   // Reuse the configured functions URL + apikey from the supabase client so we
   // don't hardcode project details or depend on env-var names.
@@ -74,8 +97,16 @@ async function streamAstrologerReply(
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
 
+  const ac = new AbortController();
+  const external = opts?.signal;
+  if (external) {
+    if (external.aborted) ac.abort();
+    else external.addEventListener("abort", () => ac.abort(), { once: true });
+  }
+
   const res = await fetch(`${fnClient.url}/astrologer-chat`, {
     method: "POST",
+    signal: ac.signal,
     headers: {
       ...fnClient.headers,
       "content-type": "application/json",
@@ -104,41 +135,73 @@ async function streamAstrologerReply(
   let buffer = "";
   let streamError: string | null = null;
 
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    // SSE frames are separated by a blank line.
-    let sep: number;
-    while ((sep = buffer.indexOf("\n\n")) !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      let event = "message";
-      let dataStr = "";
-      for (const line of frame.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
+  // Inactivity watchdog: the edge timeout only covers response headers, so a
+  // silent mid-stream stall would otherwise hang forever. Tolerate a longer wait
+  // for the FIRST byte (reasoning models pause before the first token), then a
+  // tighter gap once tokens are flowing.
+  const FIRST_BYTE_MS = 35000;
+  const INACTIVITY_MS = 15000;
+  let receivedBytes = false;
+  let stalled = false;
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  const armStall = () => {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = setTimeout(
+      () => {
+        stalled = true;
+        ac.abort();
+      },
+      receivedBytes ? INACTIVITY_MS : FIRST_BYTE_MS,
+    );
+  };
+
+  try {
+    armStall();
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      receivedBytes = true;
+      armStall();
+      buffer += decoder.decode(value, { stream: true });
+      // SSE frames are separated by a blank line.
+      let sep: number;
+      while ((sep = buffer.indexOf("\n\n")) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        let event = "message";
+        let dataStr = "";
+        for (const line of frame.split("\n")) {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
+        }
+        if (!dataStr) continue;
+        let payload: {
+          conversation_id?: string;
+          text?: string;
+          message?: string;
+        } = {};
+        try {
+          payload = JSON.parse(dataStr);
+        } catch {
+          continue;
+        }
+        if (event === "meta") {
+          if (payload.conversation_id) handlers.onMeta?.(payload.conversation_id);
+        } else if (event === "delta") {
+          if (payload.text) handlers.onDelta(payload.text);
+        } else if (event === "error") {
+          streamError = payload.message || "stream_error";
+        }
+        // `done` needs no action; the loop ends when the body closes.
       }
-      if (!dataStr) continue;
-      let payload: {
-        conversation_id?: string;
-        text?: string;
-        message?: string;
-      } = {};
-      try {
-        payload = JSON.parse(dataStr);
-      } catch {
-        continue;
-      }
-      if (event === "meta") {
-        if (payload.conversation_id) handlers.onMeta?.(payload.conversation_id);
-      } else if (event === "delta") {
-        if (payload.text) handlers.onDelta(payload.text);
-      } else if (event === "error") {
-        streamError = payload.message || "stream_error";
-      }
-      // `done` needs no action; the loop ends when the body closes.
     }
+  } catch (err) {
+    // Only the watchdog's own abort maps to a stall; every other failure
+    // (network drop, user abort) bubbles up untouched.
+    if (stalled) throw new Error("stream_stalled");
+    throw err;
+  } finally {
+    if (stallTimer) clearTimeout(stallTimer);
   }
 
   if (streamError) throw new Error(streamError);
@@ -316,10 +379,27 @@ function ChatPage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   // Id of the assistant message currently being streamed (for the live caret).
   const [streamingId, setStreamingId] = useState<string | null>(null);
+  const [streamPhase, setStreamPhase] = useState<
+    "idle" | "connecting" | "thinking" | "writing" | "reconnecting"
+  >("idle");
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [srFinal, setSrFinal] = useState("");
+  const phaseAnnouncement = useMemo(() => {
+    switch (streamPhase) {
+      case "connecting":
+        return t("chat.phaseConnecting");
+      case "thinking":
+        return t("chat.phaseThinking");
+      case "reconnecting":
+        return t("chat.phaseReconnecting");
+      default:
+        return "";
+    }
+  }, [streamPhase, t]);
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
 
   // Streaming plumbing: buffer deltas in a ref and flush once per animation
   // frame so React commits at most once per frame — no per-token re-renders,
@@ -399,6 +479,91 @@ function ChatPage() {
     [scheduleFlush],
   );
 
+  function createRevealController(opts: {
+    paint: (text: string) => void;
+    reduceMotion: boolean;
+  }) {
+    const BASE_CPS = 180;
+    const MAX_CPS = 1400;
+    const MAX_LAG_MS = 400;
+
+    let target = "";
+    let revealed = 0;
+    let raf: number | null = null;
+    let lastTs = 0;
+    let ended = false;
+    let onDrained: (() => void) | null = null;
+    let disposed = false;
+
+    const paintNow = () => opts.paint(target.slice(0, revealed));
+    const stopRaf = () => { if (raf !== null) { cancelAnimationFrame(raf); raf = null; } };
+    const finishIfDone = () => {
+      if (revealed >= target.length && ended) { onDrained?.(); onDrained = null; }
+    };
+    const fastForward = () => {
+      if (revealed !== target.length) { revealed = target.length; paintNow(); }
+      stopRaf();
+      finishIfDone();
+    };
+
+    const tick = (ts: number) => {
+      raf = null;
+      if (disposed) return;
+      const dt = lastTs ? Math.min(100, ts - lastTs) : 16;
+      lastTs = ts;
+      const backlog = target.length - revealed;
+      if (backlog > 0) {
+        const neededCps = (backlog / MAX_LAG_MS) * 1000;
+        const cps = Math.min(MAX_CPS, Math.max(BASE_CPS, neededCps));
+        const step = Math.max(1, Math.ceil((cps * dt) / 1000));
+        revealed = Math.min(target.length, revealed + step);
+        paintNow();
+      }
+      if (revealed < target.length) raf = requestAnimationFrame(tick);
+      else finishIfDone();
+    };
+
+    const ensureRunning = () => {
+      if (typeof window === "undefined" || disposed) return;
+      if (opts.reduceMotion || (typeof document !== "undefined" && document.hidden)) {
+        fastForward();
+        return;
+      }
+      if (raf === null && revealed < target.length) { lastTs = 0; raf = requestAnimationFrame(tick); }
+    };
+
+    const onVisibility = () => {
+      if (typeof document === "undefined" || disposed) return;
+      if (document.hidden) {
+        fastForward();
+      } else {
+        lastTs = 0;
+        paintNow();
+        ensureRunning();
+      }
+    };
+
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
+    const teardown = () => {
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
+    };
+
+    return {
+      push(chunk: string) { if (!chunk || disposed) return; target += chunk; ensureRunning(); },
+      end(): Promise<void> {
+        ended = true;
+        if (revealed >= target.length) return Promise.resolve();
+        if (opts.reduceMotion || (typeof document !== "undefined" && document.hidden)) {
+          fastForward();
+          return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => { onDrained = resolve; ensureRunning(); });
+      },
+      cancel() { disposed = true; stopRaf(); onDrained = null; teardown(); },
+      get text() { return target; },
+    };
+  }
+
   // Cancel any in-flight stream/typewriter cleanly.
   const abortActiveStream = useCallback(() => {
     cancelStreamRef.current?.();
@@ -408,6 +573,7 @@ function ChatPage() {
     cancelPendingFrame();
     activeStreamIdRef.current = null;
     bufferRef.current = "";
+    setStreamPhase("idle");
   }, [cancelPendingFrame]);
 
   useEffect(() => () => abortActiveStream(), [abortActiveStream]);
@@ -518,13 +684,30 @@ function ChatPage() {
   }, [messages.length, sending]);
 
   useEffect(() => {
-    if (pinnedToBottom) {
-      bottomRef.current?.scrollIntoView({ block: "end" });
-    }
+    if (!pinnedToBottom) return;
+    const el = listRef.current;
+    if (!el) return;
+    if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current);
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+    };
   }, [messages, sending, pinnedToBottom]);
 
   const scrollToBottom = () => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const el = listRef.current;
+    if (el) {
+      const reduce =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+      el.scrollTo({ top: el.scrollHeight, behavior: reduce ? "auto" : "smooth" });
+    }
     setPinnedToBottom(true);
   };
 
@@ -532,11 +715,15 @@ function ChatPage() {
   const sendToBackend = useCallback(
     async (text: string) => {
       setSending(true);
+      setStreamPhase("connecting");
       setError(null);
       setLastFailed(null);
 
       // Cancel any previous in-flight stream before starting a new one.
       abortActiveStream();
+
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       // Defer creating the assistant placeholder until the first delta
       // arrives — this way the bouncing "typing…" indicator shows while
@@ -550,50 +737,116 @@ function ChatPage() {
         activeStreamIdRef.current = assistantId;
         setMessages((m) => [...m, { id: assistantId, role: "assistant", content: "" }]);
         setStreamingId(assistantId);
+        setStreamPhase("writing");
       };
 
       let receivedAny = false;
 
-      // ---- 1) Try SSE streaming first ----
-      try {
-        await streamAstrologerReply(
-          { message: text, conversationId },
-          {
-            onMeta: (cid) => {
-              if (cid && cid !== conversationId) setConversationId(cid);
-            },
-            onDelta: (chunk) => {
-              if (!chunk) return;
-              receivedAny = true;
-              ensurePlaceholder();
-              bufferRef.current += chunk;
-              scheduleFlush();
-            },
+      const reduceMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+      const makeReveal = () =>
+        createRevealController({
+          reduceMotion,
+          paint: (textSoFar) => {
+            bufferRef.current = textSoFar;
+            scheduleFlush();
           },
-        );
+        });
+      let reveal = makeReveal();
+      cancelStreamRef.current = () => reveal.cancel();
 
-        // Stream succeeded with content — commit final and stop streaming.
-        if (receivedAny && bufferRef.current.trim().length > 0) {
-          cancelPendingFrame();
-          const finalText = bufferRef.current;
-          setMessages((prev) => {
-            const idx = prev.findIndex((m) => m.id === assistantId);
-            if (idx === -1) return prev;
-            const next = prev.slice();
-            next[idx] = { ...next[idx], content: finalText };
-            return next;
-          });
-          setStreamingId(null);
-          setSending(false);
-          activeStreamIdRef.current = null;
-          bufferRef.current = "";
-          void refetchConversations();
-          return;
+      // ---- 1) Try SSE streaming first (one transparent reconnect) ----
+      const MAX_SSE_ATTEMPTS = 2;
+      for (let attempt = 1; attempt <= MAX_SSE_ATTEMPTS; attempt++) {
+        try {
+          await streamAstrologerReply(
+            { message: text, conversationId },
+            {
+              onMeta: (cid) => {
+                if (cid && cid !== conversationId) setConversationId(cid);
+                setStreamPhase("thinking");
+              },
+              onDelta: (chunk) => {
+                if (!chunk) return;
+                receivedAny = true;
+                ensurePlaceholder();
+                reveal.push(chunk);
+              },
+            },
+            { signal: controller.signal },
+          );
+
+          // Stream succeeded with content — commit final and stop streaming.
+          if (receivedAny && reveal.text.trim().length > 0) {
+            await reveal.end();
+            cancelPendingFrame();
+            const finalText = reveal.text;
+            setMessages((prev) => {
+              const idx = prev.findIndex((m) => m.id === assistantId);
+              if (idx === -1) return prev;
+              const next = prev.slice();
+              next[idx] = { ...next[idx], content: finalText };
+              return next;
+            });
+            setStreamingId(null);
+            setSending(false);
+            setStreamPhase("idle");
+            activeStreamIdRef.current = null;
+            bufferRef.current = "";
+            reveal.cancel();
+            cancelStreamRef.current = null;
+            abortRef.current = null;
+            setSrFinal(finalText);
+            void refetchConversations();
+            return;
+          }
+          // Connected but empty — fall through to the buffered fallback.
+          break;
+        } catch (streamErr) {
+          if (controller.signal.aborted) {
+            reveal.cancel();
+            const partial = reveal.text.trim();
+            if (partial.length > 0) {
+              setMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === assistantId);
+                if (idx === -1) return prev;
+                const next = prev.slice();
+                next[idx] = { ...next[idx], content: reveal.text };
+                return next;
+              });
+            } else if (placeholderInserted) {
+              setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+            }
+            setStreamingId(null);
+            setStreamPhase("idle");
+            setSending(false);
+            activeStreamIdRef.current = null;
+            bufferRef.current = "";
+            cancelStreamRef.current = null;
+            abortRef.current = null;
+            void refetchConversations();
+            return;
+          }
+          console.warn("[astrologer-chat] stream attempt failed:", streamErr);
+          reveal.cancel();
+          // Only auto-reconnect while nothing has appeared yet, so visible text
+          // is never duplicated or rewound.
+          if (attempt < MAX_SSE_ATTEMPTS && !receivedAny) {
+            setStreamPhase("reconnecting");
+            reveal = makeReveal();
+            await new Promise((r) => setTimeout(r, 600));
+            continue;
+          }
+          break;
         }
-        // Otherwise fall through to typewriter fallback below.
-      } catch (streamErr) {
-        console.warn("[astrologer-chat] stream failed, falling back:", streamErr);
-        // Fall through to typewriter fallback.
+      }
+
+      // Preserve everything already streamed so the fallback continues from it
+      // instead of wiping the visible text and re-typing from scratch.
+      if (receivedAny) {
+        ensurePlaceholder();
+        bufferRef.current = reveal.text;
       }
 
       // ---- 2) Buffered fallback with client-side typewriter reveal ----
@@ -615,7 +868,16 @@ function ChatPage() {
         if (!reply) throw new Error("empty_response");
 
         ensurePlaceholder();
-        bufferRef.current = "";
+        const shown = bufferRef.current;
+        if (shown && reply.startsWith(shown)) {
+          // Same answer so far — keep it and reveal only the remainder.
+        } else if (shown) {
+          // Regenerated answer diverged — rewind only the divergent tail to the
+          // longest common prefix, so we rewrite as little as possible on screen.
+          bufferRef.current = reply.slice(0, commonPrefixLen(shown, reply));
+        } else {
+          bufferRef.current = "";
+        }
         const cancelTyping = typewriterReveal(assistantId, reply);
         cancelStreamRef.current = cancelTyping;
 
@@ -628,19 +890,43 @@ function ChatPage() {
           setTimeout(done, 1600);
         });
         cancelStreamRef.current = null;
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === assistantId);
+          if (idx === -1) return prev;
+          const next = prev.slice();
+          next[idx] = { ...next[idx], content: reply };
+          return next;
+        });
         setStreamingId(null);
+        setStreamPhase("idle");
         activeStreamIdRef.current = null;
         bufferRef.current = "";
+        setSrFinal(reply);
         void refetchConversations();
       } catch (e) {
         console.error("[astrologer-chat] request failed:", e);
-        // Remove the empty placeholder so the error UI stands alone.
-        if (placeholderInserted) {
-          setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+        const partial = bufferRef.current.trim();
+        if (placeholderInserted && partial.length > 0) {
+          const kept = bufferRef.current;
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === assistantId);
+            if (idx === -1) return prev;
+            const next = prev.slice();
+            next[idx] = { ...next[idx], content: kept };
+            return next;
+          });
+          setLastFailed(text);
+          setError(t("chat.errorInterrupted"));
+          setSrFinal(t("chat.errorInterrupted"));
+        } else {
+          if (placeholderInserted) {
+            setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+          }
+          setLastFailed(text);
+          setError(t("chat.errorGeneric"));
         }
-        setLastFailed(text);
-        setError(t("chat.errorGeneric"));
         setStreamingId(null);
+        setStreamPhase("idle");
         activeStreamIdRef.current = null;
         bufferRef.current = "";
       } finally {
@@ -796,11 +1082,11 @@ function ChatPage() {
                 <div
                   ref={listRef}
                   role="log"
-                  aria-live="polite"
+                  aria-live="off"
                   aria-label={t("chat.title")}
-                  className="h-full overflow-y-auto scroll-smooth"
+                  className="h-full overflow-y-auto overscroll-contain"
                 >
-                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10">
+                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10 [overflow-anchor:none]">
                     {messages.map((m) => (
                       <MessageRow
                         key={m.id}
@@ -810,10 +1096,24 @@ function ChatPage() {
                         onEdit={undefined}
                       />
                     ))}
-                    {sending && !streamingId && <TypingRow />}
+                    {sending && !streamingId && (
+                      <TypingRow
+                        phase={
+                          streamPhase === "reconnecting"
+                            ? "reconnecting"
+                            : streamPhase === "thinking"
+                              ? "thinking"
+                              : "connecting"
+                        }
+                      />
+                    )}
                     {error && <ErrorRow message={error} onRetry={handleRetry} />}
                     <div ref={bottomRef} />
                   </div>
+                </div>
+                <SrAnnouncer text={phaseAnnouncement} />
+                <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                  {srFinal}
                 </div>
                 {!pinnedToBottom && (
                   <button
@@ -830,6 +1130,7 @@ function ChatPage() {
                 value={input}
                 onChange={setInput}
                 onSend={() => handleSend(input)}
+                onStop={abortActiveStream}
                 onKeyDown={onKeyDown}
                 sending={sending}
                 textareaRef={textareaRef}
@@ -881,6 +1182,7 @@ function ChatPage() {
                     value={input}
                     onChange={setInput}
                     onSend={() => handleSend(input)}
+                    onStop={abortActiveStream}
                     onKeyDown={onKeyDown}
                     sending={sending}
                     textareaRef={textareaRef}
@@ -1221,22 +1523,134 @@ function TopBar({
 
 // ---------- Messages ----------
 
-// While a reply is still streaming in, the tail of the buffer can briefly
-// contain a dangling markdown token (an opening **/* or ``` fence with no
-// closing partner yet). Rendered as-is that flashes a stray literal marker
-// or an open-ended code block for a frame until the next chunk arrives, so
-// we trim just the trailing partial token — only during the live stream;
-// the final commit always renders the untouched text.
 function sanitizeStreamingMarkdown(text: string, streaming: boolean): string {
   if (!streaming || !text) return text;
-
   let out = text;
-  const fenceCount = (out.match(/```/g) ?? []).length;
-  if (fenceCount % 2 === 1) {
-    out = out.slice(0, out.lastIndexOf("```"));
+
+  // 1) Hold back a trailing GFM table until its delimiter row exists, so header
+  //    pipes don't flash as literal "| A | B |".
+  {
+    const lines = out.split("\n");
+    let i = lines.length - 1;
+    while (i >= 0 && lines[i].includes("|")) i--;
+    const start = i + 1;
+    const run = lines.slice(start);
+    if (run.length > 0 && /^\s*\|/.test(run[0])) {
+      const delim = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/;
+      const hasDelim = run.some((l, idx) => idx < run.length - 1 && delim.test(l));
+      if (!hasDelim) out = lines.slice(0, start).join("\n").replace(/\s+$/, "");
+    }
   }
 
-  return out.replace(/(\*\*|\*|`)$/, "");
+  // 2) Drop a trailing hashes-only heading marker with no text yet ("##", "### ").
+  out = out.replace(/\n?#{1,6}[ \t]*$/, "");
+
+  // 3) Unclosed fenced code block -> close it so partial code renders live as code.
+  const fenceCount = (out.match(/```/g) ?? []).length;
+  if (fenceCount % 2 === 1) {
+    if (!out.endsWith("\n")) out += "\n";
+    return out + "```";
+  }
+  // strip a stray 1–2 backtick fence-in-progress at the very end
+  out = out.replace(/\n?`{1,2}$/, "");
+
+  // 4) Hide an incomplete link/image at the end: "[label" or "[label](url…".
+  {
+    const open = out.lastIndexOf("[");
+    if (open !== -1) {
+      const cut = open > 0 && out[open - 1] === "!" ? open - 1 : open;
+      const rest = out.slice(open);
+      if (!rest.includes("]")) {
+        out = out.slice(0, cut);
+      } else if (/^!?\[[^\]]*\]\(/.test(rest) && !/^!?\[[^\]]*\]\([^)]*\)/.test(rest)) {
+        out = out.slice(0, cut);
+      }
+    }
+  }
+
+  // 5) Close an unclosed inline code span by dropping the dangling opening backtick,
+  //    so the text stays visible and becomes code once the closer arrives.
+  if (((out.match(/`/g) ?? []).length) % 2 === 1) {
+    const idx = out.lastIndexOf("`");
+    out = out.slice(0, idx) + out.slice(idx + 1);
+  }
+
+  // 6) Emphasis: drop a just-started trailing marker, then close an earlier open bold
+  //    so it renders bold live instead of showing literal "**".
+  out = out.replace(/(\*\*|~~|\*|_)$/, "");
+  if (((out.match(/\*\*/g) ?? []).length) % 2 === 1) out += "**";
+
+  return out;
+}
+
+const markdownComponents = {
+  pre: (props: React.HTMLAttributes<HTMLPreElement>) => <CodeBlock {...props} />,
+  blockquote: ({ children }: { children?: React.ReactNode }) => (
+    <blockquote className="my-3 max-w-[34rem] border-l-2 border-accent/60 bg-accent/5 py-2 pl-4 pr-3 text-[0.95rem] italic text-foreground/90 rounded-r-lg">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="my-6 border-0 border-t border-border/60" />,
+  code: ({ className, children, ...rest }: React.HTMLAttributes<HTMLElement>) => (
+    <code className={className} {...rest}>
+      {children}
+    </code>
+  ),
+  table: ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLTableElement>) => (
+    <div className="my-4 w-full overflow-x-auto rounded-lg border border-border">
+      <table {...props} className="w-full border-collapse text-left text-sm" />
+    </div>
+  ),
+  thead: ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLTableSectionElement>) => <thead {...props} className="bg-muted" />,
+  tbody: ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props} />,
+  tr: ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLTableRowElement>) => <tr {...props} className="even:bg-muted/40" />,
+  th: ({ node: _node, ...props }: { node?: unknown } & React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th
+      {...props}
+      className="!border !border-border px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground whitespace-nowrap"
+    />
+  ),
+  td: ({ node: _node, ...props }: { node?: unknown } & React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td
+      {...props}
+      className="!border !border-border px-4 py-2.5 align-top text-foreground"
+    />
+  ),
+} as const;
+
+const RenderedMarkdown = memo(function RenderedMarkdown({ md }: { md: string }) {
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      {md}
+    </ReactMarkdown>
+  );
+});
+
+function settledBoundary(md: string): number {
+  let idx = md.lastIndexOf("\n\n");
+  if (idx === -1) return 0;
+  let boundary = idx + 2;
+  const settled = md.slice(0, boundary);
+  const fences = settled.match(/```/g);
+  if (fences && fences.length % 2 === 1) {
+    const openFence = settled.lastIndexOf("```");
+    const prevBreak = md.lastIndexOf("\n\n", openFence);
+    boundary = prevBreak === -1 ? 0 : prevBreak + 2;
+  }
+  return boundary;
+}
+
+function StreamingMarkdown({ content, streaming }: { content: string; streaming: boolean }) {
+  if (!streaming) return <RenderedMarkdown md={content} />;
+  const boundary = settledBoundary(content);
+  const settled = content.slice(0, boundary);
+  const tail = sanitizeStreamingMarkdown(content.slice(boundary), true);
+  return (
+    <>
+      {settled ? <RenderedMarkdown md={settled} /> : null}
+      {tail ? <RenderedMarkdown md={tail} /> : null}
+    </>
+  );
 }
 
 function MessageRow({
@@ -1287,50 +1701,34 @@ function MessageRow({
           </span>
           {streaming && (
             <span className="flex items-center gap-1 text-[10px] text-accent font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-              {t("chat.generating")}
+              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
+              {t("chat.phaseWriting")}
             </span>
           )}
         </div>
-        <div className="prose max-w-none text-foreground [&_a]:text-primary [&_a]:underline [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&>h1]:max-w-[34rem] [&_h1]:text-lg [&_h1]:font-semibold [&>h2]:max-w-[34rem] [&_h2]:text-base [&_h2]:font-semibold [&>p]:max-w-[34rem] [&_p]:my-2 [&_p]:leading-relaxed [&>ul]:max-w-[34rem] [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&>ol]:max-w-[34rem] [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              pre: (props) => <CodeBlock {...props} />,
-              blockquote: ({ children }) => (
-                <blockquote className="my-3 max-w-[34rem] border-l-2 border-accent/60 bg-accent/5 py-2 pl-4 pr-3 text-sm italic text-foreground/90 rounded-r-lg">
-                  {children}
-                </blockquote>
-              ),
-              code: ({ className, children, ...rest }) => (
-                <code className={className} {...rest}>
-                  {children}
-                </code>
-              ),
-              table: ({ node: _node, ...props }) => (
-                <div className="my-4 w-full overflow-x-auto rounded-lg border border-border">
-                  <table {...props} className="w-full border-collapse text-left text-sm" />
-                </div>
-              ),
-              thead: ({ node: _node, ...props }) => <thead {...props} className="bg-muted" />,
-              tbody: ({ node: _node, ...props }) => <tbody {...props} />,
-              tr: ({ node: _node, ...props }) => <tr {...props} className="even:bg-muted/40" />,
-              th: ({ node: _node, ...props }) => (
-                <th
-                  {...props}
-                  className="!border !border-border px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground whitespace-nowrap"
-                />
-              ),
-              td: ({ node: _node, ...props }) => (
-                <td
-                  {...props}
-                  className="!border !border-border px-4 py-2.5 align-top text-foreground"
-                />
-              ),
-            }}
-          >
-            {sanitizeStreamingMarkdown(message.content ?? "", streaming)}
-          </ReactMarkdown>
+        <div
+          className={
+            "prose max-w-none text-foreground leading-relaxed " +
+            "[&>*:first-child]:mt-0 " +
+            "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 " +
+            "[&_strong]:font-semibold [&_strong]:text-foreground [&_em]:italic [&_em]:text-foreground/90 " +
+            "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] " +
+            "[&_h1]:text-xl [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1]:mt-6 [&_h1]:mb-3 " +
+            "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:mt-6 [&_h2]:mb-2.5 " +
+            "[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 " +
+            "[&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground/90 [&_h4]:mt-4 [&_h4]:mb-1.5 " +
+            "[&_p]:my-3 [&_p]:leading-relaxed " +
+            "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 " +
+            "[&_li]:my-1 [&_li]:leading-relaxed [&_li>ul]:my-1.5 [&_li>ol]:my-1.5 [&_ul_ul]:mt-1 " +
+            "[&_ul>li]:marker:text-accent/60 [&_ol>li]:marker:text-muted-foreground " +
+            "[&_li:has(input)]:list-none [&_li:has(input)]:-ml-5 [&_input[type=checkbox]]:mr-2 [&_input[type=checkbox]]:accent-accent " +
+            "[&_hr]:my-6 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-border/60 " +
+            "[&>h1]:max-w-[36rem] [&>h2]:max-w-[36rem] [&>h3]:max-w-[36rem] [&>h4]:max-w-[36rem] " +
+            "[&>p]:max-w-[36rem] [&>ul]:max-w-[36rem] [&>ol]:max-w-[36rem] [&>blockquote]:max-w-[36rem]" +
+            (streaming ? " as-streaming" : "")
+          }
+        >
+          <StreamingMarkdown content={message.content ?? ""} streaming={streaming} />
         </div>
         {!streaming && message.content && (
           <div className="mt-2 flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
@@ -1401,6 +1799,7 @@ function Composer({
   value,
   onChange,
   onSend,
+  onStop,
   onKeyDown,
   sending,
   textareaRef,
@@ -1409,6 +1808,7 @@ function Composer({
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
+  onStop: () => void;
   onKeyDown: (e: ReactKeyboardEvent<HTMLTextAreaElement>) => void;
   sending: boolean;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -1444,20 +1844,32 @@ function Composer({
             aria-label={t("chat.composerPlaceholder")}
             className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none md:text-sm"
           />
-          <button
-            type="submit"
-            disabled={!canSend}
-            aria-label={t("chat.send")}
-            title={t("chat.send")}
-            className={
-              "tap-press grid h-10 w-10 shrink-0 place-items-center rounded-full text-primary-foreground transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none " +
-              (canSend
-                ? "bg-primary shadow-[var(--shadow-glow-gold)] hover:bg-primary/90"
-                : "bg-primary/80")
-            }
-          >
-            <ArrowUp size={16} aria-hidden="true" />
-          </button>
+          {sending ? (
+            <button
+              type="button"
+              onClick={onStop}
+              aria-label={t("chat.stop")}
+              title={t("chat.stop")}
+              className="tap-press grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow-gold)] transition-all hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Square size={14} className="fill-current" aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!canSend}
+              aria-label={t("chat.send")}
+              title={t("chat.send")}
+              className={
+                "tap-press grid h-10 w-10 shrink-0 place-items-center rounded-full text-primary-foreground transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none " +
+                (canSend
+                  ? "bg-primary shadow-[var(--shadow-glow-gold)] hover:bg-primary/90"
+                  : "bg-primary/80")
+              }
+            >
+              <ArrowUp size={16} aria-hidden="true" />
+            </button>
+          )}
         </form>
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
           {t("chat.disclaimerLong")}
@@ -1481,10 +1893,16 @@ async function copy(text: string) {
 
 // ---------- Extras: typing indicator, error row, conversation grouping ----------
 
-function TypingRow() {
+function TypingRow({ phase }: { phase: "connecting" | "thinking" | "reconnecting" }) {
   const { t } = useTranslation();
+  const label =
+    phase === "reconnecting"
+      ? t("chat.phaseReconnecting")
+      : phase === "thinking"
+        ? t("chat.phaseThinking")
+        : t("chat.phaseConnecting");
   return (
-    <div className="motion-fade-up flex items-center" aria-live="polite">
+    <div className="motion-fade-up flex items-center">
       <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3.5 py-1.5 text-xs font-medium text-accent backdrop-blur">
         <span className="flex gap-1" aria-hidden="true">
           <span
@@ -1500,7 +1918,7 @@ function TypingRow() {
             style={{ animationDelay: "300ms" }}
           />
         </span>
-        <span>{t("chat.typing")}…</span>
+        <span>{label}</span>
       </div>
     </div>
   );

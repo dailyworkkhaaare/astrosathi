@@ -9,7 +9,7 @@ export function BarometerSummaryCard() {
   const query = useBarometer();
   const loading = query.isPending;
   const hasError = query.isError;
-  const assets = query.data?.assets ?? [];
+  const assets = (query.data?.assets ?? []).filter((a) => a.assetKey !== "mcxsilver");
   const isEmpty = !loading && !hasError && assets.length === 0;
 
   return (
@@ -72,7 +72,10 @@ function AssetChip({ asset, t }: { asset: BarometerAsset; t: (key: string) => st
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${classes}`}
     >
       <Icon size={13} aria-hidden="true" />
-      {t(`sections.barometer.assets.${asset.assetKey}`)} · {pct}%
+      {asset.assetKey === "mcxgold"
+        ? t("sections.barometer.assets.bullion")
+        : t(`sections.barometer.assets.${asset.assetKey}`)}{" "}
+      · {pct}%
     </span>
   );
 }

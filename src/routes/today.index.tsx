@@ -5,7 +5,6 @@ import { useRequireOnboarding } from "@/lib/require-auth";
 import { DailyHoroscopeSummaryCard } from "@/components/DailyHoroscopeSummaryCard";
 import { DailyMantraSection } from "@/components/DailyMantraSection";
 import { PanchangSummaryCard } from "@/components/PanchangSummaryCard";
-import { MarketOutlookSummaryCard } from "@/components/MarketOutlookSummaryCard";
 import { BarometerSummaryCard } from "@/components/BarometerSummaryCard";
 import { TodaySection } from "@/components/TodaySection";
 import { TransitHighlightBand } from "@/components/TransitHighlightBand";
@@ -61,7 +60,6 @@ function TodayPage() {
       </div>
       <div className="motion-fade-up motion-delay-4 space-y-6">
         <BarometerSummaryCard />
-        <MarketOutlookSummaryCard />
       </div>
     </section>
   );

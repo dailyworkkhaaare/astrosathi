@@ -344,6 +344,10 @@
     "opening": "Namaste {{name}}. I can see your chart — with Moon in Cancer and Jupiter in Sagittarius, this is a thoughtful, expansive time. What would you like to explore today?",
     "typing": "Consulting your chart",
     "generating": "generating…",
+    "phaseConnecting": "Aligning the stars…",
+    "phaseThinking": "Consulting the planets…",
+    "phaseReconnecting": "Realigning with the stars…",
+    "phaseWriting": "Reading your chart…",
     "disclaimer": "Guidance is for reflection, not a substitute for professional advice.",
     "mockReplies": {
       "career": "In your chart, Saturn in the 10th house asks for patience and steady effort — big leaps rarely help here. Focus on a craft you can practise daily; recognition tends to follow quietly.",
@@ -387,6 +391,7 @@
     "edit": "Edit message",
     "retry": "Retry",
     "errorGeneric": "Something went wrong reaching AstroSaathi. Please try again.",
+    "errorInterrupted": "The reading paused before it finished — tap retry to continue.",
     "disclaimerLong": "AstroSaathi can make mistakes. Not professional advice.",
     "groups": {
       "today": "Today",
@@ -586,8 +591,8 @@
       "bandLoadError": "Couldn't load today's highlight."
     },
     "market": {
-      "title": "Metals outlook",
-      "subtitle": "Vedic planetary outlook for gold & silver today",
+      "title": "Gold & Silver Outlook",
+      "subtitle": "Today's planetary read for gold & silver",
       "metals": { "gold": "Gold", "silver": "Silver" },
       "lean": { "up": "Leaning up", "flat": "Flat", "down": "Leaning down" },
       "accuracyLabel": "Last 30 days",
@@ -599,47 +604,84 @@
       "disclaimer": "A cultural, entertainment reading based on planetary positions — not investment advice. No buy or sell recommendations.",
       "reasons": {
         "sun": {
-          "exalted": "Sun exalted in {{sign}} — supportive for gold",
-          "own": "Sun in its own sign {{sign}} — steady",
-          "debilitated": "Sun weak in {{sign}} — softer for gold"
+          "exalted": "The Sun is strongly placed — supportive for gold",
+          "own": "The Sun is comfortably placed — steady for gold",
+          "debilitated": "The Sun is weakly placed — softer for gold"
         },
         "jupiter": {
-          "strong": "Jupiter strong in {{sign}} — expansive",
-          "debilitated": "Jupiter weak in {{sign}}"
+          "strong": "Jupiter is strong — a positive, expansive tone",
+          "debilitated": "Jupiter is weak — less lift"
         },
         "venus": {
-          "strong": "Venus strong in {{sign}}",
-          "debilitated": "Venus weak in {{sign}}"
+          "strong": "Venus is strong — supportive",
+          "debilitated": "Venus is weak — less support"
         },
         "saturn": {
-          "upachaya": "Saturn building in {{sign}} — some pressure",
-          "debilitatedRelief": "Saturn weak in {{sign}} — less pressure",
-          "withMoon": "Saturn alongside the Moon in {{sign}} — pressure"
+          "upachaya": "Saturn is gaining strength — some downward pressure",
+          "debilitatedRelief": "Saturn is weak — less pressure",
+          "withMoon": "Saturn is sitting with the Moon — added pressure"
         },
         "mars": {
-          "upachaya": "Mars building in {{sign}} — some pressure",
-          "debilitatedRelief": "Mars weak in {{sign}} — less pressure",
-          "withMoon": "Mars alongside the Moon in {{sign}} — more movement"
+          "upachaya": "Mars is gaining strength — some downward pressure",
+          "debilitatedRelief": "Mars is weak — less pressure",
+          "withMoon": "Mars is sitting with the Moon — more price movement"
         },
-        "rahu": { "premium": "Rahu in {{sign}} — inflation premium" },
+        "rahu": { "premium": "A speculative, inflation-premium influence is active" },
         "moon": {
-          "waxing": "Waxing Moon (Shukla paksha) — supportive for silver",
-          "waning": "Waning Moon (Krishna paksha) — softer for silver",
-          "strong": "Moon strong in {{sign}}",
-          "debilitated": "Moon weak in {{sign}}"
+          "waxing": "The Moon is waxing (growing brighter) — supportive for silver",
+          "waning": "The Moon is waning (fading) — softer for silver",
+          "strong": "The Moon is strongly placed — supportive",
+          "debilitated": "The Moon is weakly placed — softer"
         }
-      }
+      },
+      "howTitle": "How to read this",
+      "howBody": "Each day we read the planetary positions and turn them into a simple lean — up, flat, or down — for gold and silver, with a few plain reasons why. 'Last 30 days' shows how often recent daily calls matched the market. A cultural, entertainment reading, not investment advice."
     },
     "barometer": {
-      "title": "Composite Barometer",
-      "subtitle": "Fused SBC + Bradley + Panchanga signal",
+      "title": "Today's Market Mood",
+      "subtitle": "Our combined daily read for each market",
       "loadError": "Couldn't load the barometer right now.",
       "empty": "No barometer reading yet for today.",
       "viewFull": "View full barometer",
-      "confidence": "Confidence",
-      "coverage": "Coverage",
-      "assets": { "nifty50": "Nifty 50", "mcxgold": "MCX Gold", "mcxsilver": "MCX Silver" },
+      "confidence": "Signal strength",
+      "coverage": "Inputs used",
+      "howTitle": "How to read this",
+      "howBody": "One combined daily call — bullish, neutral, or bearish — for each market. The dial shows how firm today's lean is (a higher % just means a stronger lean, not a 'better' day). This is a cultural reading, not investment advice.",
+      "assets": { "nifty50": "Nifty 50", "mcxgold": "MCX Gold", "mcxsilver": "MCX Silver", "bullion": "Gold & Silver" },
       "bias": { "bullish": "Bullish", "neutral": "Neutral", "bearish": "Bearish" }
+    },
+    "bradley": {
+      "title": "Market Timing Curve",
+      "subtitle": "Whole-market mood timing · applies to all markets (not price)",
+      "seriesLabel": "Market mood",
+      "today": "Today",
+      "loadError": "Couldn't load the timing curve right now.",
+      "empty": "No timing-curve data yet.",
+      "howTitle": "How to read this",
+      "howBody": "This is one broad mood line for the whole market — not the price of any single asset. It's the same daily reading we apply to Nifty, Gold and Silver together. Peaks and dips flag dates when mood may turn (the dots); the dashed 'Today' line marks where we are now. Rising = mood tilting up in the days around it, falling = tilting down. A cultural reading, not investment advice."
+    },
+    "sbc": {
+      "title": "Daily Planetary Pressure",
+      "subtitle": "How the planets are pushing each market · last 30 days",
+      "today": "Today",
+      "assets": { "nifty50": "Nifty 50", "mcxgold": "MCX Gold", "mcxsilver": "MCX Silver" },
+      "legend": {
+        "bearish": "Downward",
+        "bullish": "Upward",
+        "noVedha": "Quiet day",
+        "netZero": "Signals cancel out",
+        "notComputed": "No data yet"
+      },
+      "todayTitle": "What's driving {{asset}} today",
+      "notComputedToday": "Today's reading isn't ready yet.",
+      "noVedhasToday": "No planetary events today — a calm day.",
+      "benefic": "Supportive",
+      "malefic": "Adverse",
+      "v11Placeholder": "Detailed planetary map — coming soon",
+      "loadError": "Couldn't load today's planetary reading.",
+      "empty": "No planetary pressure data yet.",
+      "howTitle": "How to read this",
+      "howBody": "Each row is a market and each little square is one day over the last 30 days. Colour shows that day’s planetary pressure — teal leans up, rose leans down, and stronger colour means stronger pressure. Grey squares are calm days; the outlined square is today. Below the grid, “What’s driving today” lists the planets acting today and whether each is supportive or adverse. A cultural reading, not investment advice."
     },
     "dasha": {
       "title": "Vimshottari Dasha",

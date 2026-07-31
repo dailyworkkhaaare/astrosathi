@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { BarometerSection } from "@/components/BarometerSection";
+import { BradleySection } from "@/components/BradleySection";
+import { SbcSection } from "@/components/SbcSection";
 import { MarketOutlookSection } from "@/components/MarketOutlookSection";
 
 export const Route = createFileRoute("/today/markets")({
@@ -33,6 +35,8 @@ function MarketsPage() {
         {t("today.backToToday")}
       </Link>
       <BarometerSection />
+      <BradleySection />
+      <SbcSection />
       <MarketOutlookSection />
     </section>
   );

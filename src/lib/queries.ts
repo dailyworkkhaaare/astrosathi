@@ -778,6 +778,167 @@ export function useBarometer(): UseQueryResult<BarometerValue> {
   });
 }
 
+// ---------------------------------------------------------------- bradley siderograph
+
+export type BradleyPoint = { date: string; value: number };
+export type BradleyValue = {
+  today: string;
+  points: BradleyPoint[];
+};
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
+// Reads the Bradley siderograph curve (p_raw) across a window from ~30 days ago
+// to ~60 days ahead (future rows are precomputed to 2026-12-31). Global
+// market-timing data — RLS allows authenticated reads via the "read bradley"
+// policy on bradley_siderograph_daily.
+export function useBradley(): UseQueryResult<BradleyValue> {
+  const userId = useCurrentUserId();
+  return useQuery<BradleyValue>({
+    queryKey: [...ROOT, "bradley", userId],
+    enabled: userId !== null,
+    staleTime: 15 * 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    refetchOnWindowFocus: true,
+    queryFn: async (): Promise<BradleyValue> => {
+      const now = new Date();
+      const today = ymd(now);
+      const start = new Date(now);
+      start.setDate(start.getDate() - 30);
+      const end = new Date(now);
+      end.setDate(end.getDate() + 60);
+
+      const { data: rows } = await supabase
+        .from("bradley_siderograph_daily")
+        .select("bradley_date, p_raw")
+        .gte("bradley_date", ymd(start))
+        .lte("bradley_date", ymd(end))
+        .order("bradley_date", { ascending: true });
+
+      const points: BradleyPoint[] = (rows ?? []).map((r) => ({
+        date: String(r.bradley_date),
+        value: Number(r.p_raw),
+      }));
+
+      return { today, points };
+    },
+  });
+}
+
+// ---------------------------------------------------------------- sbc vedha
+
+export type SbcVedhaCell = {
+  planet: string;
+  vedhaType: string; // savya / apasavya (direction)
+  isMalefic: boolean;
+  contribution: number; // signed
+  vedhaStrength: number;
+  dignityMultiplier: number;
+};
+
+export type SbcDay = {
+  date: string;
+  netScore: number; // scored_data.score_raw (true signed net)
+  vedhaCount: number;
+  cells: SbcVedhaCell[];
+};
+
+export type SbcAssetSeries = {
+  assetKey: string; // nifty50 | mcxgold | mcxsilver
+  byDate: Record<string, SbcDay>;
+};
+
+export type SbcValue = {
+  today: string;
+  dates: string[]; // full 30-day calendar (ascending) so columns align across assets
+  maxAbs: number; // symmetric diverging domain from days that actually have vedhas
+  assets: SbcAssetSeries[]; // fixed order: nifty50, mcxgold, mcxsilver
+};
+
+const SBC_ASSET_ORDER = ["nifty50", "mcxgold", "mcxsilver"] as const;
+const SBC_WINDOW_DAYS = 30;
+
+// Reads the base table sbc_vedha_daily directly (authenticated read granted via
+// the "read sbc" policy). One 30-day window powers both the heatmap and today's
+// card. Absent dates are surfaced as "not computed" by the UI, distinct from a
+// present row with zero vedhas.
+export function useSbc(): UseQueryResult<SbcValue> {
+  const userId = useCurrentUserId();
+  return useQuery<SbcValue>({
+    queryKey: [...ROOT, "sbc", userId],
+    enabled: userId !== null,
+    staleTime: 15 * 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    refetchOnWindowFocus: true,
+    queryFn: async (): Promise<SbcValue> => {
+      const now = new Date();
+      const today = ymd(now);
+      const dates: string[] = [];
+      for (let i = SBC_WINDOW_DAYS - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        dates.push(ymd(d));
+      }
+
+      const { data: rows } = await supabase
+        .from("sbc_vedha_daily")
+        .select("sbc_date, asset_key, scored_data")
+        .gte("sbc_date", dates[0])
+        .lte("sbc_date", today)
+        .order("sbc_date", { ascending: true });
+
+      const byAsset: Record<string, Record<string, SbcDay>> = {};
+      for (const key of SBC_ASSET_ORDER) byAsset[key] = {};
+
+      let maxAbs = 0;
+      for (const r of rows ?? []) {
+        const assetKey = String((r as { asset_key: string }).asset_key);
+        if (!byAsset[assetKey]) continue;
+
+        const sd = ((r as { scored_data: unknown }).scored_data ?? {}) as {
+          score_raw?: number;
+          contributions?: unknown;
+        };
+        const rawCells = Array.isArray(sd.contributions) ? sd.contributions : [];
+        const cells: SbcVedhaCell[] = rawCells.map((c) => {
+          const cell = c as Record<string, unknown>;
+          return {
+            planet: String(cell.planet ?? ""),
+            vedhaType: String(cell.vedha_type ?? ""),
+            isMalefic: Boolean(cell.is_malefic),
+            contribution: Number(cell.contribution ?? 0),
+            vedhaStrength: Number(cell.vedha_strength ?? 0),
+            dignityMultiplier: Number(cell.dignity_multiplier ?? 0),
+          };
+        });
+
+        const netScore = Number(sd.score_raw ?? 0);
+        const date = String((r as { sbc_date: string }).sbc_date);
+        byAsset[assetKey][date] = {
+          date,
+          netScore,
+          vedhaCount: cells.length,
+          cells,
+        };
+        if (cells.length > 0) maxAbs = Math.max(maxAbs, Math.abs(netScore));
+      }
+
+      const assets: SbcAssetSeries[] = SBC_ASSET_ORDER.map((assetKey) => ({
+        assetKey,
+        byDate: byAsset[assetKey],
+      }));
+
+      return { today, dates, maxAbs: maxAbs || 1, assets };
+    },
+  });
+}
+
 // ---------------------------------------------------------------- daily horoscope
 
 export type DailyHoroscopeArea = { key: string; text: string };

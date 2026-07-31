@@ -11,6 +11,7 @@ import {
   createClient,
   type SupabaseClient,
 } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { computeVimshottariDashaPayload } from "./vimshottari.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Deno: any;
@@ -395,6 +396,8 @@ serve(async (req: Request) => {
     report_type?: string;
     provider_params?: Record<string, unknown>;
     engine?: string;
+    dasha_year_days?: number | string;
+    gender?: string;
   };
   try {
     body = await req.json();
@@ -498,6 +501,10 @@ serve(async (req: Request) => {
     body.engine ?? Deno.env.get("CHART_ENGINE") ?? "prokerala",
   ).toLowerCase();
   const useSwiss = engine === "swiss" && isPlanets;
+  // Vimshottari dasha swiss path. Independently gated so it can be enabled
+  // without touching the natal gate, and vice versa. Default: off.
+  const useSwissDasha =
+    engine === "swiss" && isReport && reportType === "vimshottari_dasha";
 
   const slug =
     isJson || isNumerology || isLoShu ? "" : PROKERALA_CHART_SLUG[chartType];
@@ -1549,9 +1556,10 @@ serve(async (req: Request) => {
     hashInput.report_type = reportType;
     hashInput.report_params = reportParams;
   }
-  // Keep swiss and prokerala natal caches distinct (and avoid serving a
-  // stale cross-engine result when the flag is flipped).
-  if (isPlanets) hashInput.engine = engine;
+  // Keep swiss and prokerala caches distinct (and avoid serving a stale
+  // cross-engine result when the flag is flipped). Applies to any resource
+  // that has a swiss path.
+  if (isPlanets || useSwissDasha) hashInput.engine = engine;
   const canonical = canonicalJson(hashInput);
   const inputHash = await sha256Hex(canonical);
 
@@ -1698,6 +1706,120 @@ serve(async (req: Request) => {
     } catch (e) {
       console.error(
         "[chart-gateway] swiss engine failed; falling back to Prokerala:",
+        e,
+      );
+      // fall through to the Prokerala path below
+    }
+  }
+
+  // ---------- Local astronomy-engine path (vimshottari dasha) ----------
+  // Same gating discipline as the natal swiss path: opt-in, resilient, and
+  // any compute error falls through to Prokerala. Cost: zero.
+  if (useSwissDasha) {
+    try {
+      // Reuse the validated natal engine to get the birth Moon's ABSOLUTE
+      // 0-360 sidereal longitude. eBody stores `longitude` as the normalized
+      // whole-cycle value (see chart-gateway/index.ts eBody -> L = eNorm360(sidLon)).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const natal: any = await computeNatalPayload(
+        datetimeUsed,
+        latitude,
+        longitude,
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const planets: any[] = natal?.data?.planet_position ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const moon = planets.find((p: any) => p?.id === 1);
+      const moonSidLon = Number(moon?.longitude);
+      if (!Number.isFinite(moonSidLon)) {
+        throw new Error("swiss dasha: could not resolve moon longitude");
+      }
+
+      const birthUtcMs = Date.parse(datetimeUsed);
+      if (!Number.isFinite(birthUtcMs)) {
+        throw new Error("swiss dasha: invalid datetime");
+      }
+
+      // Extract the fixed offset from datetimeUsed (already validated as
+      // ...+HH:MM by the regex above). This is the offset Prokerala uses to
+      // format every emitted dasha date.
+      const offMatch = datetimeUsed.match(/([+-])(\d{2}):(\d{2})$/);
+      const offsetMinutes = offMatch
+        ? (offMatch[1] === "-" ? -1 : 1) *
+          (Number(offMatch[2]) * 60 + Number(offMatch[3]))
+        : 0;
+
+      const dashaEngineOverride = String(
+        body.dasha_year_days ?? Deno.env.get("DASHA_YEAR_DAYS") ?? "",
+      );
+      const yearDays = dashaEngineOverride
+        ? Number(dashaEngineOverride)
+        : undefined;
+
+      const dashaPayload = computeVimshottariDashaPayload({
+        moonSidLon,
+        birthUtcMs,
+        offsetMinutes,
+        yearDays,
+      });
+
+      let artifactId: string | null = null;
+      try {
+        const { data: inserted, error: insErr } = await svc
+          .from("chart_artifacts")
+          .upsert(
+            {
+              user_id: userId,
+              birth_profile_id: birth.id,
+              chart_type: chartType,
+              input_hash: inputHash,
+              provider: "astronomy-engine",
+              provider_version: SWISS_ENGINE_VERSION + "+vim-v1",
+              chart_jsonb: dashaPayload,
+              supersedes_id: null,
+            },
+            { onConflict: "user_id,chart_type,input_hash" },
+          )
+          .select("id")
+          .single();
+        if (insErr) {
+          console.error("[chart-gateway] swiss dasha persist failed:", insErr);
+        } else {
+          artifactId = inserted?.id ?? null;
+        }
+      } catch (persistErr) {
+        console.error("[chart-gateway] swiss dasha persist threw:", persistErr);
+      }
+
+      try {
+        await svc.from("astrology_provider_runs").insert({
+          user_id: userId,
+          provider: "astronomy-engine",
+          endpoint: "local/vimshottari-dasha",
+          input_hash: inputHash,
+          http_status: 200,
+          success: true,
+          cost_units: 0,
+          error: null,
+        });
+      } catch (auditErr) {
+        console.error("[chart-gateway] swiss dasha audit failed:", auditErr);
+      }
+
+      console.log(
+        "[chart-gateway] served vimshottari_dasha via astronomy-engine (engine=swiss)",
+      );
+      return json(200, {
+        resource: "report",
+        report_type: reportType,
+        engine: "astronomy-engine",
+        reused: false,
+        artifact_id: artifactId,
+        data: dashaPayload,
+      });
+    } catch (e) {
+      console.error(
+        "[chart-gateway] swiss dasha failed; falling back to Prokerala:",
         e,
       );
       // fall through to the Prokerala path below

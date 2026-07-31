@@ -93,8 +93,10 @@ export async function saveBirthProfile(input: BirthProfile): Promise<{ error?: s
 
   const { error: pErr } = await supabase
     .from("profiles")
-    .update({ onboarding_state: "ready", display_name: input.name.trim() })
-    .eq("user_id", userId);
+    .upsert(
+      { user_id: userId, onboarding_state: "ready", display_name: input.name.trim() },
+      { onConflict: "user_id" },
+    );
   if (pErr) return { error: pErr.message };
   return {};
 }

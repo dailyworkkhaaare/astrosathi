@@ -536,16 +536,11 @@ serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // Load birth profile + onboarding state
-  const { data: profileRow } = await svc
-    .from("profiles")
-    .select("onboarding_state")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!profileRow || profileRow.onboarding_state !== "ready") {
-    return err(409, "birth_profile_incomplete");
-  }
-
+  // Load the birth profile FIRST and derive readiness from the ACTUAL birth
+  // data, not from a separate profiles.onboarding_state flag. New users whose
+  // flag was never flipped to "ready" (missing profiles row, or a writer that
+  // didn't run) must NOT be locked out when their birth data is present. Each
+  // resource below still enforces its own specific field requirements.
   const { data: birth } = await svc
     .from("birth_profiles")
     .select(
@@ -553,6 +548,24 @@ serve(async (req: Request) => {
     )
     .eq("user_id", userId)
     .maybeSingle();
+
+  if (!birth || !birth.birth_date) {
+    return err(409, "birth_profile_incomplete");
+  }
+
+  // Best-effort self-heal: if birth data exists but the onboarding flag wasn't
+  // set, flip it so the rest of the app stays consistent. Non-blocking — chart
+  // generation must never depend on this succeeding.
+  try {
+    await svc
+      .from("profiles")
+      .upsert(
+        { user_id: userId, onboarding_state: "ready" },
+        { onConflict: "user_id" },
+      );
+  } catch (_) {
+    // ignore — resilience only
+  }
   // ---------- Numerology (deterministic; no geocoding/provider) ----------
   if (isNumerology) {
     if (!birth || !birth.birth_date) {

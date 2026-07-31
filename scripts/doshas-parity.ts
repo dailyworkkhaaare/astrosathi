@@ -151,28 +151,58 @@ function cmpKaalSarp(
   natal: unknown,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pro: any,
-): { has: "Y" | "N"; descOnNegative: "Y" | "N" | "-"; hasProDosha?: boolean; hasLocDosha?: boolean; proDesc?: string; locDesc?: string } {
+): {
+  has: "Y" | "N";
+  desc: "Y" | "N";
+  type: "Y" | "N";
+  doshaType: "Y" | "N";
+  hasProDosha?: boolean;
+  hasLocDosha?: boolean;
+  proDesc?: string;
+  locDesc?: string;
+  proType?: unknown;
+  proDoshaType?: string;
+} {
   const loc = computeKaalSarpDoshaPayload(natal);
   const p = inner(pro);
   const l = loc.data;
-  const hasMatch = p?.has_dosha === l.has_dosha;
-  // Only byte-compare description when Prokerala says NO dosha; positive
-  // descriptions require the real Prokerala template (still TBD).
-  const descNegMatch =
-    p?.has_dosha === false && l.has_dosha === false
-      ? p?.description === l.description ? "Y" : "N"
-      : "-";
   return {
-    has: hasMatch ? "Y" : "N",
-    descOnNegative: descNegMatch,
+    has: p?.has_dosha === l.has_dosha ? "Y" : "N",
+    desc: p?.description === l.description ? "Y" : "N",
+    type: p?.type === l.type ? "Y" : "N",
+    doshaType: p?.dosha_type === l.dosha_type ? "Y" : "N",
     hasProDosha: p?.has_dosha,
     hasLocDosha: l.has_dosha,
     proDesc: p?.description,
     locDesc: l.description,
+    proType: p?.type,
+    proDoshaType: p?.dosha_type,
   };
 }
 
 // ---- --find-kaalsarp sweep ---------------------------------------------
+// Kinds:
+//   "forward" — all seven visible-planet deltas from Rahu are in (0, 180),
+//               i.e. all planets in the forward Rahu -> Ketu arc. This is the
+//               classical Kaal Sarp.
+//   "reverse" — all seven in (180, 360), i.e. all planets in the Ketu -> Rahu
+//               arc. Some traditions call this Kaal Sarp too; some don't.
+//               We need a real Prokerala verdict for one such birth.
+type SweepHit = {
+  kind: "forward" | "reverse";
+  dateUtc: string;
+  timeUtc: string;
+  tzOffset: string;
+  lat: number;
+  lon: number;
+  rahuLon: number;
+  ascLon: number;
+  rahuSign: number;
+  ascSign: number;
+  rahuHouse: number;
+  deltas: number[];
+};
+
 async function runFindKaalSarp(opts: {
   lat: number;
   lon: number;
@@ -182,6 +212,8 @@ async function runFindKaalSarp(opts: {
   tzOffsetMinutes: number;
   hour: number;
   minute: number;
+  wantForwardDistinctHouses: number;
+  wantReverse: number;
 }) {
   // @ts-ignore esm.sh import resolved at runtime
   const A: any = await import("https://esm.sh/astronomy-engine@2.1.19");
@@ -205,8 +237,30 @@ async function runFindKaalSarp(opts: {
     return norm(trop - ayan(T));
   };
 
-  // Build a rough Ascendant by whole-sign — but Kaal Sarp only depends on
-  // planets + Rahu longitudes, not the ascendant. So skip ascendant here.
+  const d2r = (x: number) => (x * Math.PI) / 180;
+  const r2d = (x: number) => (x * 180) / Math.PI;
+  const meanObliquity = (T: number) =>
+    23.4392911 - 0.0130041667 * T - 1.638889e-7 * T * T + 5.036111e-7 * T * T * T;
+  const siderealAscendant = (d: Date, T: number): number => {
+    const gastHours = A.SiderealTime(d);
+    const ramc = norm(gastHours * 15 + opts.lon);
+    const eps = meanObliquity(T);
+    const R = d2r(ramc);
+    const E = d2r(eps);
+    const P = d2r(opts.lat);
+    const mc = norm(r2d(Math.atan2(Math.sin(R), Math.cos(R) * Math.cos(E))));
+    let asc = norm(
+      r2d(
+        Math.atan2(
+          Math.cos(R),
+          -(Math.sin(R) * Math.cos(E) + Math.tan(P) * Math.sin(E)),
+        ),
+      ),
+    );
+    if (norm(asc - mc) > 180) asc = norm(asc + 180);
+    return norm(asc - ayan(T));
+  };
+
   const bodies = [
     { id: 0, body: A.Body.Sun, ab: true },
     { id: 1, body: A.Body.Moon, ab: false },
@@ -217,77 +271,74 @@ async function runFindKaalSarp(opts: {
     { id: 6, body: A.Body.Saturn, ab: true },
   ];
 
+  const offSign = opts.tzOffsetMinutes >= 0 ? "+" : "-";
+  const absOff = Math.abs(opts.tzOffsetMinutes);
+  const offStr =
+    offSign +
+    String(Math.floor(absOff / 60)).padStart(2, "0") +
+    ":" +
+    String(absOff % 60).padStart(2, "0");
+
   const start = new Date(Date.UTC(opts.startYear, 0, 1, opts.hour, opts.minute));
   const end = new Date(Date.UTC(opts.endYear, 11, 31));
   const stepMs = opts.stepDays * 86400_000;
   let scanned = 0;
+  const forwardHits: SweepHit[] = [];
+  const seenForwardHouses = new Set<number>();
+  const reverseHits: SweepHit[] = [];
+
   for (let t = start.getTime(); t <= end.getTime(); t += stepMs) {
     const d = new Date(t);
     const T = jc(d);
-    const planet_position: any[] = [];
-    for (const g of bodies) {
-      const lon = sidLon(g.body, d, g.ab, T);
-      planet_position.push({
-        id: g.id,
-        longitude: lon,
-        rasi: { id: Math.floor(lon / 30) },
-      });
-    }
-    const rahu = meanNode(T);
-    planet_position.push({
-      id: 101,
-      longitude: rahu,
-      rasi: { id: Math.floor(rahu / 30) },
-    });
-    planet_position.push({
-      id: 102,
-      longitude: norm(rahu + 180),
-      rasi: { id: Math.floor(norm(rahu + 180) / 30) },
-    });
-    // Kaal Sarp needs an ascendant for the `type` label but not for has_dosha.
-    // Provide a stub ascendant so the module doesn't throw.
-    planet_position.push({
-      id: 100,
-      longitude: 0,
-      rasi: { id: 0 },
-    });
-    const natal = { data: { planet_position } };
     try {
-      const res = computeKaalSarpDoshaPayload(natal);
+      const asc = siderealAscendant(d, T);
+      const ascSign = Math.floor(asc / 30);
+      const rahu = meanNode(T);
+      const rahuSign = Math.floor(rahu / 30);
+      const rahuHouse = ((rahuSign - ascSign + 12) % 12) + 1;
+      const lons: number[] = [];
+      for (const g of bodies) lons.push(sidLon(g.body, d, g.ab, T));
+      const deltas = lons.map((l) => norm(l - rahu));
+      const allForward = deltas.every((x) => x > 0 && x < 180);
+      const allReverse = deltas.every((x) => x > 180 && x < 360);
       scanned++;
-      if (res.data.has_dosha) {
-        const offSign = opts.tzOffsetMinutes >= 0 ? "+" : "-";
-        const absOff = Math.abs(opts.tzOffsetMinutes);
-        const offStr =
-          offSign +
-          String(Math.floor(absOff / 60)).padStart(2, "0") +
-          ":" +
-          String(absOff % 60).padStart(2, "0");
-        console.log(`\nFOUND kaal-sarp positive after ${scanned} probes:`);
-        console.log(
-          JSON.stringify(
-            {
-              date_utc: d.toISOString().slice(0, 10),
-              time_utc: d.toISOString().slice(11, 19),
-              tz_offset: offStr,
-              lat: opts.lat,
-              lon: opts.lon,
-              rahu_lon: rahu.toFixed(4),
-              deltas_from_rahu: planet_position
-                .filter((p) => p.id <= 6)
-                .map((p) => norm(p.longitude - rahu).toFixed(2)),
-            },
-            null,
-            2,
-          ),
-        );
-        return;
+      const rec: SweepHit = {
+        kind: allForward ? "forward" : "reverse",
+        dateUtc: d.toISOString().slice(0, 10),
+        timeUtc: d.toISOString().slice(11, 19),
+        tzOffset: offStr,
+        lat: opts.lat,
+        lon: opts.lon,
+        rahuLon: Number(rahu.toFixed(4)),
+        ascLon: Number(asc.toFixed(4)),
+        rahuSign,
+        ascSign,
+        rahuHouse,
+        deltas: deltas.map((x) => Number(x.toFixed(2))),
+      };
+      if (allForward && !seenForwardHouses.has(rahuHouse) &&
+          forwardHits.length < opts.wantForwardDistinctHouses) {
+        seenForwardHouses.add(rahuHouse);
+        forwardHits.push(rec);
       }
+      if (allReverse && reverseHits.length < opts.wantReverse) {
+        reverseHits.push(rec);
+      }
+      if (
+        forwardHits.length >= opts.wantForwardDistinctHouses &&
+        reverseHits.length >= opts.wantReverse
+      ) break;
     } catch (_e) {
-      // Skip probes where the ephemeris throws (e.g. exact-conjunction edge).
+      // Skip probes where the ephemeris throws.
     }
   }
-  console.log(`no positive across ${scanned} probes.`);
+  console.log(`scanned ${scanned} probes.`);
+  console.log(
+    `forward positives (distinct rahu houses): ${forwardHits.length}/${opts.wantForwardDistinctHouses}`,
+  );
+  for (const h of forwardHits) console.log(JSON.stringify(h));
+  console.log(`\nreverse positives: ${reverseHits.length}/${opts.wantReverse}`);
+  for (const h of reverseHits) console.log(JSON.stringify(h));
 }
 
 // ---- Main ---------------------------------------------------------------
@@ -304,6 +355,8 @@ async function main() {
     tzOffsetMinutes: 330,
     hour: 6,
     minute: 30,
+    wantForwardDistinctHouses: 3,
+    wantReverse: 1,
   };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--all") mode = "all";
@@ -312,6 +365,8 @@ async function main() {
     else if (args[i] === "--step-days") findOpts.stepDays = Number(args[++i]);
     else if (args[i] === "--start-year") findOpts.startYear = Number(args[++i]);
     else if (args[i] === "--end-year") findOpts.endYear = Number(args[++i]);
+    else if (args[i] === "--want-forward") findOpts.wantForwardDistinctHouses = Number(args[++i]);
+    else if (args[i] === "--want-reverse") findOpts.wantReverse = Number(args[++i]);
   }
   if (!mode) {
     console.error("usage: --all [--limit N]  |  --find-kaalsarp [--step-days N] [--start-year Y] [--end-year Y]");
@@ -333,9 +388,9 @@ async function main() {
   console.log(`discovered ${users.length} user(s) with natal + prokerala doshas (cap ${limit})\n`);
 
   let mHas = 0, mHasTot = 0, mDesc = 0, mDescTot = 0;
-  let kHas = 0, kHasTot = 0, kDescNeg = 0, kDescNegTot = 0;
-  console.log("user_id                                mangal(has/desc)  kaal-sarp(has/descNeg)  notes");
-  console.log("------------------------------------   ----------------  ----------------------  -----");
+  let kHas = 0, kHasTot = 0, kDesc = 0, kDescTot = 0, kType = 0, kTypeTot = 0, kDoshaType = 0, kDoshaTypeTot = 0;
+  console.log("user_id                                mangal(has/desc)  kaal-sarp(has/desc/type/doshaType)  notes");
+  console.log("------------------------------------   ----------------  ---------------------------------   -----");
   for (const uid of users) {
     try {
       const fx = await loadUserFixture(url, key, uid);
@@ -354,24 +409,28 @@ async function main() {
       if (fx.kaalSarp) {
         const r = cmpKaalSarp(fx.natal, fx.kaalSarp);
         kHasTot++;
+        kDescTot++;
+        kTypeTot++;
+        kDoshaTypeTot++;
         if (r.has === "Y") kHas++;
-        if (r.descOnNegative !== "-") {
-          kDescNegTot++;
-          if (r.descOnNegative === "Y") kDescNeg++;
-        }
-        kCol = ` ${r.has}/${r.descOnNegative}`;
+        if (r.desc === "Y") kDesc++;
+        if (r.type === "Y") kType++;
+        if (r.doshaType === "Y") kDoshaType++;
+        kCol = ` ${r.has}/${r.desc}/${r.type}/${r.doshaType}`;
         if (r.has === "N") notes.push(`kaal-sarp has: pro=${r.hasProDosha} loc=${r.hasLocDosha}`);
-        if (r.descOnNegative === "N")
-          notes.push(`kaal-sarp desc(neg): pro="${r.proDesc}" loc="${r.locDesc}"`);
+        if (r.desc === "N") notes.push(`kaal-sarp desc: pro="${r.proDesc}" loc="${r.locDesc}"`);
+        if (r.type === "N") notes.push(`kaal-sarp type: pro=${JSON.stringify(r.proType)} loc=null`);
+        if (r.doshaType === "N") notes.push(`kaal-sarp dosha_type: pro="${r.proDoshaType}"`);
       } else notes.push("no kaal-sarp row");
-      const status = notes.length === 0 || (mCol === " Y/Y" && kCol === " Y/Y") ? "[ok]" : "[FAIL]";
-      console.log(`${uid}   ${mCol.padEnd(16)}  ${kCol.padEnd(22)}  ${status} ${notes.join(" | ")}`);
+      const allOk = mCol === " Y/Y" && kCol === " Y/Y/Y/Y";
+      const status = allOk ? "[ok]" : "[FAIL]";
+      console.log(`${uid}   ${mCol.padEnd(16)}  ${kCol.padEnd(33)}   ${status} ${notes.join(" | ")}`);
     } catch (e) {
       console.log(`${uid}   ${" -/-".padEnd(16)}  ${" -/-".padEnd(22)}  [LOAD-FAIL] ${(e as Error).message}`);
     }
   }
   console.log(
-    `\nSummary:\n  mangal has_dosha:  ${mHas}/${mHasTot} match\n  mangal description: ${mDesc}/${mDescTot} byte-match\n  kaal-sarp has_dosha: ${kHas}/${kHasTot} match\n  kaal-sarp negative description: ${kDescNeg}/${kDescNegTot} byte-match`,
+    `\nSummary:\n  mangal    has_dosha:      ${mHas}/${mHasTot} match\n  mangal    description:    ${mDesc}/${mDescTot} byte-match\n  kaal-sarp has_dosha:      ${kHas}/${kHasTot} match\n  kaal-sarp description:    ${kDesc}/${kDescTot} byte-match\n  kaal-sarp type:           ${kType}/${kTypeTot} match\n  kaal-sarp dosha_type:     ${kDoshaType}/${kDoshaTypeTot} byte-match`,
   );
 }
 

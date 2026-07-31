@@ -5,6 +5,8 @@
   },
   "remote": {
     "https://esm.sh/@supabase/supabase-js@2.45.4": "1108d69216995335d057dbd15907caaf514a4d1ef082f097050573b9d589a57c",
+    "https://esm.sh/astronomy-engine@2.1.19": "0845bc2bcf5ec83f9b7cc75f70f91ec2c528e2cffeed8ae937532c28e619a714",
+    "https://esm.sh/astronomy-engine@2.1.19/denonext/astronomy-engine.mjs": "5fb0e08d37f541a104b440744a2bffcc7943b5e95db15b0c780ee0a03b11dfcd",
     "https://esm.sh/gh/heirmez/vedic-ephemeris@de88493/denonext/vedic-ephemeris.mjs": "88d36801f2644085d3e141e2b77a1abe3bd4c5b1d074b2a7bbb145dfbff72359",
     "https://esm.sh/gh/heirmez/vedic-ephemeris@de88493/index": "5afa1b47cd6d3a116748c2325cd6291cafa6637134d112afb81f5e829819c12c"
   },

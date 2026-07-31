@@ -206,7 +206,7 @@ export function useNumerology(): UseQueryResult<NumerologyQueryValue> {
 
 // ---------------------------------------------------------------- doshas
 
-export type DoshaReportType = "mangal_dosha" | "kaal_sarp_dosha" | "sade_sati";
+export type DoshaReportType = "mangal_dosha" | "kaal_sarp_dosha";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DoshaQueryValue = { data: any | null; errorCode: string | null };
@@ -628,6 +628,87 @@ export function useTodayTransits(): UseQueryResult<TodayTransitsValue> {
       }));
 
       return { timezone, moon, planets };
+    },
+  });
+}
+
+// ---------------------------------------------------------------- sade sati timeline
+
+export type SadeSatiPhase = {
+  phase: "rising" | "peak" | "setting";
+  signIndex: number;
+  startTs: string;
+  endTs: string;
+};
+
+export type SadeSatiTimeline = {
+  moonSignIndex: number | null;
+  moonTimeUncertain: boolean;
+  inSadeSati: boolean;
+  episode: {
+    startTs: string;
+    endTs: string;
+    currentPhase: "rising" | "peak" | "setting" | null;
+    phases: SadeSatiPhase[];
+  } | null;
+};
+
+export function useSadeSatiTimeline(): UseQueryResult<SadeSatiTimeline> {
+  const userId = useCurrentUserId();
+  return useQuery<SadeSatiTimeline>({
+    queryKey: [...ROOT, "sade-sati-timeline", userId],
+    enabled: userId !== null,
+    staleTime: 24 * 60 * 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: async () => {
+      const safe: SadeSatiTimeline = {
+        moonSignIndex: null,
+        moonTimeUncertain: false,
+        inSadeSati: false,
+        episode: null,
+      };
+      const { data, error } = await supabase.functions.invoke("sade-sati-timeline", {
+        body: {},
+      });
+      if (error) {
+        // Mirror useDoshaReport's error-context pattern; degrade to a safe shape
+        // so the card can keep showing Step 1 output.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ctx = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            await ctx.json();
+          } catch {
+            /* ignore */
+          }
+        }
+        return safe;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = data as any;
+      if (!d || d.ok !== true) return safe;
+      return {
+        moonSignIndex: typeof d.moonSignIndex === "number" ? d.moonSignIndex : null,
+        moonTimeUncertain: !!d.moon_time_uncertain,
+        inSadeSati: !!d.inSadeSati,
+        episode: d.episode
+          ? {
+              startTs: String(d.episode.startTs),
+              endTs: String(d.episode.endTs),
+              currentPhase: d.episode.currentPhase ?? null,
+              phases: Array.isArray(d.episode.phases)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                ? d.episode.phases.map((p: any) => ({
+                    phase: p.phase,
+                    signIndex: p.signIndex,
+                    startTs: String(p.startTs),
+                    endTs: String(p.endTs),
+                  }))
+                : [],
+            }
+          : null,
+      };
     },
   });
 }

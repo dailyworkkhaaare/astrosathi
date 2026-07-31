@@ -436,7 +436,6 @@ serve(async (req: Request) => {
     },
     mangal_dosha: { slug: "mangal-dosha", chartType: "doshas" },
     kaal_sarp_dosha: { slug: "kaal-sarp-dosha", chartType: "doshas" },
-    sade_sati: { slug: "sade-sati", chartType: "doshas" },
     ashtakavarga: {
       slug: "ashtakavarga",
       chartType: "ashtakavarga",

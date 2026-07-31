@@ -725,17 +725,17 @@ function formatDoshas(list: any[]): string | null {
   for (const raw of list) {
     const d = raw?.data?.data ?? raw?.data ?? raw;
     if (!d || typeof d !== "object") continue;
+    // Sade Sati is now computed locally in its own SADE SATI section; skip any
+    // Prokerala Sade Sati payload so the model never echoes it.
+    if (d.is_in_sade_sati !== undefined || d.sade_sati) continue;
     const label =
-      d.is_in_sade_sati !== undefined || d.sade_sati
-        ? "Sade Sati"
-        : d.mangal_dosha || d.has_mangal_dosha !== undefined
-          ? "Mangal Dosha"
-          : d.kaal_sarp_dosha || d.has_kaal_sarp_dosha !== undefined
-            ? "Kaal Sarp Dosha"
-            : "Dosha";
+      d.mangal_dosha || d.has_mangal_dosha !== undefined
+        ? "Mangal Dosha"
+        : d.kaal_sarp_dosha || d.has_kaal_sarp_dosha !== undefined
+          ? "Kaal Sarp Dosha"
+          : "Dosha";
     const has =
       ctxPick(d, "has_dosha", "has_mangal_dosha", "has_kaal_sarp_dosha") ??
-      (d.is_in_sade_sati as unknown) ??
       (d?.mangal_dosha?.has_dosha as unknown) ??
       (d?.kaal_sarp_dosha?.has_dosha as unknown);
     const desc = String(
@@ -1345,7 +1345,7 @@ Deno.serve(async (req: Request) => {
     );
   const doshaText = doshaList.length ? formatDoshas(doshaList) : null;
   if (doshaText)
-    sections.push("DOSHAS (Mangal / Kaal Sarp / Sade Sati):\n" + doshaText);
+    sections.push("DOSHAS (Mangal / Kaal Sarp):\n" + doshaText);
   else if (doshaList.length)
     sections.push("DOSHAS \u2014 raw data:\n" + capJson(doshaList, 6000));
   // ASHTAKAVARGA — every stored row shares chart_type "ashtakavarga": one
@@ -1484,6 +1484,85 @@ Deno.serve(async (req: Request) => {
           skyText,
       );
     }
+
+    // ---------- Sade Sati (computed locally, AUTHORITATIVE) ----------
+    // Sidereal / Lahiri, whole-sign from the natal Moon sign. Uses the same
+    // transit Saturn row already loaded above, so ZERO extra provider spend.
+    try {
+      const saturn = ((transitPlanets ?? []) as TransitPlanetRow[]).find(
+        (p) => p?.planet === 6,
+      );
+      if (natalMoonSign != null && saturn && saturn.sign != null) {
+        const M = natalMoonSign;
+        const rising = (M + 11) % 12;
+        const peak = M;
+        const setting = (M + 1) % 12;
+        const kantaka = (M + 3) % 12;
+        const ashtama = (M + 7) % 12;
+        const sat = saturn.sign;
+        const sadeSet = new Set([rising, peak, setting]);
+        const inSadeSati = sadeSet.has(sat);
+        const phase =
+          sat === peak
+            ? "Peak (Saturn over your Moon sign)"
+            : sat === rising
+              ? "Rising (first phase)"
+              : sat === setting
+                ? "Setting (final phase)"
+                : null;
+        const inDhaiya = !inSadeSati && (sat === kantaka || sat === ashtama);
+        const retroTag = saturn.retrograde ? " (retrograde)" : "";
+        let block: string;
+        if (inSadeSati && phase) {
+          const nextInSade =
+            saturn.next_sign != null && sadeSet.has(saturn.next_sign);
+          const nextClause =
+            saturn.next_ingress_ts && saturn.next_sign != null
+              ? " Saturn next changes sign on " +
+                ctxDate(saturn.next_ingress_ts) +
+                " into " +
+                skySignName(saturn.next_sign) +
+                ", which " +
+                (nextInSade
+                  ? "moves it to the next phase"
+                  : "ends Sade Sati") +
+                "."
+              : "";
+          block =
+            "SADE SATI (computed locally from natal Moon + live Saturn - AUTHORITATIVE, sidereal/Lahiri; use THIS, ignore any Prokerala Sade Sati):\n" +
+            "- Status: IN Sade Sati, " +
+            phase +
+            ".\n" +
+            "- Natal Moon sign: " +
+            skySignName(M) +
+            ". Saturn now in " +
+            skySignName(sat) +
+            retroTag +
+            "." +
+            nextClause;
+        } else {
+          block =
+            "SADE SATI (computed locally - AUTHORITATIVE): Not in Sade Sati right now. Natal Moon sign " +
+            skySignName(M) +
+            "; Saturn is in " +
+            skySignName(sat) +
+            retroTag +
+            ". Sade Sati occurs when Saturn transits " +
+            skySignName(rising) +
+            ", " +
+            skySignName(peak) +
+            " or " +
+            skySignName(setting) +
+            "." +
+            (inDhaiya
+              ? " Currently in a Small Panoti (Dhaiya) phase."
+              : "");
+        }
+        sections.push(block);
+      }
+    } catch (_e) {
+      // A Sade Sati computation hiccup must never break the chat.
+    }
   } catch (_e) {
     // A transit-table hiccup must never break the chat; just omit the section.
   }
@@ -1575,7 +1654,7 @@ Deno.serve(async (req: Request) => {
     "    \u2022 Money / wealth \u2192 2nd & 11th houses + their lords, Jupiter/Venus, and the dasha in effect.",
     "    \u2022 Health \u2192 1st, 6th & 8th houses + their lords, afflictions, Sade Sati, current dasha.",
     "    \u2022 Timing / 'when will it happen' \u2192 Vimshottari dasha (current Mahadasha/Antardasha and what comes next).",
-    "    \u2022 Doshas (Mangal, Kaal Sarp, Sade Sati) \u2192 the DOSHAS section.",
+    "    \u2022 Mangal & Kaal Sarp dosha \u2192 the DOSHAS section. Sade Sati \u2192 the SADE SATI section.",
     "    \u2022 Lucky numbers, name vibration, personal year \u2192 NUMEROLOGY.",
     "    \u2022 Favourable directions, grid strengths/gaps \u2192 LO SHU & KUA.",
     "- Your PRIMARY lens is the Vedic kundali (planets, signs, degrees, houses, house-lords, ascendant, dasha, doshas, Ashtakavarga). Numerology and Lo Shu / Kua are SUPPORTING \u2014 weave them in briefly, and only centre on them if the person specifically asks.",

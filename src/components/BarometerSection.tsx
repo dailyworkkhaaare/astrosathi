@@ -32,7 +32,7 @@ const TRACK_PATH = arcPath(180, 0);
 
 function biasColorClass(bias: BarometerBias): string {
   if (bias === "bullish") return "text-accent";
-  if (bias === "bearish") return "text-destructive";
+  if (bias === "bearish") return "text-destructive-strong";
   return "text-muted-foreground";
 }
 
@@ -167,7 +167,7 @@ function BiasChip({
     bias === "bullish"
       ? "border-accent/30 bg-accent/10 text-accent"
       : bias === "bearish"
-        ? "border-destructive/30 bg-destructive/10 text-destructive"
+        ? "border-destructive/30 bg-destructive/10 text-destructive-strong"
         : "border-border bg-muted/50 text-muted-foreground";
 
   return (

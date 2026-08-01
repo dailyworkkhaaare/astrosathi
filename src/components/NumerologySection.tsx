@@ -63,7 +63,7 @@ export function NumerologySection() {
           role="alert"
           className="mt-6 flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"
         >
-          <div className="flex items-center gap-2 text-destructive">
+          <div className="flex items-center gap-2 text-destructive-strong">
             <AlertTriangle size={18} aria-hidden="true" />
             <p className="text-sm font-medium text-foreground">{t("numerology.errors.title")}</p>
           </div>

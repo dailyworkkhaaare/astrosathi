@@ -257,7 +257,7 @@ function AuthPage() {
             {formError && (
               <div
                 role="alert"
-                className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive"
+                className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive-strong"
               >
                 {formError}
               </div>
@@ -453,7 +453,7 @@ function Field({
       </div>
       <div className="mt-1">{input}</div>
       {error && (
-        <p className="mt-1 text-xs text-destructive" role="alert">
+        <p className="mt-1 text-xs text-destructive-strong" role="alert">
           {error}
         </p>
       )}

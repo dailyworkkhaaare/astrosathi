@@ -366,9 +366,9 @@ function Badge({
 }) {
   const tone =
     active && !calm
-      ? "border-destructive/40 bg-destructive/10 text-destructive"
+      ? "border-destructive/40 bg-destructive/10 text-destructive-strong"
       : "border-accent/40 bg-accent/15 text-accent";
-  const dot = active && !calm ? "bg-destructive" : "bg-accent/70";
+  const dot = active && !calm ? "bg-destructive-strong" : "bg-accent/70";
   return (
     <span
       className={`inline-flex w-fit items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide ${tone}`}
@@ -542,7 +542,7 @@ function InlineError({ onRetry }: { onRetry: () => void }) {
       className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
     >
       <div className="flex items-start gap-2 text-sm text-foreground">
-        <AlertTriangle size={16} className="text-destructive" aria-hidden="true" />
+        <AlertTriangle size={16} className="text-destructive-strong" aria-hidden="true" />
         <span>{t("sections.doshas.loadError")}</span>
       </div>
       <button

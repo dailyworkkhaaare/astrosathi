@@ -213,7 +213,7 @@ export function SbcSection() {
                       cell.contribution > 0
                         ? "text-accent"
                         : cell.contribution < 0
-                          ? "text-destructive"
+                          ? "text-destructive-strong"
                           : "text-muted-foreground";
                     return (
                       <div
@@ -224,7 +224,7 @@ export function SbcSection() {
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                             cell.isMalefic
-                              ? "bg-destructive/12 text-destructive"
+                              ? "bg-destructive/12 text-destructive-strong"
                               : "bg-accent/12 text-accent"
                           }`}
                         >

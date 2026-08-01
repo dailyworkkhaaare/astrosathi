@@ -69,7 +69,7 @@ export function MarketOutlookSection() {
 
       {!loading && hasError && (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive-strong">
             <AlertCircle size={15} aria-hidden="true" />
           </span>
           <div className="flex flex-col items-start gap-2">

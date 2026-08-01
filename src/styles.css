@@ -42,6 +42,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-strong: var(--destructive-strong);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -88,8 +89,14 @@
   --muted-foreground: oklch(0.5 0.03 275);
   --accent: oklch(0.78 0.14 75);
   --accent-foreground: oklch(0.22 0.05 275);
-  --destructive: oklch(0.577 0.2 27);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
+  /* Caution/destructive = design.md amber (#D99A3D), never red. Base is the
+     wash/fill tone (low-opacity backgrounds, solid badge/button fills); the
+     dark ink foreground is legible on that fill. `-strong` is a darker
+     on-surface amber for text/icons that sit directly on parchment/card
+     rather than on the fill, since the base tone alone fails AA there. */
+  --destructive: oklch(0.731 0.13 73.3);
+  --destructive-foreground: oklch(0.22 0.05 275);
+  --destructive-strong: oklch(0.48 0.13 73.3);
   --border: oklch(0.9 0.02 85);
   --input: oklch(0.9 0.02 85);
   --ring: oklch(0.55 0.12 275);
@@ -151,8 +158,11 @@
   --muted-foreground: oklch(0.72 0.035 275);
   --accent: oklch(0.8 0.15 78);
   --accent-foreground: oklch(0.18 0.05 275);
-  --destructive: oklch(0.68 0.19 22);
-  --destructive-foreground: oklch(0.98 0.003 247);
+  /* Same amber family as :root — see comment above. `-strong` is brighter
+     here since it sits directly on the dark background/card, not the fill. */
+  --destructive: oklch(0.731 0.13 73.3);
+  --destructive-foreground: oklch(0.18 0.05 275);
+  --destructive-strong: oklch(0.8 0.13 73.3);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.8 0.15 78 / 0.55);

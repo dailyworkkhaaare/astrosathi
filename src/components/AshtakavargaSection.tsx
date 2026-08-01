@@ -44,7 +44,7 @@ export function AshtakavargaSection() {
             className="mt-5 flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
           >
             <div className="flex items-start gap-2 text-sm text-foreground">
-              <AlertTriangle size={16} className="text-destructive" aria-hidden="true" />
+              <AlertTriangle size={16} className="text-destructive-strong" aria-hidden="true" />
               <span>{t("sections.ashtakavarga.loadError")}</span>
             </div>
             <button
@@ -141,7 +141,7 @@ function BhinnashtakavargaSection() {
           className="mt-5 flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
         >
           <div className="flex items-start gap-2 text-sm text-foreground">
-            <AlertTriangle size={16} className="text-destructive" aria-hidden="true" />
+            <AlertTriangle size={16} className="text-destructive-strong" aria-hidden="true" />
             <span>{t("sections.ashtakavarga.bhinnaLoadError")}</span>
           </div>
           <button

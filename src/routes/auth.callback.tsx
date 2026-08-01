@@ -99,7 +99,7 @@ function AuthCallbackPage() {
     <section className="mx-auto max-w-md py-16 text-center">
       {error ? (
         <>
-          <p className="text-sm text-destructive">{error}</p>
+          <p className="text-sm text-destructive-strong">{error}</p>
           <button
             type="button"
             onClick={() => navigate({ to: "/auth", replace: true })}

@@ -338,7 +338,7 @@ function GemstoneRudrakshaBlock({ remedy }: { remedy: PlanetRemedies }) {
   return (
     <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
       <div className="flex items-start gap-2">
-        <Gem size={14} className="mt-0.5 shrink-0 text-destructive" aria-hidden="true" />
+        <Gem size={14} className="mt-0.5 shrink-0 text-destructive-strong" aria-hidden="true" />
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-foreground">
             {t("sections.remedies.gemstoneCaveatTitle")}

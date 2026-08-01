@@ -232,11 +232,11 @@ function Body({ data }: { data: LoShuData }) {
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {data.arrows!.map((a, i) => {
               const tone = a.type === "strength" ? "gold" : "destructive";
-              const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive";
+              const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive-strong";
               const pillTone =
                 tone === "gold"
                   ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
-                  : "text-destructive border-destructive/[33%] bg-destructive/10";
+                  : "text-destructive-strong border-destructive/[33%] bg-destructive/10";
               return (
                 <li key={i} className="rounded-lg border border-border bg-background p-3">
                   <div className="flex items-start justify-between gap-3">
@@ -390,10 +390,10 @@ function KuaBody({ kua }: { kua: Extract<LoShuKua, { available: true }> }) {
           const fav = favMap.get(dir);
           const unfav = unfavMap.get(dir);
           const isFav = !!fav;
-          const textTone = isFav ? "text-glow-gold" : "text-destructive";
+          const textTone = isFav ? "text-glow-gold" : "text-destructive-strong";
           const pillTone = isFav
             ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
-            : "text-destructive border-destructive/[33%] bg-destructive/10";
+            : "text-destructive-strong border-destructive/[33%] bg-destructive/10";
           const label = fav?.name ?? unfav?.name ?? "";
           return (
             <div
@@ -443,11 +443,11 @@ function DirList({
   tone: "gold" | "red";
   items: KuaDirection[];
 }) {
-  const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive";
+  const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive-strong";
   const badgeTone =
     tone === "gold"
       ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
-      : "text-destructive border-destructive/[33%] bg-destructive/10";
+      : "text-destructive-strong border-destructive/[33%] bg-destructive/10";
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <h4 className={"text-sm font-semibold " + textTone}>{title}</h4>
@@ -699,7 +699,7 @@ function ErrorBody({
       role="alert"
       className="mt-6 flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"
     >
-      <div className="flex items-center gap-2 text-destructive">
+      <div className="flex items-center gap-2 text-destructive-strong">
         <AlertTriangle size={18} aria-hidden="true" />
         <p className="text-sm font-medium text-foreground">{t("sections.loshu.loadError")}</p>
       </div>

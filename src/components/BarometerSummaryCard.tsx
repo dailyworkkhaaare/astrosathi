@@ -63,7 +63,7 @@ function AssetChip({ asset, t }: { asset: BarometerAsset; t: (key: string) => st
     bias === "bullish"
       ? "border-accent/30 bg-accent/10 text-accent"
       : bias === "bearish"
-        ? "border-destructive/30 bg-destructive/10 text-destructive"
+        ? "border-destructive/30 bg-destructive/10 text-destructive-strong"
         : "border-border bg-muted/50 text-muted-foreground";
   const pct = Math.round(Math.max(0, Math.min(1, asset.fusedProbability)) * 100);
 

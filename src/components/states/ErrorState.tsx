@@ -15,7 +15,7 @@ export function ErrorState({
       role="alert"
       className="flex flex-col items-center justify-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-10 text-center"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-2xl text-destructive">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-2xl text-destructive-strong">
         !
       </div>
       <h2 className="text-base font-semibold text-foreground">{title ?? t("states.error")}</h2>

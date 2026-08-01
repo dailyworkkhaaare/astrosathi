@@ -428,7 +428,7 @@ function Field({
       </label>
       <div className="mt-1">{children}</div>
       {error ? (
-        <p role="alert" className="mt-1 text-xs text-destructive">
+        <p role="alert" className="mt-1 text-xs text-destructive-strong">
           {error}
         </p>
       ) : help ? (

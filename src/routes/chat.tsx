@@ -1249,7 +1249,7 @@ function ConversationItem({
           <button
             type="button"
             onClick={() => onDelete(id)}
-            className="tap-press min-h-11 flex-1 rounded-lg border border-destructive/40 bg-destructive/10 px-2 text-xs font-medium text-destructive hover:bg-destructive/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press min-h-11 flex-1 rounded-lg border border-destructive/40 bg-destructive/10 px-2 text-xs font-medium text-destructive-strong hover:bg-destructive/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("chat.delete")}
           </button>
@@ -1320,7 +1320,7 @@ function ConversationItem({
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setConfirmingDelete(true)}
-              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive"
+              className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive-strong"
             >
               <Trash2 size={14} aria-hidden="true" />
               {t("chat.delete")}

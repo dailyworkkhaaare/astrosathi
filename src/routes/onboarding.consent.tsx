@@ -128,7 +128,7 @@ function ConsentPage() {
           {saving ? t("auth.loading") : t("common.continue")}
         </Button>
         {saveError && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-strong">
             {saveError}
           </p>
         )}

@@ -16,6 +16,7 @@ import {
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
 import { ExpandableSection } from "@/components/ExpandableSection";
+import { ChartFrame } from "@/components/chart/ChartFrame";
 
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import {
@@ -425,7 +426,7 @@ function ChartsTab() {
             </div>
           )}
           {!loading && !errorMessageKey && svg && (
-            <div className="relative mx-auto w-full max-w-md overflow-hidden rounded-lg border border-border bg-background p-2">
+            <ChartFrame>
               <div
                 className="[&_svg]:block [&_svg]:h-auto [&_svg]:w-full [&_svg]:max-w-full [&_svg_line]:stroke-primary [&_svg_path]:stroke-primary [&_svg_rect]:stroke-primary [&_svg_polygon]:stroke-primary [&_svg_text]:fill-foreground"
                 dangerouslySetInnerHTML={{ __html: svg }}
@@ -447,7 +448,7 @@ function ChartsTab() {
                   ))}
                 </svg>
               )}
-            </div>
+            </ChartFrame>
           )}
         </div>
       </Card>

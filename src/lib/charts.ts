@@ -536,6 +536,28 @@ function mapPlanets(payload: unknown): NormalizedPlanet[] {
   });
 }
 
+export type PlanetDignityFlags = {
+  exalted: boolean;
+  debilitated: boolean;
+  ownSign: boolean;
+  moolatrikona: boolean;
+  combust: boolean;
+};
+
+// Reads dignity/combustion off the tags `computeStates()` already attached to
+// NormalizedPlanet.states, so callers (e.g. remedies) don't need their own
+// copy of the DIGNITY/COMBUST_ORB tables.
+export function planetDignityState(planet: Pick<NormalizedPlanet, "states">): PlanetDignityFlags {
+  const s = planet.states;
+  return {
+    exalted: s.some((x) => x.startsWith("Exalted")),
+    debilitated: s.some((x) => x.startsWith("Debilitated")),
+    ownSign: s.includes("Own sign"),
+    moolatrikona: s.includes("Moolatrikona"),
+    combust: s.includes("Combust"),
+  };
+}
+
 export async function getPlanets(): Promise<PlanetsResult> {
   const { data, error } = await supabase.functions.invoke("chart-gateway", {
     body: { resource: "planets" },

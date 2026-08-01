@@ -7,6 +7,7 @@ import {
   useTodayTransits,
 } from "@/lib/queries";
 import { SIGN_KEYS_BY_INDEX } from "@/lib/charts";
+import { DoshaRemedySummary } from "@/components/RemediesSection";
 
 type MangalData = { has_dosha: boolean; description: string };
 type KaalSarpData = {
@@ -67,6 +68,7 @@ function MangalCard() {
             inactiveLabel={t("sections.doshas.notPresent")}
           />
           {d.description && <Body text={d.description} />}
+          {d.has_dosha && <DoshaRemedySummary doshaKey="mangal_dosha" />}
         </>
       )}
     </DoshaCard>
@@ -95,6 +97,7 @@ function KaalSarpCard() {
           />
           {d.description && <Body text={d.description} />}
           {typeLine && <MetaLine label={t("sections.doshas.typeLabel")} value={typeLine} />}
+          {d.has_dosha && <DoshaRemedySummary doshaKey="kaal_sarp_dosha" />}
         </>
       )}
     </DoshaCard>
@@ -303,6 +306,7 @@ function SadeSatiCard() {
             />
           )}
           <Body text={t(descKey)} />
+          {inSadeSati && <DoshaRemedySummary doshaKey="sade_sati" />}
         </>
       )}
     </DoshaCard>

@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Clock,
   Compass,
+  Flame,
   Grid,
   Grid3x3,
   Hash,
@@ -39,6 +40,7 @@ import { DoshasSection } from "@/components/DoshasSection";
 import { AshtakavargaSection } from "@/components/AshtakavargaSection";
 import { LoShuSection } from "@/components/LoShuSection";
 import { DashaSection } from "@/components/DashaSection";
+import { RemediesSection } from "@/components/RemediesSection";
 
 // Format a degree-within-sign (0..30) as Vedic degrees-minutes, e.g. 20.64 -> "20°38′".
 function formatDeg(deg: number | null): string | null {
@@ -78,7 +80,15 @@ const NORTH_CHART_HOUSE_REGIONS: { house: number; points: string }[] = [
   { house: 12, points: "242,10 472,10 356.5,125.5" },
 ];
 
-const TAB_KEYS = ["charts", "details", "doshas", "ashtakavarga", "numerology", "loshu"] as const;
+const TAB_KEYS = [
+  "charts",
+  "details",
+  "doshas",
+  "remedies",
+  "ashtakavarga",
+  "numerology",
+  "loshu",
+] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 type HomeSearch = { tab?: TabKey };
@@ -145,6 +155,7 @@ function HomePage() {
         {tab === "charts" && <ChartsTab />}
         {tab === "details" && <DashaSection />}
         {tab === "doshas" && <DoshasSection />}
+        {tab === "remedies" && <RemediesSection />}
         {tab === "ashtakavarga" && <AshtakavargaSection />}
         {tab === "numerology" && <NumerologySection />}
         {tab === "loshu" && <LoShuSection />}
@@ -188,6 +199,7 @@ const TAB_CONFIG: {
   { key: "charts", icon: Compass },
   { key: "details", icon: Clock },
   { key: "doshas", icon: ShieldAlert },
+  { key: "remedies", icon: Flame },
   { key: "ashtakavarga", icon: Grid3x3 },
   { key: "numerology", icon: Hash },
   { key: "loshu", icon: Grid },

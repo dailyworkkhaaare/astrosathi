@@ -201,6 +201,7 @@
       "charts": "Kundli & charts",
       "details": "Predictions",
       "doshas": "Doshas",
+      "remedies": "Remedies",
       "numerology": "Numerology",
       "loshu": "Lo Shu grid",
       "ashtakavarga": "Ashtakavarga"
@@ -531,7 +532,10 @@
       "pada": "Pada",
       "karana": "Karana",
       "vara": "Vara",
-      "paksha": { "shukla": "Shukla", "krishna": "Krishna" },
+      "paksha": {
+        "shukla": "Shukla",
+        "krishna": "Krishna"
+      },
       "loadError": "Couldn't load today's panchang.",
       "empty": "Panchang isn't ready yet.",
       "sunrise": "Sunrise",
@@ -563,7 +567,11 @@
         "wellbeing": "Wellbeing"
       },
       "focusLabel": "Focus for today",
-      "lucky": { "color": "Colour", "number": "Number", "direction": "Direction" },
+      "lucky": {
+        "color": "Colour",
+        "number": "Number",
+        "direction": "Direction"
+      },
       "disclaimer": "Astrology is for reflection and guidance, not a guarantee.",
       "loadError": "Couldn't load today's reading right now.",
       "empty": "No reading yet.",
@@ -596,8 +604,15 @@
     "market": {
       "title": "Gold & Silver Outlook",
       "subtitle": "Today's planetary read for gold & silver",
-      "metals": { "gold": "Gold", "silver": "Silver" },
-      "lean": { "up": "Leaning up", "flat": "Flat", "down": "Leaning down" },
+      "metals": {
+        "gold": "Gold",
+        "silver": "Silver"
+      },
+      "lean": {
+        "up": "Leaning up",
+        "flat": "Flat",
+        "down": "Leaning down"
+      },
       "accuracyLabel": "Last 30 days",
       "accuracyValue": "{{pct}}% correct · {{correct}} of {{total}} calls",
       "accuracyPending": "Scoring starts the day after the first run",
@@ -629,7 +644,9 @@
           "debilitatedRelief": "Mars is weak — less pressure",
           "withMoon": "Mars is sitting with the Moon — more price movement"
         },
-        "rahu": { "premium": "A speculative, inflation-premium influence is active" },
+        "rahu": {
+          "premium": "A speculative, inflation-premium influence is active"
+        },
         "moon": {
           "waxing": "The Moon is waxing (growing brighter) — supportive for silver",
           "waning": "The Moon is waning (fading) — softer for silver",
@@ -650,8 +667,17 @@
       "coverage": "Inputs used",
       "howTitle": "How to read this",
       "howBody": "One combined daily call — bullish, neutral, or bearish — for each market. The dial shows how firm today's lean is (a higher % just means a stronger lean, not a 'better' day). This is a cultural reading, not investment advice.",
-      "assets": { "nifty50": "Nifty 50", "mcxgold": "MCX Gold", "mcxsilver": "MCX Silver", "bullion": "Gold & Silver" },
-      "bias": { "bullish": "Bullish", "neutral": "Neutral", "bearish": "Bearish" }
+      "assets": {
+        "nifty50": "Nifty 50",
+        "mcxgold": "MCX Gold",
+        "mcxsilver": "MCX Silver",
+        "bullion": "Gold & Silver"
+      },
+      "bias": {
+        "bullish": "Bullish",
+        "neutral": "Neutral",
+        "bearish": "Bearish"
+      }
     },
     "bradley": {
       "title": "Market Timing Curve",
@@ -667,7 +693,11 @@
       "title": "Daily Planetary Pressure",
       "subtitle": "How the planets are pushing each market · last 30 days",
       "today": "Today",
-      "assets": { "nifty50": "Nifty 50", "mcxgold": "MCX Gold", "mcxsilver": "MCX Silver" },
+      "assets": {
+        "nifty50": "Nifty 50",
+        "mcxgold": "MCX Gold",
+        "mcxsilver": "MCX Silver"
+      },
       "legend": {
         "bearish": "Downward",
         "bullish": "Upward",
@@ -751,6 +781,70 @@
       "sadeSatiDescNone": "Saturn is not currently transiting a Sade Sati position for your Moon sign.",
       "loadError": "Couldn't load this dosha right now.",
       "retry": "Retry"
+    },
+    "remedies": {
+      "title": "Remedies",
+      "subtitle": "Traditional practices — offered gently, for reflection and positivity.",
+      "showMore": "Show {{count}} more",
+      "showFewer": "Show fewer",
+      "activeNow": "Active now",
+      "whyToggleShow": "Why this remedy",
+      "whyToggleHide": "Hide why",
+      "whyTitle": "The chart behind this",
+      "mantraLabel": "Beej mantra",
+      "danaLabel": "Dāna (charity)",
+      "gemstoneCaveatTitle": "Consult a qualified astrologer before wearing",
+      "gemstoneCaveatBody": "Gemstones and rudraksha are traditional practices some choose to explore — please speak with a qualified astrologer before wearing any.",
+      "rudrakshaMukhi": "{{count}}-mukhi Rudraksha",
+      "disclaimer": "These are traditional cultural practices offered for reflection and positivity — not medical, financial, or legal advice.",
+      "wellBalancedBody": "Your chart is well-balanced right now — here are some general well-being practices many traditions offer.",
+      "wellBalancedMantrasTitle": "General mantras",
+      "showRemedies": "Show suggested remedies",
+      "hideRemedies": "Hide suggested remedies",
+      "suggestedTitle": "Suggested remedies",
+      "mangalDoshaNote": "A gentle, traditional practice offered for this placement — not a warning.",
+      "kaalSarpDoshaNote": "A gentle, traditional practice offered for this placement — not a warning.",
+      "sadeSatiDoshaNote": "A gentle, traditional practice offered for this period — not a warning.",
+      "reasons": {
+        "mangalActive": "Your chart shows Mangal (Mars) dosha — many traditions offer gentle practices around this placement.",
+        "kaalSarpActive": "Your chart shows a Kaal Sarp yoga — many traditions suggest supportive practices for extra ease.",
+        "sadeSatiActive": "You're currently in a Sade Sati phase with Saturn — many traditions suggest steady, grounding practices during this time.",
+        "debilitated": "{{planet}} is in a debilitated placement in your chart — many traditions suggest gentle supportive practices.",
+        "combust": "{{planet}} is close to the Sun and combust in your chart — many traditions suggest supportive practices to ease this.",
+        "dashaLordWeak": "Your current Mahadasha lord, {{planet}}, is in a testing placement right now — many traditions suggest supportive practices for this period.",
+        "dashaLordSupportive": "Your current Mahadasha lord, {{planet}}, is well placed — these are simply optional practices some traditions suggest for extra ease during this period."
+      },
+      "dana": {
+        "wheat": "Wheat",
+        "jaggery": "Jaggery",
+        "copperRed": "Copper (reddish hue)",
+        "rice": "Rice",
+        "milk": "Milk",
+        "silver": "Silver",
+        "whiteCloth": "White cloth",
+        "redMasoorDal": "Red masoor dal",
+        "copper": "Copper",
+        "greenMoong": "Green moong dal",
+        "greenCloth": "Green cloth",
+        "bronze": "Bronze",
+        "turmeric": "Turmeric",
+        "chanaDal": "Chana dal",
+        "gold": "Gold",
+        "saffronYellow": "Saffron (yellow)",
+        "sugar": "Sugar",
+        "curd": "Curd",
+        "perfume": "Perfume",
+        "blackSesameTil": "Black sesame (til)",
+        "mustardOil": "Mustard oil",
+        "iron": "Iron",
+        "uradDalBlack": "Urad dal (black)",
+        "coconut": "Coconut",
+        "blueBlackCloth": "Blue-black cloth",
+        "blanket": "Blanket",
+        "sesame": "Sesame",
+        "multicolourCloth": "Multicolour cloth",
+        "feedDogs": "Feeding dogs"
+      }
     },
     "ashtakavarga": {
       "sarvashtakavargaTitle": "Sarvashtakavarga",

@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 
 import { LotusCorners } from "@/components/chart/LotusCorners";
-import { GaneshaWatermark } from "@/components/chart/GaneshaWatermark";
 
 /**
- * "Manuscript Frame" — aged-paper surface + engraved lotus corners + a
- * faint Ganesha watermark around the kundli chart. Decorative-only wrapper:
- * never touches the chart SVG string, which is passed in unchanged as children.
+ * "Manuscript Frame" — aged-paper surface + engraved lotus corners around
+ * the kundli chart. Decorative-only wrapper: never touches the chart SVG
+ * string, which is passed in unchanged as children.
  */
 export function ChartFrame({ children }: { children: ReactNode }) {
   return (
@@ -25,8 +24,6 @@ export function ChartFrame({ children }: { children: ReactNode }) {
             backgroundColor: "color-mix(in oklab, var(--card) 55%, var(--background) 45%)",
           }}
         />
-
-        <GaneshaWatermark />
 
         <div className="relative">{children}</div>
       </div>

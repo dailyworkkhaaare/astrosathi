@@ -424,7 +424,9 @@
       "nameFallback": "Guest",
       "emailFallback": "not signed in",
       "editBirth": "Edit birth details",
-      "birthHint": "Name, date, time and place used to build your chart."
+      "birthHint": "Name, date, time and place used to build your chart.",
+      "people": "People",
+      "peopleHint": "Saved charts for family, friends & partners."
     },
     "prefs": {
       "title": "Preferences",
@@ -1053,5 +1055,52 @@
         ]
       }
     ]
+  },
+  "people": {
+    "title": "People",
+    "subtitle": "Charts for the people in your life.",
+    "myself": "Myself",
+    "myselfHint": "Your own chart",
+    "addPerson": "Add person",
+    "limitReached": "You've saved the maximum of 10 people.",
+    "empty": "No saved people yet. Add someone to see their chart.",
+    "relationLabel": "Relation",
+    "relations": {
+      "wife": "Wife",
+      "husband": "Husband",
+      "partner": "Partner",
+      "father": "Father",
+      "mother": "Mother",
+      "brother": "Brother",
+      "sister": "Sister",
+      "son": "Son",
+      "daughter": "Daughter",
+      "grandmother": "Grandmother",
+      "grandfather": "Grandfather",
+      "other": "Other"
+    },
+    "new": {
+      "title": "Add a person",
+      "submit": "Save person"
+    },
+    "edit": {
+      "title": "Edit person",
+      "submit": "Save changes",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Delete this person?",
+      "deleteConfirmBody": "This removes their saved birth details and charts. This can't be undone.",
+      "deleteConfirm": "Delete",
+      "deleteCancel": "Cancel"
+    },
+    "detail": {
+      "back": "People",
+      "chartsTitle": "Charts",
+      "ascendant": "Ascendant",
+      "moon": "Moon",
+      "sun": "Sun",
+      "loadError": "Could not load this chart.",
+      "missingCoords": "This person has no birth coordinates — edit the birth place first."
+    },
+    "saveFailed": "Could not save. Please try again."
   }
 }

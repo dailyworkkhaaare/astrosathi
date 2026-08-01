@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { ChartStyle, PlanetKey, SignKey, VargaKey } from "@/lib/chart-types";
 
-const VARGA_TO_ENUM: Record<VargaKey, string> = {
+export const VARGA_TO_ENUM: Record<VargaKey, string> = {
   D1: "d1_rashi",
   D2: "d2_hora",
   D3: "d3_drekkana",
@@ -398,7 +398,10 @@ function computeStates(args: {
   return tags;
 }
 
-function mapPlanets(payload: unknown): NormalizedPlanet[] {
+// Exported so callers with an already-fetched Prokerala-shaped natal payload
+// (e.g. the person-charts bundle for a saved related person) can normalize it
+// the same way usePlanets()/getPlanets() do, without a second network call.
+export function mapPlanets(payload: unknown): NormalizedPlanet[] {
   const arr = extractPlanetArray(payload);
 
   // Find the Ascendant to compute whole-sign houses.

@@ -23,6 +23,11 @@ import {
 } from "@/lib/charts";
 import type { ChartStyle, VargaKey } from "@/lib/chart-types";
 import { getBirthProfile } from "@/lib/birth-profile";
+import {
+  listRelatedCharts,
+  type RelatedChart,
+  type PersonChartsBundle,
+} from "@/lib/related-charts";
 
 // ---------------------------------------------------------------- constants
 
@@ -698,8 +703,8 @@ export function useSadeSatiTimeline(): UseQueryResult<SadeSatiTimeline> {
               endTs: String(d.episode.endTs),
               currentPhase: d.episode.currentPhase ?? null,
               phases: Array.isArray(d.episode.phases)
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                ? d.episode.phases.map((p: any) => ({
+                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  d.episode.phases.map((p: any) => ({
                     phase: p.phase,
                     signIndex: p.signIndex,
                     startTs: String(p.startTs),
@@ -754,9 +759,7 @@ export function useMarketOutlook(): UseQueryResult<MarketOutlookValue> {
     refetchOnWindowFocus: true,
     queryFn: async () => {
       // Last ~31 calendar days (2 metals/day). RLS allows authenticated reads.
-      const sinceIso = new Date(Date.now() - 31 * 24 * 3600 * 1000)
-        .toISOString()
-        .slice(0, 10);
+      const sinceIso = new Date(Date.now() - 31 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 
       const { data: rows } = await supabase
         .from("market_predictions")
@@ -770,9 +773,7 @@ export function useMarketOutlook(): UseQueryResult<MarketOutlookValue> {
       const pick = (metal: "gold" | "silver"): MarketMetalOutlook | null => {
         const r = all.find((x) => x.trade_date === tradeDate && x.metal === metal);
         if (!r) return null;
-        const reasoning = Array.isArray(r.reasoning)
-          ? (r.reasoning as MarketReasoning[])
-          : [];
+        const reasoning = Array.isArray(r.reasoning) ? (r.reasoning as MarketReasoning[]) : [];
         return {
           metal,
           lean: r.lean as "up" | "flat" | "down",
@@ -1158,7 +1159,9 @@ export function usePanchang(): UseQueryResult<PanchangQueryValue> {
 
       const profile = await getBirthProfile();
       return {
-        sunLon, moonLon, nakshatraIndex,
+        sunLon,
+        moonLon,
+        nakshatraIndex,
         lat: profile?.latitude ?? null,
         lon: profile?.longitude ?? null,
         timezone: profile?.birth_timezone ?? "Asia/Kolkata",
@@ -1240,4 +1243,61 @@ export async function saveWhatsAppPrefs(input: {
   const { error } = await supabase.from("whatsapp_prefs").upsert(patch, { onConflict: "user_id" });
   if (error) return { error: error.message };
   return {};
+}
+
+// ---------------------------------------------------------------- People (related charts)
+
+export function useRelatedCharts(): UseQueryResult<RelatedChart[]> {
+  const userId = useCurrentUserId();
+  return useQuery<RelatedChart[]>({
+    queryKey: ["related-charts", "list", userId],
+    enabled: userId !== null,
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const { data } = await listRelatedCharts();
+      return data;
+    },
+  });
+}
+
+export type PersonChartsValue =
+  | { data: PersonChartsBundle; error?: undefined }
+  | { data?: undefined; error: { code: string; message: string } };
+
+export function usePersonCharts(
+  relatedChartId: string | undefined,
+): UseQueryResult<PersonChartsValue> {
+  const userId = useCurrentUserId();
+  return useQuery<PersonChartsValue>({
+    queryKey: ["related-charts", "person-charts", userId, relatedChartId],
+    enabled: userId !== null && !!relatedChartId,
+    staleTime: CHART_STALE_MS,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("person-charts", {
+        body: { related_chart_id: relatedChartId },
+      });
+      if (error) {
+        let code = "provider_error";
+        let message = error.message ?? "Request failed";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ctx = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.json();
+            if (body?.error?.code) code = String(body.error.code);
+            if (body?.error?.message) message = String(body.error.message);
+          } catch {
+            /* ignore */
+          }
+        }
+        return { error: { code, message } };
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bundle = (data as any)?.data as PersonChartsBundle | undefined;
+      if (!bundle) return { error: { code: "provider_error", message: "Empty response" } };
+      return { data: bundle };
+    },
+  });
 }

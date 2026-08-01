@@ -22,10 +22,15 @@ import { Route as TodayRouteImport } from './routes/today'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as OnboardingBirthRouteImport } from './routes/onboarding.birth'
 import { Route as OnboardingConsentRouteImport } from './routes/onboarding.consent'
+import { Route as PeopleIndexRouteImport } from './routes/people.index'
+import { Route as PeopleIdRouteImport } from './routes/people.$id'
+import { Route as PeopleNewRouteImport } from './routes/people.new'
 import { Route as TodayIndexRouteImport } from './routes/today.index'
 import { Route as TodayHoroscopeRouteImport } from './routes/today.horoscope'
 import { Route as TodayMarketsRouteImport } from './routes/today.markets'
 import { Route as TodayPanchangRouteImport } from './routes/today.panchang'
+import { Route as PeopleIdIndexRouteImport } from './routes/people.$id.index'
+import { Route as PeopleIdEditRouteImport } from './routes/people.$id.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -92,6 +97,21 @@ const OnboardingConsentRoute = OnboardingConsentRouteImport.update({
   path: '/onboarding/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PeopleIndexRoute = PeopleIndexRouteImport.update({
+  id: '/people/',
+  path: '/people/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PeopleIdRoute = PeopleIdRouteImport.update({
+  id: '/people/$id',
+  path: '/people/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PeopleNewRoute = PeopleNewRouteImport.update({
+  id: '/people/new',
+  path: '/people/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TodayIndexRoute = TodayIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -112,6 +132,16 @@ const TodayPanchangRoute = TodayPanchangRouteImport.update({
   path: '/panchang',
   getParentRoute: () => TodayRoute,
 } as any)
+const PeopleIdIndexRoute = PeopleIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PeopleIdRoute,
+} as any)
+const PeopleIdEditRoute = PeopleIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => PeopleIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -127,10 +157,15 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
+  '/people/$id': typeof PeopleIdRouteWithChildren
+  '/people/new': typeof PeopleNewRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
+  '/people/': typeof PeopleIndexRoute
   '/today/': typeof TodayIndexRoute
+  '/people/$id/edit': typeof PeopleIdEditRoute
+  '/people/$id/': typeof PeopleIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -145,10 +180,14 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
+  '/people/new': typeof PeopleNewRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
+  '/people': typeof PeopleIndexRoute
   '/today': typeof TodayIndexRoute
+  '/people/$id/edit': typeof PeopleIdEditRoute
+  '/people/$id': typeof PeopleIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -165,10 +204,15 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
+  '/people/$id': typeof PeopleIdRouteWithChildren
+  '/people/new': typeof PeopleNewRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
+  '/people/': typeof PeopleIndexRoute
   '/today/': typeof TodayIndexRoute
+  '/people/$id/edit': typeof PeopleIdEditRoute
+  '/people/$id/': typeof PeopleIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -186,10 +230,15 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
+    | '/people/$id'
+    | '/people/new'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
+    | '/people/'
     | '/today/'
+    | '/people/$id/edit'
+    | '/people/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -204,10 +253,14 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
+    | '/people/new'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
+    | '/people'
     | '/today'
+    | '/people/$id/edit'
+    | '/people/$id'
   id:
     | '__root__'
     | '/'
@@ -223,10 +276,15 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
+    | '/people/$id'
+    | '/people/new'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
+    | '/people/'
     | '/today/'
+    | '/people/$id/edit'
+    | '/people/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -242,6 +300,9 @@ export interface RootRouteChildren {
   TodayRoute: typeof TodayRouteWithChildren
   OnboardingBirthRoute: typeof OnboardingBirthRoute
   OnboardingConsentRoute: typeof OnboardingConsentRoute
+  PeopleIdRoute: typeof PeopleIdRouteWithChildren
+  PeopleNewRoute: typeof PeopleNewRoute
+  PeopleIndexRoute: typeof PeopleIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -337,6 +398,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/people/': {
+      id: '/people/'
+      path: '/people'
+      fullPath: '/people/'
+      preLoaderRoute: typeof PeopleIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/people/$id': {
+      id: '/people/$id'
+      path: '/people/$id'
+      fullPath: '/people/$id'
+      preLoaderRoute: typeof PeopleIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/people/new': {
+      id: '/people/new'
+      path: '/people/new'
+      fullPath: '/people/new'
+      preLoaderRoute: typeof PeopleNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/today/': {
       id: '/today/'
       path: '/'
@@ -364,6 +446,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/today/panchang'
       preLoaderRoute: typeof TodayPanchangRouteImport
       parentRoute: typeof TodayRoute
+    }
+    '/people/$id/': {
+      id: '/people/$id/'
+      path: '/'
+      fullPath: '/people/$id/'
+      preLoaderRoute: typeof PeopleIdIndexRouteImport
+      parentRoute: typeof PeopleIdRoute
+    }
+    '/people/$id/edit': {
+      id: '/people/$id/edit'
+      path: '/edit'
+      fullPath: '/people/$id/edit'
+      preLoaderRoute: typeof PeopleIdEditRouteImport
+      parentRoute: typeof PeopleIdRoute
     }
   }
 }
@@ -394,6 +490,20 @@ const TodayRouteChildren: TodayRouteChildren = {
 
 const TodayRouteWithChildren = TodayRoute._addFileChildren(TodayRouteChildren)
 
+interface PeopleIdRouteChildren {
+  PeopleIdEditRoute: typeof PeopleIdEditRoute
+  PeopleIdIndexRoute: typeof PeopleIdIndexRoute
+}
+
+const PeopleIdRouteChildren: PeopleIdRouteChildren = {
+  PeopleIdEditRoute: PeopleIdEditRoute,
+  PeopleIdIndexRoute: PeopleIdIndexRoute,
+}
+
+const PeopleIdRouteWithChildren = PeopleIdRoute._addFileChildren(
+  PeopleIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
@@ -407,6 +517,9 @@ const rootRouteChildren: RootRouteChildren = {
   TodayRoute: TodayRouteWithChildren,
   OnboardingBirthRoute: OnboardingBirthRoute,
   OnboardingConsentRoute: OnboardingConsentRoute,
+  PeopleIdRoute: PeopleIdRouteWithChildren,
+  PeopleNewRoute: PeopleNewRoute,
+  PeopleIndexRoute: PeopleIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

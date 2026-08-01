@@ -164,6 +164,91 @@ function normPlanetKey(name: string): string {
   const n = name.trim().toLowerCase();
   return PLANET_ALIAS[n] ?? n;
 }
+
+// ---------- Explainability: "the chart behind this" ----------
+// Short, plain-language facts derived from the SAME computed data used to
+// build the prompt context below (natal placements, transits, dasha) — no
+// new astronomy, just a structured echo of it for grounding/citation.
+type ReasonKind = "natal" | "transit" | "dasha";
+type ReasonDignity = "exalted" | "debilitated" | "own" | "neutral";
+type Reason = {
+  kind: ReasonKind;
+  text: string;
+  bodies?: string[];
+  house?: number;
+  sign?: string;
+  dignity?: ReasonDignity;
+};
+function reasonDignity(states: string[]): ReasonDignity | undefined {
+  if (states.includes("Exalted")) return "exalted";
+  if (states.includes("Debilitated")) return "debilitated";
+  if (states.includes("Own sign") || states.includes("Moolatrikona")) return "own";
+  return undefined;
+}
+
+// Fact sentences are template-built (not model-authored), so they must be
+// localized here explicitly — planet/sign names stay transliterated per
+// design.md, only the surrounding grammar changes per language.
+function factAscendant(lang: string, sign: string): string {
+  if (lang === "hi") return `आपका लग्न ${sign} राशि में है।`;
+  if (lang === "mr") return `तुमची लग्नरास ${sign} आहे.`;
+  return `Your Ascendant (Lagna) is in ${sign}.`;
+}
+function factNatalPlanet(
+  lang: string, name: string, signName: string, house: number,
+  dignity: ReasonDignity | undefined, retro: boolean,
+): string {
+  let text: string;
+  if (lang === "hi") {
+    text = dignity === "exalted"
+      ? `${name} ${signName} राशि में उच्च का है, भाव ${house} में — एक मज़बूत स्थिति।`
+      : dignity === "debilitated"
+        ? `${name} ${signName} राशि में नीच का है, भाव ${house} में — इसे थोड़े सहयोग की ज़रूरत है।`
+        : dignity === "own"
+          ? `${name} अपनी ही राशि ${signName} में है, भाव ${house} में — स्थिर और सहज।`
+          : `${name} ${signName} राशि में है, भाव ${house} में।`;
+    if (retro) text += " यह अभी वक्री है।";
+  } else if (lang === "mr") {
+    text = dignity === "exalted"
+      ? `${name} ${signName} राशीत उच्च आहे, भाव ${house} मध्ये — एक बलवान स्थिती.`
+      : dignity === "debilitated"
+        ? `${name} ${signName} राशीत नीच आहे, भाव ${house} मध्ये — याला थोडा आधार हवा आहे.`
+        : dignity === "own"
+          ? `${name} स्वतःच्या राशीत ${signName} आहे, भाव ${house} मध्ये — स्थिर आणि आरामदायक.`
+          : `${name} ${signName} राशीत आहे, भाव ${house} मध्ये.`;
+    if (retro) text += " हा सध्या वक्री आहे.";
+  } else {
+    text = dignity === "exalted"
+      ? `${name} is exalted in ${signName}, house ${house} — a strong placement.`
+      : dignity === "debilitated"
+        ? `${name} is debilitated in ${signName}, house ${house} — its energy needs gentle support.`
+        : dignity === "own"
+          ? `${name} is in its own sign ${signName}, house ${house} — steady and comfortable.`
+          : `${name} is in ${signName}, house ${house}.`;
+    if (retro) text += " It is retrograde right now.";
+  }
+  return text;
+}
+function factMoonTransit(lang: string, house: number, sign: string): string {
+  if (lang === "hi") return `चंद्रमा आज आपके भाव ${house} में गोचर कर रहा है, ${sign} राशि में।`;
+  if (lang === "mr") return `चंद्र आज तुमच्या भाव ${house} मध्ये गोचर करत आहे, ${sign} राशीत.`;
+  return `The Moon is transiting your house ${house} today, in ${sign}.`;
+}
+function factPlanetTransit(lang: string, name: string, house: number, sign: string, retro: boolean): string {
+  if (lang === "hi") return `गोचर में ${name} अभी आपके भाव ${house} में है, ${sign} राशि में${retro ? " (वक्री)" : ""}।`;
+  if (lang === "mr") return `गोचरात ${name} सध्या तुमच्या भाव ${house} मध्ये आहे, ${sign} राशीत${retro ? " (वक्री)" : ""}.`;
+  return `Transiting ${name} is in your house ${house} right now, in ${sign}${retro ? " (retrograde)" : ""}.`;
+}
+function factDasha(lang: string, maha: string, antar?: string): string {
+  if (antar) {
+    if (lang === "hi") return `आप अभी अपनी ${maha}–${antar} दशा में हैं।`;
+    if (lang === "mr") return `तुम्ही सध्या तुमच्या ${maha}–${antar} दशेत आहात.`;
+    return `You're in your ${maha}–${antar} period right now.`;
+  }
+  if (lang === "hi") return `आप अभी अपनी ${maha} महादशा में हैं।`;
+  if (lang === "mr") return `तुम्ही सध्या तुमच्या ${maha} महादशेत आहात.`;
+  return `You're in your ${maha} Mahadasha right now.`;
+}
 function angularSep(a: number, b: number): number {
   let d = Math.abs(a - b) % 360;
   if (d > 180) d = 360 - d;
@@ -193,12 +278,13 @@ function planetStates(args: {
   return tags;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatNatal(natal: any): string | null {
+function formatNatal(natal: any, lang: string): { text: string; facts: Reason[] } | null {
   const arr = extractPlanetArray(natal);
   if (!arr.length) return null;
   const asc = arr.find(ctxIsAsc);
   const ascRasiId = asc ? ctxRasiId(asc) : null;
   const lines: string[] = [];
+  const facts: Reason[] = [];
   if (asc) {
     const ascRasi = asc.rasi ?? asc.sign ?? asc.zodiac ?? {};
     const ascSign = String(ascRasi?.name ?? "");
@@ -206,6 +292,14 @@ function formatNatal(natal: any): string | null {
     const ascLon = ctxNum(ctxPick(asc, "longitude", "long", "lon"));
     const deg = ascDeg != null ? ascDeg : ascLon != null ? ascLon % 30 : null;
     lines.push(`Ascendant (Lagna): ${ascSign || "?"}${deg != null ? " " + deg.toFixed(2) + "\u00B0" : ""}`);
+    if (ascSign) {
+      facts.push({
+        kind: "natal",
+        text: factAscendant(lang, ascSign),
+        bodies: ["Ascendant"],
+        sign: ascSign,
+      });
+    }
   }
   const sunEntry = arr.find((p) => !ctxIsAsc(p) && normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "sun");
   let sunLon: number | null = null;
@@ -241,9 +335,15 @@ function formatNatal(natal: any): string | null {
     if (states.length) parts.push(`[${states.join(", ")}]`);
     lines.push("- " + parts.join(" "));
     planetCount++;
+
+    if (signName && house != null) {
+      const dignity = reasonDignity(states);
+      const text = factNatalPlanet(lang, name, signName, house, dignity, states.includes("Retrograde"));
+      facts.push({ kind: "natal", text, bodies: [name], house, sign: signName, dignity });
+    }
   }
   if (!planetCount) return null;
-  return lines.join("\n");
+  return { text: lines.join("\n"), facts };
 }
 
 // ---------- Current sky (gochara) ----------
@@ -301,11 +401,13 @@ function formatCurrentSky(args: {
   planets: TransitPlanetRow[]; moon: MoonRow | null;
   natalAscSign: number | null; natalMoonSign: number | null;
   liveAsc: { sign: number; deg: number } | null;
-}): string | null {
-  const { planets, moon, natalAscSign, natalMoonSign, liveAsc } = args;
+  lang: string;
+}): { text: string; facts: Reason[] } | null {
+  const { planets, moon, natalAscSign, natalMoonSign, liveAsc, lang } = args;
   const byId: Record<number, TransitPlanetRow> = {};
   for (const p of planets) byId[p.planet] = p;
   const lines: string[] = [];
+  const facts: Reason[] = [];
   if (liveAsc) {
     const nk = ctxNakshatra(liveAsc.sign * 30 + liveAsc.deg);
     lines.push("Ascendant rising NOW: " + skySignName(liveAsc.sign) + " " + skyDeg(liveAsc.deg) + (nk ? " - nakshatra " + nk.name + " pada " + nk.pada : ""));
@@ -313,6 +415,15 @@ function formatCurrentSky(args: {
   if (moon) {
     const h = skyHouse(moon.moon_sign, natalAscSign);
     lines.push("Moon: " + skySignName(moon.moon_sign) + " " + skyDeg(moon.moon_deg) + (h != null ? " - House " + h : "") + (moon.moon_nakshatra != null ? " - nakshatra " + skyNakName(moon.moon_nakshatra) + " pada " + (moon.moon_pada ?? "?") : ""));
+    if (h != null) {
+      facts.push({
+        kind: "transit",
+        text: factMoonTransit(lang, h, skySignName(moon.moon_sign)),
+        bodies: ["Moon"],
+        house: h,
+        sign: skySignName(moon.moon_sign),
+      });
+    }
   }
   for (const entry of TRANSIT_PLANET_ORDER) {
     const p = byId[entry.id];
@@ -321,17 +432,27 @@ function formatCurrentSky(args: {
     const retro = p.retrograde ? " (R)" : "";
     const nk = p.nakshatra != null ? " - nakshatra " + skyNakName(p.nakshatra) + " pada " + (p.pada ?? "?") : "";
     lines.push(entry.name + ": " + skySignName(p.sign) + " " + skyDeg(p.deg) + retro + (h != null ? " - House " + h : "") + nk + skyIngressNote(p.next_ingress_ts, p.next_sign));
+    if (h != null) {
+      facts.push({
+        kind: "transit",
+        text: factPlanetTransit(lang, entry.name, h, skySignName(p.sign), Boolean(p.retrograde)),
+        bodies: [entry.name],
+        house: h,
+        sign: skySignName(p.sign),
+      });
+    }
   }
   if (!lines.length) return null;
   const ref = "Houses above are whole-sign from the natal Ascendant (" + (natalAscSign != null ? skySignName(natalAscSign) : "?") + "). Natal Moon sign is " + (natalMoonSign != null ? skySignName(natalMoonSign) : "?") + ".";
-  return lines.join("\n") + "\n" + ref;
+  return { text: lines.join("\n") + "\n" + ref, facts };
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatDasha(dasha: any): string | null {
+function formatDasha(dasha: any, lang: string): { text: string; facts: Reason[] } | null {
   const periods = deepFindArray(dasha, ["dasha_periods", "dashaPeriods"]);
   if (!periods.length) return null;
   const now = Date.now();
   const lines: string[] = [];
+  const facts: Reason[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const within = (x: any) => {
     const s = new Date(x?.start).getTime();
@@ -343,9 +464,22 @@ function formatDasha(dasha: any): string | null {
     lines.push(`Current Mahadasha: ${curMaha.name} (${ctxDate(curMaha.start)} to ${ctxDate(curMaha.end)}).`);
     const antars = Array.isArray(curMaha.antardasha) ? curMaha.antardasha : [];
     const curAntar = antars.find(within);
-    if (curAntar) lines.push(`Current Antardasha: ${curMaha.name}-${curAntar.name} (${ctxDate(curAntar.start)} to ${ctxDate(curAntar.end)}).`);
+    if (curAntar) {
+      lines.push(`Current Antardasha: ${curMaha.name}-${curAntar.name} (${ctxDate(curAntar.start)} to ${ctxDate(curAntar.end)}).`);
+      facts.push({
+        kind: "dasha",
+        text: factDasha(lang, curMaha.name, curAntar.name),
+        bodies: [curMaha.name, curAntar.name],
+      });
+    } else {
+      facts.push({
+        kind: "dasha",
+        text: factDasha(lang, curMaha.name),
+        bodies: [curMaha.name],
+      });
+    }
   }
-  return lines.length ? lines.join("\n") : null;
+  return lines.length ? { text: lines.join("\n"), facts } : null;
 }
 
 // ---------- Language + safe JSON parse ----------
@@ -361,6 +495,18 @@ function parseModelJson(raw: string): Record<string, unknown> | null {
 }
 
 const AREA_KEYS = ["general", "work", "relationships", "wellbeing"];
+
+// Whitelist model-returned reason indices against the real facts array —
+// the model can only select from provided facts, never invent one.
+function validIndices(raw: unknown, max: number): number[] {
+  if (!Array.isArray(raw)) return [];
+  const out: number[] = [];
+  for (const v of raw) {
+    const n = typeof v === "number" ? v : Number(v);
+    if (Number.isInteger(n) && n >= 0 && n < max && !out.includes(n)) out.push(n);
+  }
+  return out.slice(0, 4);
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -380,14 +526,29 @@ Deno.serve(async (req: Request) => {
   const lang = LANG_NAME[langRaw] ? langRaw : "en";
   const force = body.force === true;
 
+  // ---- Auth: normal in-app (login token) OR service-role (explicit user_id) ----
+  // When called with the service key + an explicit user_id (e.g. from
+  // build-guidance / the scheduled WhatsApp send), generate for that user.
+  // Otherwise behave exactly as before: derive the user from their login token.
   const authHeader = req.headers.get("Authorization") ?? "";
-  const authClient: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
-    global: { headers: { Authorization: authHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: userData, error: userErr } = await authClient.auth.getUser();
-  if (userErr || !userData?.user) return err(401, "not_authenticated");
-  const userId = userData.user.id;
+  const bearer = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const bodyUserId = typeof body.user_id === "string" ? body.user_id.trim() : "";
+
+  let userId: string;
+  if (bodyUserId && bearer && bearer === SERVICE_KEY) {
+    // Service-role invocation. The service key is a server-only secret,
+    // so trusting body.user_id here is safe.
+    userId = bodyUserId;
+  } else {
+    // Normal in-app flow: derive the user from their login token.
+    const authClient: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: userData, error: userErr } = await authClient.auth.getUser();
+    if (userErr || !userData?.user) return err(401, "not_authenticated");
+    userId = userData.user.id;
+  }
 
   const svc: SupabaseClient = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -409,7 +570,7 @@ Deno.serve(async (req: Request) => {
   if (!force) {
     const { data: cached } = await svc
       .from("daily_horoscopes")
-      .select("summary, areas, focus, lucky, model")
+      .select("summary, areas, focus, lucky, model, reasons")
       .eq("user_id", userId)
       .eq("horoscope_date", todayIso)
       .eq("lang", lang)
@@ -419,6 +580,7 @@ Deno.serve(async (req: Request) => {
         ok: true, cached: true, date: todayIso, lang,
         summary: cached.summary, areas: cached.areas ?? [],
         focus: cached.focus ?? null, lucky: cached.lucky ?? null, model: cached.model,
+        reasons: cached.reasons ?? null,
       });
     }
   }
@@ -435,11 +597,12 @@ Deno.serve(async (req: Request) => {
   const byType: Record<string, any> = {};
   for (const a of arts ?? []) if (!(a.chart_type in byType)) byType[a.chart_type] = a.chart_jsonb;
 
-  const natalText = byType.natal ? formatNatal(byType.natal) : null;
-  if (!natalText) {
+  const natalResult = byType.natal ? formatNatal(byType.natal, lang) : null;
+  if (!natalResult) {
     // No computed chart yet — let the client show a "complete your profile" state.
     return json(200, { ok: true, incomplete: true, date: todayIso, lang });
   }
+  const natalText = natalResult.text;
 
   // Natal ascendant + moon sign for gochara houses.
   let natalAscSign: number | null = null;
@@ -454,6 +617,7 @@ Deno.serve(async (req: Request) => {
 
   // Current sky.
   let skyText: string | null = null;
+  let skyFacts: Reason[] = [];
   try {
     const { data: transitPlanets } = await svc
       .from("transit_planets")
@@ -482,13 +646,19 @@ Deno.serve(async (req: Request) => {
         liveAsc = { sign: Math.floor(ascLon / 30) % 12, deg: ascLon % 30 };
       } catch (_e) { liveAsc = null; }
     }
-    skyText = formatCurrentSky({
+    const skyResult = formatCurrentSky({
       planets: (transitPlanets ?? []) as TransitPlanetRow[],
-      moon, natalAscSign, natalMoonSign, liveAsc,
+      moon, natalAscSign, natalMoonSign, liveAsc, lang,
     });
-  } catch (_e) { skyText = null; }
+    skyText = skyResult?.text ?? null;
+    skyFacts = skyResult?.facts ?? [];
+  } catch (_e) { skyText = null; skyFacts = []; }
 
-  const dashaText = byType.vimshottari_dasha ? formatDasha(byType.vimshottari_dasha) : null;
+  const dashaResult = byType.vimshottari_dasha ? formatDasha(byType.vimshottari_dasha, lang) : null;
+  const dashaText = dashaResult?.text ?? null;
+
+  const facts: Reason[] = [...natalResult.facts, ...skyFacts, ...(dashaResult?.facts ?? [])].slice(0, 24);
+  const factsListText = facts.map((f, i) => `[${i}] ${f.text}`).join("\n");
 
   const firstName = String(birth?.full_name ?? "").trim().split(/\s+/)[0] || "";
   const todayLabel = new Intl.DateTimeFormat("en-GB", {
@@ -522,18 +692,23 @@ Deno.serve(async (req: Request) => {
     "OUTPUT: Return ONLY a JSON object (no markdown, no commentary) with EXACTLY this shape:",
     "{",
     '  "summary": "2-3 warm sentences about the overall feel of today for this person",',
+    '  "summaryReasons": [0, 2],',
     '  "areas": [',
-    '    { "key": "general", "text": "1-2 gentle sentences" },',
-    '    { "key": "work", "text": "1-2 gentle sentences on work/study/focus" },',
-    '    { "key": "relationships", "text": "1-2 gentle sentences on relationships/family" },',
-    '    { "key": "wellbeing", "text": "1-2 gentle sentences on mind & body wellbeing" }',
+    '    { "key": "general", "text": "1-2 gentle sentences", "reasons": [1] },',
+    '    { "key": "work", "text": "1-2 gentle sentences on work/study/focus", "reasons": [] },',
+    '    { "key": "relationships", "text": "1-2 gentle sentences on relationships/family", "reasons": [] },',
+    '    { "key": "wellbeing", "text": "1-2 gentle sentences on mind & body wellbeing", "reasons": [] }',
     "  ],",
     '  "focus": "one short, gentle suggestion to carry through the day",',
     '  "lucky": { "color": "a calming colour", "number": "a single number", "direction": "a compass direction" }',
     "}",
     "Use exactly these four area keys in this order. Keep the whole thing concise and soothing.",
+    '"summaryReasons" and each area\'s "reasons" are arrays of 0-based indices into the FACTS list below — include ONLY indices whose fact genuinely supports that line (an empty array is fine if none clearly apply). Never invent an index or a fact not in the list.',
     "",
-    "Chart facts and transits (ground truth):",
+    "FACTS (reference ONLY by these exact indices):",
+    facts.length ? factsListText : "(none)",
+    "",
+    "Chart facts and transits (ground truth, for your understanding):",
     context,
   ].join("\n");
 
@@ -556,7 +731,7 @@ Deno.serve(async (req: Request) => {
             { role: "user", content: "Give me my calm daily reading for today as JSON only." },
           ],
           temperature: 0.7,
-          max_tokens: 900,
+          max_tokens: 1100,
           response_format: { type: "json_object" },
         }),
       },
@@ -576,14 +751,26 @@ Deno.serve(async (req: Request) => {
   // Normalize areas to the four expected keys, in order.
   const rawAreas = Array.isArray(parsed.areas) ? parsed.areas : [];
   const areaText: Record<string, string> = {};
+  const areaReasonIdx: Record<string, number[]> = {};
   for (const a of rawAreas) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const key = String((a as any)?.key ?? "").toLowerCase();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const text = String((a as any)?.text ?? "").trim();
-    if (AREA_KEYS.includes(key) && text) areaText[key] = text;
+    if (AREA_KEYS.includes(key) && text) {
+      areaText[key] = text;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      areaReasonIdx[key] = validIndices((a as any)?.reasons, facts.length);
+    }
   }
   const areas = AREA_KEYS.filter((k) => areaText[k]).map((k) => ({ key: k, text: areaText[k] }));
+  const summaryReasonIdx = validIndices(parsed.summaryReasons, facts.length);
+  const reasons = {
+    summary: summaryReasonIdx.map((i) => facts[i]),
+    areas: Object.fromEntries(
+      AREA_KEYS.filter((k) => areaText[k]).map((k) => [k, (areaReasonIdx[k] ?? []).map((i) => facts[i])]),
+    ),
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const luckyRaw = (parsed.lucky as any) ?? null;
@@ -601,10 +788,10 @@ Deno.serve(async (req: Request) => {
   await svc.from("daily_horoscopes").upsert(
     {
       user_id: userId, horoscope_date: todayIso, lang,
-      summary, areas, focus, lucky, model: MODEL,
+      summary, areas, focus, lucky, model: MODEL, reasons,
     },
     { onConflict: "user_id,horoscope_date,lang" },
   );
 
-  return json(200, { ok: true, cached: false, date: todayIso, lang, summary, areas, focus, lucky, model: MODEL });
+  return json(200, { ok: true, cached: false, date: todayIso, lang, summary, areas, focus, lucky, model: MODEL, reasons });
 });

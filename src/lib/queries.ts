@@ -1028,6 +1028,18 @@ export type DailyHoroscopeLucky = {
   number: string | null;
   direction: string | null;
 };
+export type DailyHoroscopeReason = {
+  kind: "natal" | "transit" | "dasha";
+  text: string;
+  bodies?: string[];
+  house?: number;
+  sign?: string;
+  dignity?: "exalted" | "debilitated" | "own" | "neutral";
+};
+export type DailyHoroscopeReasons = {
+  summary: DailyHoroscopeReason[];
+  areas: Record<string, DailyHoroscopeReason[]>;
+};
 export type DailyHoroscopeValue = {
   incomplete: boolean;
   summary: string | null;
@@ -1035,6 +1047,7 @@ export type DailyHoroscopeValue = {
   focus: string | null;
   lucky: DailyHoroscopeLucky | null;
   date: string | null;
+  reasons: DailyHoroscopeReasons | null;
 };
 
 // Personalized daily reading. The `daily-horoscope` Edge Function grounds on
@@ -1074,6 +1087,7 @@ export function useDailyHoroscope(lang: string): UseQueryResult<DailyHoroscopeVa
           focus: null,
           lucky: null,
           date: data?.date ?? null,
+          reasons: null,
         };
       }
       return {
@@ -1083,6 +1097,7 @@ export function useDailyHoroscope(lang: string): UseQueryResult<DailyHoroscopeVa
         focus: data?.focus ?? null,
         lucky: (data?.lucky ?? null) as DailyHoroscopeLucky | null,
         date: data?.date ?? null,
+        reasons: (data?.reasons ?? null) as DailyHoroscopeReasons | null,
       };
     },
   });

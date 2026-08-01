@@ -569,7 +569,10 @@
       "empty": "No reading yet.",
       "completeProfile": "Add your birth details to see your personal daily reading.",
       "completeCta": "Complete birth profile",
-      "readFull": "Read full horoscope"
+      "readFull": "Read full horoscope",
+      "whyTitle": "The chart behind this",
+      "whyToggleShow": "Show the chart behind this",
+      "whyToggleHide": "Hide the chart behind this"
     },
     "today": {
       "title": "Today's sky",

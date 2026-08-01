@@ -340,9 +340,6 @@ function GemstoneRudrakshaBlock({ remedy }: { remedy: PlanetRemedies }) {
       <div className="flex items-start gap-2">
         <Gem size={14} className="mt-0.5 shrink-0 text-destructive-strong" aria-hidden="true" />
         <div className="flex flex-col gap-1">
-          <p className="text-xs font-medium text-foreground">
-            {t("sections.remedies.gemstoneCaveatTitle")}
-          </p>
           <p className="text-xs leading-relaxed text-muted-foreground">
             {remedy.gemstone.name} ({remedy.gemstone.sanskritName}) ·{" "}
             {t("sections.remedies.rudrakshaMukhi", { count: remedy.rudraksha.mukhi })}

@@ -380,6 +380,7 @@
       "week": "How is this week looking for me?",
       "general": "What should I keep in mind today?"
     },
+    "subjectSeed": "What can you tell me about {{name}}'s chart?",
     "composerPlaceholder": "Message AstroSaathi",
     "attach": "Attach",
     "stop": "Stop generating",
@@ -1100,6 +1101,8 @@
       "sun": "Sun",
       "loadError": "Could not load this chart.",
       "missingCoords": "This person has no birth coordinates — edit the birth place first.",
+      "askAstrologer": "Ask AstroSaathi about {{name}}",
+      "askAstrologerHint": "Chat about their chart",
       "compatibility": "Compatibility",
       "compatibilityHint": "See how your charts align"
     },

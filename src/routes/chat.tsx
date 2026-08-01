@@ -81,7 +81,7 @@ function commonPrefixLen(a: string, b: string): number {
 // handlers as Server-Sent Events arrive. We can't use supabase.functions.invoke
 // here because it buffers the whole response; we need the raw streaming body.
 async function streamAstrologerReply(
-  args: { message: string; conversationId: string | null },
+  args: { message: string; conversationId: string | null; subjectRelatedChartId?: string },
   handlers: {
     onMeta?: (conversationId: string) => void;
     onDelta: (text: string) => void;
@@ -115,6 +115,7 @@ async function streamAstrologerReply(
     body: JSON.stringify({
       message: args.message,
       conversation_id: args.conversationId || undefined,
+      subject_related_chart_id: args.subjectRelatedChartId || undefined,
       stream: true,
     }),
   });
@@ -208,16 +209,25 @@ async function streamAstrologerReply(
 }
 
 const MAX_SEED_LENGTH = 500;
+const MAX_SUBJECT_ID_LENGTH = 100;
 
-type ChatSearch = { seed?: string };
+type ChatSearch = { seed?: string; subjectRelatedChartId?: string };
 
 export const Route = createFileRoute("/chat")({
   validateSearch: (search: Record<string, unknown>): ChatSearch => {
-    const raw = search.seed;
-    if (typeof raw !== "string") return {};
-    const trimmed = raw.trim();
-    if (!trimmed || trimmed.length > MAX_SEED_LENGTH) return {};
-    return { seed: trimmed };
+    const result: ChatSearch = {};
+    const rawSeed = search.seed;
+    if (typeof rawSeed === "string") {
+      const trimmed = rawSeed.trim();
+      if (trimmed && trimmed.length <= MAX_SEED_LENGTH) result.seed = trimmed;
+    }
+    const rawSubject = search.subjectRelatedChartId;
+    if (typeof rawSubject === "string") {
+      const trimmed = rawSubject.trim();
+      if (trimmed && trimmed.length <= MAX_SUBJECT_ID_LENGTH)
+        result.subjectRelatedChartId = trimmed;
+    }
+    return result;
   },
   head: () => ({
     meta: [
@@ -304,7 +314,7 @@ function buildSuggestedPrompts(
 function ChatPage() {
   useRequireOnboarding();
   const { t } = useTranslation();
-  const { seed } = Route.useSearch();
+  const { seed, subjectRelatedChartId } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const [profileName, setProfileName] = useState<string | null>(null);
   useEffect(() => {
@@ -377,6 +387,10 @@ function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastFailed, setLastFailed] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  // Scopes only the very first message of a freshly-opened conversation to a
+  // saved person (e.g. arriving via "Ask AstroSaathi about {name}"); cleared
+  // as soon as that message is sent, same lifecycle as the `seed` param below.
+  const [pendingSubjectChartId, setPendingSubjectChartId] = useState<string | null>(null);
   // Id of the assistant message currently being streamed (for the live caret).
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [streamPhase, setStreamPhase] = useState<
@@ -593,6 +607,7 @@ function ChatPage() {
     setConversationId(id);
     setError(null);
     setLastFailed(null);
+    setPendingSubjectChartId(null);
     const { data } = await supabase
       .from("chat_messages")
       .select("role, content, created_at")
@@ -615,10 +630,11 @@ function ChatPage() {
   // was active in the last 15 minutes. After a longer gap the user is most
   // likely here to ask something new, so land on the empty composer instead
   // of resuming a stale conversation — still browsable from the sidebar.
-  // Skipped entirely when a `?seed=` is present (e.g. tapping a house on
-  // Home): that's an explicit signal to ask something new, so resuming an
-  // old conversation would both land on the wrong thread and silently drop
-  // the seed (its pre-fill effect below only applies to an empty thread).
+  // Skipped entirely when a `?seed=` or `?subjectRelatedChartId=` is present
+  // (e.g. tapping a house on Home, or "Ask AstroSaathi about {name}"): that's
+  // an explicit signal to ask something new, so resuming an old conversation
+  // would both land on the wrong thread and silently drop the seed/subject
+  // (their pre-fill effect below only applies to an empty thread).
   const RESUME_WINDOW_MS = 15 * 60 * 1000;
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   useEffect(() => {
@@ -629,7 +645,7 @@ function ChatPage() {
       const mostRecent = list[0];
       const lastActiveMs = mostRecent ? new Date(mostRecent.updated_at).getTime() : NaN;
       const isRecent = Number.isFinite(lastActiveMs) && Date.now() - lastActiveMs < RESUME_WINDOW_MS;
-      if (mostRecent && isRecent && !seed) {
+      if (mostRecent && isRecent && !seed && !subjectRelatedChartId) {
         await loadConversation(mostRecent.id);
       }
       if (!cancelled) setInitialLoadDone(true);
@@ -637,7 +653,7 @@ function ChatPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; `seed` is read once by design, not re-triggered on later changes (e.g. once cleared by the pre-fill effect below).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; `seed`/`subjectRelatedChartId` are read once by design, not re-triggered on later changes (e.g. once cleared by the pre-fill effect below).
   }, [loadConversation, refetchConversations]);
 
   // Autofocus the composer once we land on a genuinely empty conversation —
@@ -651,15 +667,18 @@ function ChatPage() {
   }, [initialLoadDone, isMobile, messages.length, sending]);
 
   // Pre-fill the composer from a `?seed=` search param (e.g. the "Ask about
-  // today" bridge from Home) — never auto-sent, the user still presses send.
-  // Only applies to a genuinely empty conversation, and the param is stripped
-  // right after so a refresh or reload doesn't re-inject it.
+  // today" bridge from Home) and/or capture a `?subjectRelatedChartId=` to
+  // scope the first message to a saved person (e.g. "Ask AstroSaathi about
+  // {name}" on their detail page) — never auto-sent, the user still presses
+  // send. Only applies to a genuinely empty conversation, and the params are
+  // stripped right after so a refresh or reload doesn't re-inject them.
   useEffect(() => {
-    if (!initialLoadDone || !seed || messages.length > 0) return;
-    setInput(seed);
+    if (!initialLoadDone || (!seed && !subjectRelatedChartId) || messages.length > 0) return;
+    if (seed) setInput(seed);
+    if (subjectRelatedChartId) setPendingSubjectChartId(subjectRelatedChartId);
     textareaRef.current?.focus();
     void navigate({ search: {}, replace: true });
-  }, [initialLoadDone, seed, messages.length, navigate]);
+  }, [initialLoadDone, seed, subjectRelatedChartId, messages.length, navigate]);
 
   // Auto-grow textarea
   useLayoutEffect(() => {
@@ -713,7 +732,7 @@ function ChatPage() {
 
   // ---- Send via real Edge Function (streaming) ----
   const sendToBackend = useCallback(
-    async (text: string) => {
+    async (text: string, subjectRelatedChartId?: string) => {
       setSending(true);
       setStreamPhase("connecting");
       setError(null);
@@ -761,7 +780,7 @@ function ChatPage() {
       for (let attempt = 1; attempt <= MAX_SSE_ATTEMPTS; attempt++) {
         try {
           await streamAstrologerReply(
-            { message: text, conversationId },
+            { message: text, conversationId, subjectRelatedChartId },
             {
               onMeta: (cid) => {
                 if (cid && cid !== conversationId) setConversationId(cid);
@@ -855,6 +874,7 @@ function ChatPage() {
           body: {
             message: text,
             conversation_id: conversationId || undefined,
+            subject_related_chart_id: subjectRelatedChartId || undefined,
           },
         });
         if (invokeErr) throw invokeErr;
@@ -951,9 +971,11 @@ function ChatPage() {
       setMessages((m) => [...m, { id: newId(), role: "user", content: text }]);
       setInput("");
       setPinnedToBottom(true);
-      await sendToBackend(text);
+      const subjectRelatedChartId = pendingSubjectChartId ?? undefined;
+      if (pendingSubjectChartId) setPendingSubjectChartId(null);
+      await sendToBackend(text, subjectRelatedChartId);
     },
-    [sending, sendToBackend],
+    [sending, sendToBackend, pendingSubjectChartId],
   );
 
   const handleRetry = useCallback(() => {
@@ -984,6 +1006,7 @@ function ChatPage() {
     setError(null);
     setLastFailed(null);
     setPinnedToBottom(true);
+    setPendingSubjectChartId(null);
     if (isMobile) setSidebarOpen(false);
     textareaRef.current?.focus();
   }, [isMobile]);

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Heart, Pencil } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Pencil } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { ChartFrame } from "@/components/chart/ChartFrame";
@@ -127,26 +127,51 @@ function PersonDetailPage() {
             <BasicStat label={t("people.detail.sun")} value={bundle.basic.sun?.name} />
           </div>
 
-          {COMPAT_RELATIONS.includes(bundle.person.relation) && (
+          <div
+            className="overflow-hidden rounded-2xl border border-border bg-card"
+            style={{ boxShadow: "var(--shadow-soft)" }}
+          >
             <Link
-              to="/people/$id/compatibility"
-              params={{ id }}
-              className="tap-press flex min-h-11 w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{ boxShadow: "var(--shadow-soft)" }}
+              to="/chat"
+              search={{
+                seed: t("chat.subjectSeed", { name: bundle.person.full_name }),
+                subjectRelatedChartId: id,
+              }}
+              className="tap-press flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
-                <Heart size={18} aria-hidden="true" />
+                <MessageCircle size={18} aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-foreground">
-                  {t("people.detail.compatibility")}
+                  {t("people.detail.askAstrologer", { name: bundle.person.full_name })}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {t("people.detail.compatibilityHint")}
+                  {t("people.detail.askAstrologerHint")}
                 </span>
               </span>
             </Link>
-          )}
+
+            {COMPAT_RELATIONS.includes(bundle.person.relation) && (
+              <Link
+                to="/people/$id/compatibility"
+                params={{ id }}
+                className="tap-press flex min-h-11 w-full items-center gap-3 border-t border-border/60 px-4 py-3 text-left transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+                  <Heart size={18} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-foreground">
+                    {t("people.detail.compatibility")}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {t("people.detail.compatibilityHint")}
+                  </span>
+                </span>
+              </Link>
+            )}
+          </div>
 
           <div
             className="rounded-2xl border border-border bg-card p-5"

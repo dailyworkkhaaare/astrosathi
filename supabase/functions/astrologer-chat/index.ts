@@ -8,10 +8,7 @@
 //   OPENROUTER_API_KEY, and optionally OPENROUTER_MODEL.
 
 // @ts-ignore - esm.sh import (resolved at deploy time)
-import {
-  createClient,
-  type SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 // @ts-ignore - esm.sh import (resolved at deploy time). Same validated engine as transit-compute.
 import { getAscendant } from "https://esm.sh/gh/heirmez/vedic-ephemeris@main/index.mjs";
 
@@ -22,8 +19,7 @@ declare const Deno: any;
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -109,17 +105,7 @@ const NAKSHATRAS = [
   "Uttara Bhadrapada",
   "Revati",
 ];
-const NAK_LORDS = [
-  "Ketu",
-  "Venus",
-  "Sun",
-  "Moon",
-  "Mars",
-  "Rahu",
-  "Jupiter",
-  "Saturn",
-  "Mercury",
-];
+const NAK_LORDS = ["Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury"];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ctxPick(obj: any, ...keys: string[]): any {
@@ -154,20 +140,13 @@ function isPlanetLike(o: any): boolean {
   return (
     !!o &&
     typeof o === "object" &&
-    (o.rasi != null ||
-      o.sign != null ||
-      o.zodiac != null ||
-      o.longitude != null)
+    (o.rasi != null || o.sign != null || o.zodiac != null || o.longitude != null)
   );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractPlanetArray(payload: any): any[] {
-  const keyed = deepFindArray(payload, [
-    "planet_position",
-    "planetPosition",
-    "planets",
-  ]);
+  const keyed = deepFindArray(payload, ["planet_position", "planetPosition", "planets"]);
   if (keyed.length) return keyed;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const queue: any[] = [payload];
@@ -201,9 +180,7 @@ function ctxIsAsc(p: any): boolean {
   return name === "ascendant" || name === "lagna" || id === 100 || id === "100";
 }
 
-function ctxNakshatra(
-  lonRaw: number,
-): { name: string; lord: string; pada: number } | null {
+function ctxNakshatra(lonRaw: number): { name: string; lord: string; pada: number } | null {
   if (!Number.isFinite(lonRaw)) return null;
   const lon = ((lonRaw % 360) + 360) % 360;
   const SPAN = 360 / 27;
@@ -382,27 +359,18 @@ function formatNatal(natal: any): string | null {
     const ascLon = ctxNum(ctxPick(asc, "longitude", "long", "lon"));
     const deg = ascDeg != null ? ascDeg : ascLon != null ? ascLon % 30 : null;
     lines.push(
-      `Ascendant (Lagna): ${ascSign || "?"}${
-        deg != null ? " " + deg.toFixed(2) + "\u00B0" : ""
-      }`,
+      `Ascendant (Lagna): ${ascSign || "?"}${deg != null ? " " + deg.toFixed(2) + "\u00B0" : ""}`,
     );
   }
   const sunEntry = arr.find(
-    (p) =>
-      !ctxIsAsc(p) &&
-      normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "sun",
+    (p) => !ctxIsAsc(p) && normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "sun",
   );
   let sunLon: number | null = null;
   if (sunEntry) {
     const sLon = ctxNum(ctxPick(sunEntry, "longitude", "long", "lon"));
     const sRasi = ctxRasiId(sunEntry);
     const sDeg = ctxNum(ctxPick(sunEntry, "degree"));
-    sunLon =
-      sLon != null
-        ? sLon
-        : sRasi != null && sDeg != null
-          ? sRasi * 30 + sDeg
-          : null;
+    sunLon = sLon != null ? sLon : sRasi != null && sDeg != null ? sRasi * 30 + sDeg : null;
   }
   let planetCount = 0;
   for (const p of arr) {
@@ -424,28 +392,18 @@ function formatNatal(natal: any): string | null {
     const lon = ctxNum(ctxPick(p, "longitude", "long", "lon"));
     const degInSign = degRaw != null ? degRaw : lon != null ? lon % 30 : null;
     const nak = lon != null ? ctxNakshatra(lon) : null;
-    const retro = Boolean(
-      ctxPick(p, "is_retrograde", "isRetrograde", "retrograde", "retro"),
-    );
+    const retro = Boolean(ctxPick(p, "is_retrograde", "isRetrograde", "retrograde", "retro"));
     const parts = [
       `${name}:`,
-      `${signName || "?"}${
-        degInSign != null ? " " + degInSign.toFixed(2) + "\u00B0" : ""
-      }`,
+      `${signName || "?"}${degInSign != null ? " " + degInSign.toFixed(2) + "\u00B0" : ""}`,
       house != null ? `in House ${house}` : "in House ?",
     ];
     if (lord) parts.push(`(sign lord: ${lord})`);
     if (nak) {
-      parts.push(
-        `nakshatra ${nak.name} pada ${nak.pada}, nakshatra lord ${nak.lord}`,
-      );
+      parts.push(`nakshatra ${nak.name} pada ${nak.pada}, nakshatra lord ${nak.lord}`);
     }
     const effLon =
-      lon != null
-        ? lon
-        : rasiId != null && degInSign != null
-          ? rasiId * 30 + degInSign
-          : null;
+      lon != null ? lon : rasiId != null && degInSign != null ? rasiId * 30 + degInSign : null;
     const states = planetStates({
       name,
       lon: effLon,
@@ -506,9 +464,7 @@ function skySignName(idx: number): string {
 }
 
 function skyNakName(idx: number | null): string {
-  return idx != null && Number.isInteger(idx) && idx >= 0 && idx < 27
-    ? NAKSHATRAS[idx]
-    : "?";
+  return idx != null && Number.isInteger(idx) && idx >= 0 && idx < 27 ? NAKSHATRAS[idx] : "?";
 }
 
 // Whole-sign house of a transiting sign counted from a natal reference sign.
@@ -557,10 +513,7 @@ type MoonRow = {
 };
 
 // A near, meaningful sign-ingress note (distant linear estimates are noisy).
-function skyIngressNote(
-  nextTs: string | null,
-  nextSign: number | null,
-): string {
+function skyIngressNote(nextTs: string | null, nextSign: number | null): string {
   if (!nextTs || nextSign == null) return "";
   const d = new Date(nextTs);
   if (Number.isNaN(d.getTime())) return "";
@@ -609,10 +562,7 @@ function formatCurrentSky(args: {
         skyDeg(moon.moon_deg) +
         (h != null ? " - House " + h : "") +
         (moon.moon_nakshatra != null
-          ? " - nakshatra " +
-            skyNakName(moon.moon_nakshatra) +
-            " pada " +
-            (moon.moon_pada ?? "?")
+          ? " - nakshatra " + skyNakName(moon.moon_nakshatra) + " pada " + (moon.moon_pada ?? "?")
           : ""),
     );
   }
@@ -692,9 +642,7 @@ function formatDasha(dasha: any): string | null {
           curAntar.start,
         )} \u2192 ${ctxDate(curAntar.end)}).`,
       );
-      const praty = Array.isArray(curAntar.pratyantardasha)
-        ? curAntar.pratyantardasha
-        : [];
+      const praty = Array.isArray(curAntar.pratyantardasha) ? curAntar.pratyantardasha : [];
       const curPraty = praty.find(within);
       if (curPraty) {
         lines.push(
@@ -744,8 +692,7 @@ function formatDoshas(list: any[]): string | null {
         d?.kaal_sarp_dosha?.description ??
         "",
     ).slice(0, 700);
-    const hasStr =
-      has === true ? "PRESENT" : has === false ? "not present" : "see details";
+    const hasStr = has === true ? "PRESENT" : has === false ? "not present" : "see details";
     lines.push(`- ${label}: ${hasStr}${desc ? " \u2014 " + desc : ""}`);
   }
   return lines.length ? lines.join("\n") : null;
@@ -783,9 +730,7 @@ function formatAvHouses(houses: any[]): string | null {
   for (const h of houses) {
     const sign = String(h?.rasi?.name ?? h?.sign?.name ?? h?.sign ?? "").trim();
     const num = ctxNum(ctxPick(h?.house, "number", "id"));
-    const score = ctxNum(
-      ctxPick(h, "score", "points", "total", "ashtakavarga_points"),
-    );
+    const score = ctxNum(ctxPick(h, "score", "points", "total", "ashtakavarga_points"));
     if (!sign || score == null) continue;
     total += score;
     parts.push(num != null ? `H${num} ${sign}: ${score}` : `${sign}: ${score}`);
@@ -862,9 +807,7 @@ function formatDivisionalFromParsed(
   const lines: string[] = [];
 
   // Ascendant: sign per varga (its house is always 1 by definition).
-  const ascEntries = available.map(
-    (v) => `${v} ${SIGN_ABBR[parsedByVarga[v]!.ascSignIndex]}`,
-  );
+  const ascEntries = available.map((v) => `${v} ${SIGN_ABBR[parsedByVarga[v]!.ascSignIndex]}`);
   lines.push(`- Ascendant (Lagna): [${ascEntries.join(", ")}]`);
 
   for (const key of DIV_PLANET_ORDER) {
@@ -931,9 +874,7 @@ function runBackground(task: Promise<unknown>): void {
 
 // Defensively parse a { "summary", "facts" } JSON object from a model reply,
 // tolerating code fences or stray prose around it. Returns null if unusable.
-function parseSummaryFactsJson(
-  raw: string,
-): { summary: string; facts: string } | null {
+function parseSummaryFactsJson(raw: string): { summary: string; facts: string } | null {
   let text = raw.trim();
   const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   if (fence) text = fence[1].trim();
@@ -1001,23 +942,17 @@ async function maybeSummarizeConversation(opts: {
   if (batch.length === 0) return;
 
   const batchText = batch
-    .map(
-      (m) =>
-        `${m.role === "assistant" ? "Astrologer" : "Person"}: ${m.content}`,
-    )
+    .map((m) => `${m.role === "assistant" ? "Astrologer" : "Person"}: ${m.content}`)
     .join("\n");
 
   const existingSummary =
-    currentSummary && currentSummary.trim()
-      ? currentSummary.trim()
-      : "(none yet)";
+    currentSummary && currentSummary.trim() ? currentSummary.trim() : "(none yet)";
 
   let sumSystem: string;
   let sumUser: string;
 
   if (rememberFacts) {
-    const existingFacts =
-      currentFacts && currentFacts.trim() ? currentFacts.trim() : "(none yet)";
+    const existingFacts = currentFacts && currentFacts.trim() ? currentFacts.trim() : "(none yet)";
     sumSystem = [
       "You maintain long-term memory for a Vedic astrology companion app, based on one ongoing conversation.",
       'Return ONLY a single JSON object with exactly two string fields: "summary" and "facts". No code fences, no commentary.',
@@ -1040,11 +975,7 @@ async function maybeSummarizeConversation(opts: {
       "Drop greetings, small talk, and repetition. Write compact third-person notes, not dialogue.",
       "Output ONLY the updated summary text, nothing else.",
     ].join(" ");
-    sumUser =
-      "EXISTING SUMMARY:\n" +
-      existingSummary +
-      "\n\nNEW MESSAGES:\n" +
-      batchText;
+    sumUser = "EXISTING SUMMARY:\n" + existingSummary + "\n\nNEW MESSAGES:\n" + batchText;
   }
 
   const res = await fetchWithTimeout(
@@ -1126,11 +1057,9 @@ Deno.serve(async (req: Request) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-  const MODEL =
-    Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.0-flash-001";
+  const MODEL = Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.0-flash-001";
   const SUMMARY_MODEL =
-    Deno.env.get("OPENROUTER_SUMMARY_MODEL") ||
-    "google/gemini-2.0-flash-lite-001";
+    Deno.env.get("OPENROUTER_SUMMARY_MODEL") || "google/gemini-2.0-flash-lite-001";
 
   if (!SUPABASE_URL || !SERVICE_KEY) {
     return err(500, "server_misconfigured", "Supabase env missing");
@@ -1151,9 +1080,7 @@ Deno.serve(async (req: Request) => {
   if (!message) {
     return err(400, "empty_message", "A non-empty 'message' is required");
   }
-  const requestedConversationId = body.conversation_id
-    ? String(body.conversation_id)
-    : "";
+  const requestedConversationId = body.conversation_id ? String(body.conversation_id) : "";
   // When true, reply is streamed token-by-token as Server-Sent Events.
   // When false/absent, the original single-shot JSON response is returned.
   const wantStream = body.stream === true;
@@ -1229,9 +1156,7 @@ Deno.serve(async (req: Request) => {
     if (profileGender) {
       const match = loShuCandidates.find((a) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const g = String(
-          (a.chart_jsonb as any)?.kua?.gender ?? "",
-        ).toLowerCase();
+        const g = String((a.chart_jsonb as any)?.kua?.gender ?? "").toLowerCase();
         return g === profileGender;
       });
       if (match) chosen = match;
@@ -1254,9 +1179,7 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({
           name: birth.full_name ?? null,
           birth_date: birth.birth_date ?? null,
-          birth_time: birth.birth_time_known
-            ? (birth.birth_time ?? null)
-            : null,
+          birth_time: birth.birth_time_known ? (birth.birth_time ?? null) : null,
           birth_time_known: !!birth.birth_time_known,
           place: birth.birth_place_label ?? null,
           timezone: birth.birth_timezone ?? null,
@@ -1276,10 +1199,7 @@ Deno.serve(async (req: Request) => {
         natalText,
     );
   else if (byType.natal)
-    sections.push(
-      "VEDIC NATAL CHART (kundali) \u2014 raw data:\n" +
-        capJson(byType.natal, 7000),
-    );
+    sections.push("VEDIC NATAL CHART (kundali) \u2014 raw data:\n" + capJson(byType.natal, 7000));
   // Divisional charts: pull each varga's north-Indian SVG through chart-gateway
   // (Prokerala token + generation + freshness + caching all live there) and
   // parse it the SAME way the app does, so the AI reads the exact signs AND
@@ -1314,10 +1234,7 @@ Deno.serve(async (req: Request) => {
           signIndex: Number(p.sign),
           house: Number(p.house),
         }))
-        .filter(
-          (p) =>
-            p.key && Number.isFinite(p.signIndex) && Number.isFinite(p.house),
-        );
+        .filter((p) => p.key && Number.isFinite(p.signIndex) && Number.isFinite(p.house));
       if (!positions.length) continue;
       const ascSignIndex = Number(row.asc_sign);
       if (!Number.isFinite(ascSignIndex)) continue;
@@ -1330,24 +1247,17 @@ Deno.serve(async (req: Request) => {
       "DIVISIONAL CHARTS (Shodasavarga D1\u2013D60) \u2014 read directly from this person's own Prokerala varga charts, so they MATCH the charts shown in the app exactly. Each entry gives the body's sign and its whole-sign house (Hn, counted from that varga's ascendant). Use these for finer judgement: D9/Navamsa = marriage, dharma & inner strength; D10/Dasamsa = career & status; D7 = children; D4 = home/property; D12 = parents; D24 = education; D30 = adversity & character; D60 = overall karma & fine detail. A body holding good dignity across many vargas is reliably strong; Vargottama (same sign in D1 and D9) is a major strength:\n" +
         divText,
     );
-  const dashaText = byType.vimshottari_dasha
-    ? formatDasha(byType.vimshottari_dasha)
-    : null;
+  const dashaText = byType.vimshottari_dasha ? formatDasha(byType.vimshottari_dasha) : null;
   if (dashaText)
     sections.push(
       "VIMSHOTTARI DASHA (planetary period timeline) \u2014 use for any timing / 'when' question:\n" +
         dashaText,
     );
   else if (byType.vimshottari_dasha)
-    sections.push(
-      "VIMSHOTTARI DASHA \u2014 raw data:\n" +
-        capJson(byType.vimshottari_dasha, 6000),
-    );
+    sections.push("VIMSHOTTARI DASHA \u2014 raw data:\n" + capJson(byType.vimshottari_dasha, 6000));
   const doshaText = doshaList.length ? formatDoshas(doshaList) : null;
-  if (doshaText)
-    sections.push("DOSHAS (Mangal / Kaal Sarp):\n" + doshaText);
-  else if (doshaList.length)
-    sections.push("DOSHAS \u2014 raw data:\n" + capJson(doshaList, 6000));
+  if (doshaText) sections.push("DOSHAS (Mangal / Kaal Sarp):\n" + doshaText);
+  else if (doshaList.length) sections.push("DOSHAS \u2014 raw data:\n" + capJson(doshaList, 6000));
   // ASHTAKAVARGA — every stored row shares chart_type "ashtakavarga": one
   // Sarvashtakavarga (total bindus per sign, the key house-strength metric)
   // plus up to 7 planetary Bhinnashtakavarga tables. Read the RAW prastara grid
@@ -1389,10 +1299,7 @@ Deno.serve(async (req: Request) => {
     const s = formatAvHouses(avPrastaraHouses(av, "ashtakavarga"));
     if (s)
       avLines.push(
-        "Bhinnashtakavarga " +
-          name +
-          " (this planet's own bindus per sign, 0-8):\n" +
-          s,
+        "Bhinnashtakavarga " + name + " (this planet's own bindus per sign, 0-8):\n" + s,
       );
   }
   if (avLines.length) sections.push("ASHTAKAVARGA:\n" + avLines.join("\n"));
@@ -1401,10 +1308,7 @@ Deno.serve(async (req: Request) => {
       "NUMEROLOGY (Vedic number reading \u2014 supporting layer):\n" +
         capJson(byType.numerology, 100000),
     );
-  if (loShu)
-    sections.push(
-      "LO SHU GRID & KUA (supporting layer):\n" + capJson(loShu, 100000),
-    );
+  if (loShu) sections.push("LO SHU GRID & KUA (supporting layer):\n" + capJson(loShu, 100000));
   // ---------- Current sky (Gochara / live transits) ----------
   // Planets + Moon are read from the shared transit_* tables, kept fresh by the
   // transit-compute and transit-planets-refresh cron jobs. The Ascendant rising
@@ -1418,9 +1322,7 @@ Deno.serve(async (req: Request) => {
       const ascP = natalArr.find(ctxIsAsc);
       natalAscSign = ascP ? ctxRasiId(ascP) : null;
       const moonP = natalArr.find(
-        (p) =>
-          !ctxIsAsc(p) &&
-          normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "moon",
+        (p) => !ctxIsAsc(p) && normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "moon",
       );
       natalMoonSign = moonP ? ctxRasiId(moonP) : null;
     }
@@ -1433,9 +1335,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: moonRows } = await svc
       .from("transit_moon_hourly")
-      .select(
-        "slot_hour, slot_ts, moon_sign, moon_deg, moon_nakshatra, moon_pada",
-      );
+      .select("slot_hour, slot_ts, moon_sign, moon_deg, moon_nakshatra, moon_pada");
 
     let moon: MoonRow | null = null;
     if (Array.isArray(moonRows) && moonRows.length) {
@@ -1489,9 +1389,7 @@ Deno.serve(async (req: Request) => {
     // Sidereal / Lahiri, whole-sign from the natal Moon sign. Uses the same
     // transit Saturn row already loaded above, so ZERO extra provider spend.
     try {
-      const saturn = ((transitPlanets ?? []) as TransitPlanetRow[]).find(
-        (p) => p?.planet === 6,
-      );
+      const saturn = ((transitPlanets ?? []) as TransitPlanetRow[]).find((p) => p?.planet === 6);
       if (natalMoonSign != null && saturn && saturn.sign != null) {
         const M = natalMoonSign;
         const rising = (M + 11) % 12;
@@ -1514,8 +1412,7 @@ Deno.serve(async (req: Request) => {
         const retroTag = saturn.retrograde ? " (retrograde)" : "";
         let block: string;
         if (inSadeSati && phase) {
-          const nextInSade =
-            saturn.next_sign != null && sadeSet.has(saturn.next_sign);
+          const nextInSade = saturn.next_sign != null && sadeSet.has(saturn.next_sign);
           const nextClause =
             saturn.next_ingress_ts && saturn.next_sign != null
               ? " Saturn next changes sign on " +
@@ -1523,9 +1420,7 @@ Deno.serve(async (req: Request) => {
                 " into " +
                 skySignName(saturn.next_sign) +
                 ", which " +
-                (nextInSade
-                  ? "moves it to the next phase"
-                  : "ends Sade Sati") +
+                (nextInSade ? "moves it to the next phase" : "ends Sade Sati") +
                 "."
               : "";
           block =
@@ -1554,9 +1449,7 @@ Deno.serve(async (req: Request) => {
             " or " +
             skySignName(setting) +
             "." +
-            (inDhaiya
-              ? " Currently in a Small Panoti (Dhaiya) phase."
-              : "");
+            (inDhaiya ? " Currently in a Small Panoti (Dhaiya) phase." : "");
         }
         sections.push(block);
       }
@@ -1568,6 +1461,182 @@ Deno.serve(async (req: Request) => {
   }
 
   const contextJson = sections.join("\n\n");
+
+  // ---------- Saved people (family & partner charts) — Phase 3 routing ----------
+  // The user can save up to 10 charts for family + a partner in related_charts.
+  // PERSONAL questions must stay grounded ONLY in the user's own chart above.
+  // When a question clearly refers to a saved person (by name or relation), we
+  // attach THAT person's cached natal (person-charts "varga_bundle") and, for a
+  // partner, the cached "compatibility" bundle. Selection happens here so normal
+  // turns stay light and never leak other people's placements into a self-reading.
+  let peopleContext = "";
+  try {
+    const { data: peopleRows } = await svc
+      .from("related_charts")
+      .select(
+        "id, full_name, relation, gender, birth_date, birth_time, birth_time_known, birth_place_label, birth_timezone",
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const roster = (peopleRows ?? []) as any[];
+    if (roster.length) {
+      const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+      const COMPAT_RELS = new Set(["wife", "husband", "partner"]);
+      const RELATION_WORDS: Record<string, string[]> = {
+        wife: ["wife", "spouse", "partner", "wifey", "पत्नी", "पत्नि", "बीवी", "बायको", "जीवनसाथी"],
+        husband: ["husband", "spouse", "partner", "पति", "नवरा", "जीवनसाथी"],
+        partner: [
+          "partner",
+          "spouse",
+          "boyfriend",
+          "girlfriend",
+          "fiance",
+          "fiancee",
+          "पार्टनर",
+          "साथी",
+        ],
+        father: ["father", "dad", "papa", "पिता", "पापा", "वडील", "बाबा"],
+        mother: ["mother", "mom", "mum", "mummy", "माता", "माँ", "मां", "आई", "अम्मा"],
+        brother: ["brother", "bro", "भाई", "भाऊ", "दादा"],
+        sister: ["sister", "sis", "बहन", "बहिण", "ताई", "दीदी"],
+        son: ["son", "बेटा", "मुलगा", "पुत्र"],
+        daughter: ["daughter", "बेटी", "मुलगी", "पुत्री"],
+        grandmother: ["grandmother", "grandma", "granny", "दादी", "नानी", "आजी"],
+        grandfather: ["grandfather", "grandpa", "दादा", "नाना", "आजोबा"],
+      };
+      const msgLower = message.toLowerCase();
+      const msgTokens = new Set(msgLower.split(/[^a-z0-9\u0900-\u097f]+/i).filter(Boolean));
+      const hit = (w: string) => {
+        const wl = w.toLowerCase();
+        return /^[a-z0-9]+$/i.test(wl) ? msgTokens.has(wl) : msgLower.includes(wl);
+      };
+      const subjectId = body.subject_related_chart_id ? String(body.subject_related_chart_id) : "";
+
+      const matched: string[] = [];
+      for (const p of roster) {
+        let isMatch = false;
+        if (subjectId && p.id === subjectId) isMatch = true;
+        const name = String(p.full_name ?? "").trim();
+        if (!isMatch && name) {
+          const nl = name.toLowerCase();
+          if (msgLower.includes(nl)) isMatch = true;
+          else {
+            for (const tok of nl.split(/\s+/)) {
+              if (tok.length >= 3 && hit(tok)) {
+                isMatch = true;
+                break;
+              }
+            }
+          }
+        }
+        if (!isMatch) {
+          const words = RELATION_WORDS[String(p.relation ?? "")] ?? [];
+          if (words.some(hit)) isMatch = true;
+        }
+        if (isMatch && !matched.includes(p.id)) matched.push(p.id);
+      }
+
+      const rosterLines = roster
+        .map((p) => {
+          const rel = titleCase(String(p.relation ?? "other"));
+          const nm = String(p.full_name ?? "").trim() || "(unnamed)";
+          return "- " + rel + " \u2014 " + nm;
+        })
+        .join("\n");
+
+      const blocks: string[] = [
+        "SAVED PEOPLE (this user's OWN saved family & partner charts; up to 10). This roster only tells you who exists \u2014 do NOT use it for the user's own personal questions:\n" +
+          rosterLines,
+      ];
+
+      // Attach detailed chart(s) only for the person(s) the question refers to.
+      for (const id of matched.slice(0, 2)) {
+        const p = roster.find((r) => r.id === id);
+        if (!p) continue;
+        const rel = titleCase(String(p.relation ?? "other"));
+        const nm = String(p.full_name ?? "").trim() || "this person";
+        const { data: vbRows } = await svc
+          .from("related_chart_artifacts")
+          .select("data")
+          .eq("related_chart_id", id)
+          .eq("chart_type", "varga_bundle")
+          .limit(1);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const bundle = (vbRows && (vbRows[0] as any)?.data) as any;
+        const personNatal = bundle?.natal ? formatNatal(bundle.natal) : null;
+        if (personNatal) {
+          blocks.push(
+            "FOCUS PERSON \u2014 " +
+              nm +
+              " (" +
+              rel +
+              "). This is " +
+              nm +
+              "'s OWN Vedic natal chart, computed with the same Lahiri engine as the user's. Use these EXACT placements ONLY when answering about " +
+              nm +
+              "; never merge them into the user's own reading:\n" +
+              personNatal,
+          );
+        } else {
+          blocks.push(
+            "FOCUS PERSON \u2014 " +
+              nm +
+              " (" +
+              rel +
+              "): birth details are saved, but the detailed chart isn't computed yet. If the user asks specifically about " +
+              nm +
+              ", warmly suggest opening " +
+              nm +
+              "'s page once to generate it; do not fabricate placements.",
+          );
+        }
+
+        // Partner -> attach cached compatibility (Guna Milan + Mangal) if present.
+        if (COMPAT_RELS.has(String(p.relation ?? ""))) {
+          const { data: compRows } = await svc
+            .from("related_chart_artifacts")
+            .select("data")
+            .eq("related_chart_id", id)
+            .eq("chart_type", "compatibility")
+            .limit(1);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const comp = (compRows && (compRows[0] as any)?.data) as any;
+          if (comp?.guna_milan) {
+            const g = comp.guna_milan;
+            const kutaLine = Array.isArray(g.kutas)
+              ? g.kutas
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  .map((k: any) => k.name + " " + k.got + "/" + k.max)
+                  .join(", ")
+              : "";
+            const mv = comp?.mangal?.verdict ?? "";
+            blocks.push(
+              "COMPATIBILITY (user \u21c4 " +
+                nm +
+                ", " +
+                rel +
+                ") \u2014 precomputed Ashtakoota Guna Milan + Mangal. Use for match / compatibility questions between the user and their partner only; frame gently and never induce marriage anxiety:\n" +
+                "- Guna Milan: " +
+                g.total +
+                "/" +
+                g.max +
+                " (" +
+                g.verdict +
+                ")\n" +
+                (kutaLine ? "- Kutas: " + kutaLine + "\n" : "") +
+                (mv ? "- Mangal: " + mv : ""),
+            );
+          }
+        }
+      }
+
+      peopleContext = "\n\n---\n\n" + blocks.join("\n\n");
+    }
+  } catch (_e) {
+    // Saved-people context is best-effort; never break the chat.
+    peopleContext = "";
+  }
 
   // Current date/time in the user's own timezone, so the model always reasons
   // from "today" rather than from its training cutoff.
@@ -1604,7 +1673,7 @@ Deno.serve(async (req: Request) => {
     "- Do NOT begin your reply by recapping what you already said. Open directly with the answer to the NEW question.",
     "- Greet the person (e.g. 'Oh Krishna, lovely to connect...') ONLY in the very first message of a brand-new conversation. If there is ANY earlier message in this chat, skip the greeting entirely and answer straight away.",
     "- If the new question builds on an earlier topic, reference it in at most one short phrase \u2014 never re-explain it from scratch.",
-    "- LENGTH: Keep replies concise and usable, not an essay. Aim for about 300-400 words normally. Only go longer (up to about 750 words maximum) if the person explicitly asks for depth or a detailed breakdown.",
+    "- LENGTH (adaptive \u2014 match the reply to the question): For a quick, simple, factual or yes/no question, answer warmly in 1\u20133 sentences with no headings or lists. For an everyday question, a short focused paragraph or a few lines is plenty. Reserve the fuller structured reading (about 300\u2013450 words) for broad, multi-area or life questions, and only go longer (up to about 750 words) when they explicitly ask for depth or a detailed breakdown. Never pad a simple question into an essay, and never squeeze a genuinely big question into one line.",
     "- Lead with the direct answer first, then a few short supporting lines or a small list when helpful. No preamble, no restating the question, no filler.",
     "- Always finish your thought completely within these limits - never stop mid-sentence or leave a reply half-done.",
     "",
@@ -1634,6 +1703,12 @@ Deno.serve(async (req: Request) => {
     "- Keep the tone professional, warm, calm and confident throughout — structure makes the reply easier to read, it must never make it feel robotic or templated. Avoid exclamation-mark spam.",
     "- Respect the LENGTH guidance above: structure the words you already have; don't add filler to fill a template. Any reply beyond ~300 words should include a short summary, clear sections, at least one list, and a closing takeaway.",
     "",
+    "SAVED PEOPLE \u2014 WHOSE CHART TO READ (critical):",
+    "- Every chart section above (BIRTH, NATAL, DIVISIONAL, DASHA, DOSHAS, ASHTAKAVARGA, NUMEROLOGY, LO SHU, CURRENT SKY, SADE SATI) is the LOGGED-IN user's OWN chart. For any question about themselves \u2014 'me / my / I', their own life, career, health, love, money, timing \u2014 ground your answer ONLY in their own chart. NEVER borrow a saved person's placements for a question about the user.",
+    "- The user can also save charts for family and a partner. When a SAVED PEOPLE roster is present, it only tells you who they have saved. When the current question is clearly about one of them (named, or by relation such as 'my wife', 'my father', 'my son'), answer about THAT person using their FOCUS PERSON chart \u2014 provided this turn only when the question refers to them.",
+    "- Keep charts separate: never blend two people's placements into one reading. Only bring two charts together when the user is explicitly comparing or matching them.",
+    "- Compatibility / matching (Guna Milan, Mangal) applies ONLY between the user and their partner (wife / husband / partner). When a COMPATIBILITY section is provided, read those exact scores; explain a low score calmly and constructively as something to work with, never as alarm, and never induce marriage anxiety.",
+    "- If the user asks about a saved person but no FOCUS PERSON chart is attached this turn, warmly ask which person they mean or suggest opening that person once to generate the chart \u2014 do not guess or invent that person's placements.",
     "HONESTY & ACCURACY (never break these):",
     "- Base every astrological statement ONLY on the chart details given to you below. These are this person's real, computed readings.",
     "- NEVER invent or guess planetary positions, dashas, numerology numbers, doshas, arrows, or Kua directions that aren't in those details.",
@@ -1673,6 +1748,7 @@ Deno.serve(async (req: Request) => {
     "TODAY / TRANSITS: For anything about the present moment - today, this week, the current planetary weather, gochara, 'how is my day', or what is going on for the person right now - read the CURRENT SKY (GOCHARA) section. It gives where each planet is transiting right now and which whole-sign house that falls in from this person's natal Ascendant, plus the sign rising this very minute. Weave in the active Vimshottari dasha for timing. Read those transit values verbatim and NEVER recompute or invent a transit; if a body is missing there, warmly say you do not have it yet.",
     "Here are this person's real, pre-computed birth and chart details. Treat every value below as ground truth:",
     contextJson,
+    peopleContext,
   ].join("\n");
 
   // ---------- Resolve conversation ----------
@@ -1690,10 +1766,8 @@ Deno.serve(async (req: Request) => {
       return err(404, "conversation_not_found");
     }
     conversationId = conv.id;
-    memorySummary =
-      (conv as { memory_summary?: string | null }).memory_summary ?? null;
-    summarizedCount =
-      (conv as { summarized_count?: number | null }).summarized_count ?? 0;
+    memorySummary = (conv as { memory_summary?: string | null }).memory_summary ?? null;
+    summarizedCount = (conv as { summarized_count?: number | null }).summarized_count ?? 0;
   } else {
     const title = message.length > 48 ? message.slice(0, 48) + "..." : message;
     const { data: created, error: convErr } = await svc
@@ -1718,10 +1792,7 @@ Deno.serve(async (req: Request) => {
       .select("memory_enabled")
       .eq("user_id", userId)
       .maybeSingle();
-    if (
-      prof &&
-      typeof (prof as { memory_enabled?: boolean }).memory_enabled === "boolean"
-    ) {
+    if (prof && typeof (prof as { memory_enabled?: boolean }).memory_enabled === "boolean") {
       memoryEnabled = (prof as { memory_enabled: boolean }).memory_enabled;
     }
     if (memoryEnabled) {
@@ -1797,11 +1868,7 @@ Deno.serve(async (req: Request) => {
     const stream = new ReadableStream({
       async start(controller) {
         const sse = (event: string, data: unknown) => {
-          controller.enqueue(
-            encoder.encode(
-              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
-            ),
-          );
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
         };
 
         // Tell the client the conversation id up front so it can thread
@@ -1874,9 +1941,7 @@ Deno.serve(async (req: Request) => {
                 }
                 try {
                   const parsed = JSON.parse(payload);
-                  const delta = String(
-                    parsed?.choices?.[0]?.delta?.content ?? "",
-                  );
+                  const delta = String(parsed?.choices?.[0]?.delta?.content ?? "");
                   if (delta) {
                     full += delta;
                     sse("delta", { text: delta });

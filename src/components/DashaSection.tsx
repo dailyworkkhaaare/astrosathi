@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Scale, Sparkles } from "lucide-react";
 import type { DashaBalance, DashaMaha } from "@/lib/charts";
 import { useDasha } from "@/lib/queries";
+import { DashaTimeline } from "@/components/DashaTimeline";
 
-const VEDIC_BY_ID: Record<number, string> = {
+export const VEDIC_BY_ID: Record<number, string> = {
   0: "Surya",
   1: "Chandra",
   2: "Budha",
@@ -18,7 +19,7 @@ const VEDIC_BY_ID: Record<number, string> = {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function fmtDateMs(ms: number): string {
+export function fmtDateMs(ms: number): string {
   const d = new Date(ms);
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
@@ -78,19 +79,19 @@ function addYears(ms: number, years: number): number {
   return d.getTime();
 }
 
-function yearsBetweenMs(startMs: number, endMs: number): number {
+export function yearsBetweenMs(startMs: number, endMs: number): number {
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return 0;
   return Math.round(((endMs - startMs) / (365.2425 * 24 * 3600 * 1000)) * 10) / 10;
 }
 
-function isRunningMs(startMs: number, endMs: number, now: number): boolean {
+export function isRunningMs(startMs: number, endMs: number, now: number): boolean {
   return Number.isFinite(startMs) && Number.isFinite(endMs) && now >= startMs && now < endMs;
 }
 
-type Period = { id: number; name: string; startMs: number; endMs: number };
-type ClampedPratyantar = Period;
-type ClampedAntar = Period & { pratyantardasha: ClampedPratyantar[] };
-type ClampedMaha = Period & { antardasha: ClampedAntar[] };
+export type Period = { id: number; name: string; startMs: number; endMs: number };
+export type ClampedPratyantar = Period;
+export type ClampedAntar = Period & { pratyantardasha: ClampedPratyantar[] };
+export type ClampedMaha = Period & { antardasha: ClampedAntar[] };
 
 function clampPeriods(periods: DashaMaha[], birthMs: number, cutoffMs: number): ClampedMaha[] {
   const out: ClampedMaha[] = [];
@@ -142,14 +143,20 @@ function clampPeriods(periods: DashaMaha[], birthMs: number, cutoffMs: number): 
   return out;
 }
 
-function label(p: { id: number; name: string }): { primary: string; vedic: string | null } {
+export function label(p: { id: number; name: string }): { primary: string; vedic: string | null } {
   const vedic = VEDIC_BY_ID[p.id] ?? null;
   const primary = p.name || vedic || `#${p.id}`;
   const showVedic = vedic && vedic.toLowerCase() !== primary.toLowerCase() ? vedic : null;
   return { primary, vedic: showVedic };
 }
 
-function PlanetLabel({ p, className }: { p: { id: number; name: string }; className?: string }) {
+export function PlanetLabel({
+  p,
+  className,
+}: {
+  p: { id: number; name: string };
+  className?: string;
+}) {
   const l = label(p);
   return (
     <span className={className}>
@@ -161,7 +168,7 @@ function PlanetLabel({ p, className }: { p: { id: number; name: string }; classN
   );
 }
 
-function RunningBadge() {
+export function RunningBadge() {
   const { t } = useTranslation();
   return (
     <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-accent/20 px-1.5 py-px text-[8px] font-semibold uppercase tracking-wide text-accent ring-1 ring-accent/40 leading-none">
@@ -269,6 +276,20 @@ function DashaBody({
     return { maha, antar, pratyantar };
   }, [clamped, now]);
 
+  const mahaRefs = useRef(new Map<string, HTMLLIElement>());
+  const registerMahaRef = (key: string, el: HTMLLIElement | null) => {
+    if (el) mahaRefs.current.set(key, el);
+    else mahaRefs.current.delete(key);
+  };
+  const handleFocusMaha = (key: string) => {
+    const el = mahaRefs.current.get(key);
+    if (!el) return;
+    const details = el.querySelector("details");
+    if (details && !details.open) details.open = true;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+  };
+
   if (!clamped.length) {
     return <p className="text-sm text-muted-foreground">{t("sections.dasha.noPeriods")}</p>;
   }
@@ -302,6 +323,17 @@ function DashaBody({
         </div>
       )}
 
+      {birthMs != null && cutoffMs != null && (
+        <DashaTimeline
+          periods={clamped}
+          birthMs={birthMs}
+          cutoffMs={cutoffMs}
+          now={now}
+          currentMahaKey={current ? mahaKey(current.maha) : null}
+          onSelectMaha={handleFocusMaha}
+        />
+      )}
+
       {balance && (
         <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-secondary/40 px-4 py-3">
           <Scale size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-primary/80" />
@@ -327,12 +359,21 @@ function DashaBody({
         </div>
         <ul className="space-y-2">
           {clamped.map((m) => (
-            <MahaRow key={`${m.id}-${m.startMs}`} maha={m} now={now} />
+            <MahaRow
+              key={mahaKey(m)}
+              maha={m}
+              now={now}
+              registerRef={(el) => registerMahaRef(mahaKey(m), el)}
+            />
           ))}
         </ul>
       </div>
     </div>
   );
+}
+
+export function mahaKey(m: { id: number; startMs: number }): string {
+  return `${m.id}-${m.startMs}`;
 }
 
 function CurrentCell({
@@ -362,11 +403,19 @@ function CurrentCell({
   );
 }
 
-function MahaRow({ maha, now }: { maha: ClampedMaha; now: number }) {
+function MahaRow({
+  maha,
+  now,
+  registerRef,
+}: {
+  maha: ClampedMaha;
+  now: number;
+  registerRef?: (el: HTMLLIElement | null) => void;
+}) {
   const { t } = useTranslation();
   const running = isRunningMs(maha.startMs, maha.endMs, now);
   return (
-    <li>
+    <li ref={registerRef}>
       <details
         className={
           "group overflow-hidden rounded-xl border transition-colors " +

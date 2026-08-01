@@ -702,7 +702,11 @@
       "allMahadashas": "All Mahadashas",
       "yearsShort": "{{n}} yrs",
       "noAntardashas": "No antardashas.",
-      "noPratyantardashas": "No pratyantardashas."
+      "noPratyantardashas": "No pratyantardashas.",
+      "timelineTitle": "Life map",
+      "youAreHere": "You are here",
+      "currentAntarTitle": "Current antardasha",
+      "segmentAria": "{{planet}}, {{start}} to {{end}}, {{years}} years"
     },
     "doshas": {
       "title": "Doshas",

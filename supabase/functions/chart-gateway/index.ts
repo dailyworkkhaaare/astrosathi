@@ -18,6 +18,13 @@ import {
   computeAshtakavargaPayload,
   computeSarvashtakavargaPayload,
 } from "./ashtakavarga.ts";
+import { computeVarga, VARGA_TO_ENUM, type VargaKey } from "./varga.ts";
+import { renderNorthIndian } from "./render-north.ts";
+
+// Reverse VARGA_TO_ENUM so we can dispatch chart_type -> D-number.
+const ENUM_TO_VARGA: Record<string, VargaKey> = Object.fromEntries(
+  Object.entries(VARGA_TO_ENUM).map(([k, v]) => [v, k as VargaKey]),
+);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Deno: any;
@@ -522,6 +529,18 @@ serve(async (req: Request) => {
     engine === "swiss" &&
     isReport &&
     (reportType === "ashtakavarga" || reportType === "sarvashtakavarga");
+  // Local varga chart path. Renders the North-Indian SVG locally via
+  // computeVarga + renderNorthIndian. Opt-in via engine=swiss; south/east
+  // Indian styles still fall through to Prokerala. Round-trip proven
+  // (POLY 100% / NEAR 100% across the CLEAN cohort — see varga-render-parity).
+  const useSwissChart =
+    engine === "swiss" &&
+    !isPlanets &&
+    !isReport &&
+    !isNumerology &&
+    !isLoShu &&
+    chartStyle === "north_indian" &&
+    !!ENUM_TO_VARGA[chartType];
 
   const slug =
     isJson || isNumerology || isLoShu ? "" : PROKERALA_CHART_SLUG[chartType];
@@ -1576,7 +1595,13 @@ serve(async (req: Request) => {
   // Keep swiss and prokerala caches distinct (and avoid serving a stale
   // cross-engine result when the flag is flipped). Applies to any resource
   // that has a swiss path.
-  if (isPlanets || useSwissDasha || useSwissDosha || useSwissAshtakavarga) {
+  if (
+    isPlanets ||
+    useSwissDasha ||
+    useSwissDosha ||
+    useSwissAshtakavarga ||
+    useSwissChart
+  ) {
     hashInput.engine = engine;
   }
   const canonical = canonicalJson(hashInput);
@@ -2024,6 +2049,135 @@ serve(async (req: Request) => {
     } catch (e) {
       console.error(
         "[chart-gateway] swiss ashtakavarga failed; falling back to Prokerala:",
+        e,
+      );
+      // fall through to the Prokerala path below
+    }
+  }
+
+  // ---------- Local astronomy-engine path (varga chart SVG) ----------
+  // Compute the requested divisional chart locally via computeVarga and
+  // render a byte-compatible North-Indian SVG via renderNorthIndian. Same
+  // gating discipline as the other swiss branches: opt-in, resilient, any
+  // compute/render error falls through to Prokerala.
+  //
+  // On success we also upsert chart_facts DIRECTLY from computeVarga so the
+  // in-app varga tables no longer depend on re-parsing the SVG. The prime-
+  // charts flow will re-parse anyway; that's harmless because the rendered
+  // SVG is round-trip-proven (256/256) through the nearest-anchor parser.
+  if (useSwissChart) {
+    try {
+      const D = ENUM_TO_VARGA[chartType]!;
+      const natal = await computeNatalPayload(
+        datetimeUsed,
+        latitude,
+        longitude,
+      );
+      const varga = computeVarga(natal, D);
+      const svg = renderNorthIndian({
+        asc_sign: varga.asc_sign,
+        positions: varga.positions,
+      });
+
+      const providerVersion = `${SWISS_ENGINE_VERSION}+varga-v1`;
+      // findSvg-compatible envelope (matches the Prokerala chart branch:
+      // { svg, chart_type, chart_style, provider }).
+      const chartPayload = {
+        svg,
+        chart_type: chartType,
+        chart_style: chartStyle,
+        provider: "astronomy-engine",
+      };
+
+      let artifactId: string | null = null;
+      try {
+        const { data: inserted, error: insErr } = await svc
+          .from("chart_artifacts")
+          .upsert(
+            {
+              user_id: userId,
+              birth_profile_id: birth.id,
+              chart_type: chartType,
+              input_hash: inputHash,
+              provider: "astronomy-engine",
+              provider_version: providerVersion,
+              chart_jsonb: chartPayload,
+              supersedes_id: null,
+            },
+            { onConflict: "user_id,chart_type,input_hash" },
+          )
+          .select("id")
+          .single();
+        if (insErr) {
+          console.error("[chart-gateway] swiss varga persist failed:", insErr);
+        } else {
+          artifactId = inserted?.id ?? null;
+        }
+      } catch (persistErr) {
+        console.error("[chart-gateway] swiss varga persist threw:", persistErr);
+      }
+
+      // Upsert chart_facts directly from computeVarga (skips SVG parsing).
+      try {
+        const factsRow = {
+          user_id: userId,
+          birth_profile_id: birth.id,
+          chart_type: chartType,
+          input_hash: inputHash,
+          provider: "astronomy-engine",
+          asc_sign: varga.asc_sign,
+          positions: varga.positions,
+          meta: {
+            engine: "swiss",
+            endpoint: "local/varga",
+            provider_version: providerVersion,
+          },
+        };
+        const { error: factsErr } = await svc
+          .from("chart_facts")
+          .upsert(factsRow, { onConflict: "user_id,chart_type" });
+        if (factsErr) {
+          console.error(
+            "[chart-gateway] swiss chart_facts upsert failed:",
+            factsErr,
+          );
+        }
+      } catch (factsErr) {
+        console.error(
+          "[chart-gateway] swiss chart_facts upsert threw:",
+          factsErr,
+        );
+      }
+
+      // Best-effort audit.
+      try {
+        await svc.from("astrology_provider_runs").insert({
+          user_id: userId,
+          provider: "astronomy-engine",
+          endpoint: "local/varga",
+          input_hash: inputHash,
+          http_status: 200,
+          success: true,
+          cost_units: 0,
+          error: null,
+        });
+      } catch (auditErr) {
+        console.error("[chart-gateway] swiss varga audit failed:", auditErr);
+      }
+
+      console.log(
+        `[chart-gateway] served ${chartType} via astronomy-engine (engine=swiss)`,
+      );
+      return json(200, {
+        chart_type: chartType,
+        engine: "astronomy-engine",
+        reused: false,
+        artifact_id: artifactId,
+        chart_jsonb: chartPayload,
+      });
+    } catch (e) {
+      console.error(
+        "[chart-gateway] swiss varga failed; falling back to Prokerala:",
         e,
       );
       // fall through to the Prokerala path below

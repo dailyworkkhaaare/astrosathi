@@ -776,7 +776,9 @@ function ChatPage() {
       cancelStreamRef.current = () => reveal.cancel();
 
       // ---- 1) Try SSE streaming first (one transparent reconnect) ----
-      const MAX_SSE_ATTEMPTS = 2;
+      // Subject-scoped turns skip streaming entirely and go straight to the
+      // buffered fallback below, which renders the full JSON reply.
+      const MAX_SSE_ATTEMPTS = subjectRelatedChartId ? 0 : 2;
       for (let attempt = 1; attempt <= MAX_SSE_ATTEMPTS; attempt++) {
         try {
           await streamAstrologerReply(
@@ -875,6 +877,7 @@ function ChatPage() {
             message: text,
             conversation_id: conversationId || undefined,
             subject_related_chart_id: subjectRelatedChartId || undefined,
+            ...(subjectRelatedChartId ? { stream: false } : {}),
           },
         });
         if (invokeErr) throw invokeErr;

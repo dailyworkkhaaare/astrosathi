@@ -14,6 +14,10 @@ import {
 import { computeVimshottariDashaPayload } from "./vimshottari.ts";
 import { computeMangalDoshaPayload } from "./mangal.ts";
 import { computeKaalSarpDoshaPayload } from "./kaalsarp.ts";
+import {
+  computeAshtakavargaPayload,
+  computeSarvashtakavargaPayload,
+} from "./ashtakavarga.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Deno: any;
@@ -513,6 +517,11 @@ serve(async (req: Request) => {
     engine === "swiss" &&
     isReport &&
     (reportType === "mangal_dosha" || reportType === "kaal_sarp_dosha");
+  // Ashtakavarga swiss path. Same independent-gate discipline. Default: off.
+  const useSwissAshtakavarga =
+    engine === "swiss" &&
+    isReport &&
+    (reportType === "ashtakavarga" || reportType === "sarvashtakavarga");
 
   const slug =
     isJson || isNumerology || isLoShu ? "" : PROKERALA_CHART_SLUG[chartType];
@@ -1567,7 +1576,9 @@ serve(async (req: Request) => {
   // Keep swiss and prokerala caches distinct (and avoid serving a stale
   // cross-engine result when the flag is flipped). Applies to any resource
   // that has a swiss path.
-  if (isPlanets || useSwissDasha || useSwissDosha) hashInput.engine = engine;
+  if (isPlanets || useSwissDasha || useSwissDosha || useSwissAshtakavarga) {
+    hashInput.engine = engine;
+  }
   const canonical = canonicalJson(hashInput);
   const inputHash = await sha256Hex(canonical);
 
@@ -1918,6 +1929,101 @@ serve(async (req: Request) => {
     } catch (e) {
       console.error(
         "[chart-gateway] swiss dosha failed; falling back to Prokerala:",
+        e,
+      );
+      // fall through to the Prokerala path below
+    }
+  }
+
+  // ---------- Local astronomy-engine path (ashtakavarga + sarvashtakavarga) ----------
+  // Same gating discipline as swiss-dosha: opt-in, resilient, any compute
+  // error falls through to Prokerala. Cost: zero, no provider call.
+  if (useSwissAshtakavarga) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const natal: any = await computeNatalPayload(
+        datetimeUsed,
+        latitude,
+        longitude,
+      );
+      let avPayload: unknown;
+      let auditEndpoint: string;
+      if (reportType === "ashtakavarga") {
+        const planetId = Number(reportParams.planet);
+        if (!Number.isFinite(planetId)) {
+          throw new Error("ashtakavarga: invalid provider_params.planet");
+        }
+        avPayload = computeAshtakavargaPayload(natal, planetId);
+        auditEndpoint = "local/ashtakavarga";
+      } else {
+        avPayload = computeSarvashtakavargaPayload(natal);
+        auditEndpoint = "local/sarvashtakavarga";
+      }
+      // Stamp _report so parity/inspection tooling can identify local rows
+      // unambiguously by type (Prokerala rows lack this key today).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (avPayload as any)._report = {
+        type: reportType,
+        params: reportParams,
+      };
+
+      let artifactId: string | null = null;
+      try {
+        const { data: inserted, error: insErr } = await svc
+          .from("chart_artifacts")
+          .upsert(
+            {
+              user_id: userId,
+              birth_profile_id: birth.id,
+              chart_type: chartType,
+              input_hash: inputHash,
+              provider: "astronomy-engine",
+              provider_version: SWISS_ENGINE_VERSION + "+av-v1",
+              chart_jsonb: avPayload,
+              supersedes_id: null,
+            },
+            { onConflict: "user_id,chart_type,input_hash" },
+          )
+          .select("id")
+          .single();
+        if (insErr) {
+          console.error("[chart-gateway] swiss ashtakavarga persist failed:", insErr);
+        } else {
+          artifactId = inserted?.id ?? null;
+        }
+      } catch (persistErr) {
+        console.error("[chart-gateway] swiss ashtakavarga persist threw:", persistErr);
+      }
+
+      try {
+        await svc.from("astrology_provider_runs").insert({
+          user_id: userId,
+          provider: "astronomy-engine",
+          endpoint: auditEndpoint,
+          input_hash: inputHash,
+          http_status: 200,
+          success: true,
+          cost_units: 0,
+          error: null,
+        });
+      } catch (auditErr) {
+        console.error("[chart-gateway] swiss ashtakavarga audit failed:", auditErr);
+      }
+
+      console.log(
+        `[chart-gateway] served ${reportType} via astronomy-engine (engine=swiss)`,
+      );
+      return json(200, {
+        resource: "report",
+        report_type: reportType,
+        engine: "astronomy-engine",
+        reused: false,
+        artifact_id: artifactId,
+        data: avPayload,
+      });
+    } catch (e) {
+      console.error(
+        "[chart-gateway] swiss ashtakavarga failed; falling back to Prokerala:",
         e,
       );
       // fall through to the Prokerala path below

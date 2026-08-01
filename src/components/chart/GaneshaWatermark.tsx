@@ -2,38 +2,54 @@
 export const GANESHA_WATERMARK_OPACITY = 0.05;
 
 /**
- * Single-line engraved outline of Ganesha, centered behind the kundli chart.
- * Deliberately minimal/geometric — never cartoon zodiac art (design.md law).
+ * Single-line engraved side-profile silhouette of Ganesha, centered behind the
+ * kundli chart. Deliberately minimal — never cartoon zodiac art (design.md law).
  */
 export function GaneshaWatermark({ opacity = GANESHA_WATERMARK_OPACITY }: { opacity?: number }) {
   return (
     <svg
-      viewBox="0 0 200 200"
-      className="pointer-events-none absolute inset-0 m-auto h-[70%] w-[70%] text-accent"
+      viewBox="0 0 200 220"
+      className="pointer-events-none absolute inset-0 m-auto h-[68%] w-[68%] text-accent"
       style={{ opacity }}
       aria-hidden="true"
     >
       <g
         fill="none"
         stroke="currentColor"
-        strokeWidth={1.2}
+        strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* crown */}
-        <path d="M 78 22 Q 100 8 122 22 L 118 34 Q 100 26 82 34 Z" />
-        <circle cx="100" cy="16" r="3" />
-        {/* ears */}
-        <path d="M 62 62 Q 34 58 30 84 Q 28 106 52 108 Q 68 108 72 92" />
-        <path d="M 138 62 Q 166 58 170 84 Q 172 106 148 108 Q 132 108 128 92" />
-        {/* head outline */}
-        <path d="M 72 92 Q 68 50 100 44 Q 132 50 128 92 Q 130 122 100 130 Q 70 122 72 92 Z" />
-        {/* trunk */}
-        <path d="M 100 130 Q 96 150 108 162 Q 118 172 108 182 Q 100 188 92 180" />
+        {/* seated body beneath the head */}
+        <ellipse cx="100" cy="146" rx="46" ry="45" />
+
+        {/* ear, fan-shaped oval behind/above the head */}
+        <ellipse
+          cx="150"
+          cy="60"
+          rx="37"
+          ry="23"
+          transform="rotate(-20 150 60)"
+          fill="color-mix(in oklab, var(--accent) 7%, transparent)"
+        />
+
+        {/* elephant head */}
+        <ellipse cx="93" cy="62" rx="32" ry="36" />
+
+        {/* crown / mukut peak */}
+        <path d="M 79 24 Q 89 10 99 24 L 92 32 Q 89 27 86 32 Z" />
+
+        {/* trunk — curves down from the mouth then curls inward at the tip */}
+        <path
+          d="M 71 92 Q 54 106 47 129 Q 41 150 58 160 Q 70 167 68 152 Q 66 140 54 142"
+          strokeWidth={2.6}
+        />
+
         {/* tusk */}
-        <path d="M 92 132 Q 84 140 88 150" />
-        {/* neck / shoulders */}
-        <path d="M 66 150 Q 100 170 134 150 L 134 176 Q 100 196 66 176 Z" />
+        <path d="M 68 96 Q 58 100 56 111" strokeWidth={1.5} />
+
+        {/* eye */}
+        <circle cx="80" cy="52" r="2.6" fill="currentColor" stroke="none" />
       </g>
     </svg>
   );

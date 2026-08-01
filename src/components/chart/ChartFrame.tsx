@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 
-import { AstrolabeCorners } from "@/components/chart/AstrolabeCorners";
+import { LotusCorners } from "@/components/chart/LotusCorners";
 import { GaneshaWatermark } from "@/components/chart/GaneshaWatermark";
 
 /**
- * "Manuscript Frame" — aged-paper surface + engraved astrolabe corners + a
+ * "Manuscript Frame" — aged-paper surface + engraved lotus corners + a
  * faint Ganesha watermark around the kundli chart. Decorative-only wrapper:
  * never touches the chart SVG string, which is passed in unchanged as children.
  */
@@ -31,7 +31,7 @@ export function ChartFrame({ children }: { children: ReactNode }) {
         <div className="relative">{children}</div>
       </div>
 
-      <AstrolabeCorners />
+      <LotusCorners />
     </div>
   );
 }

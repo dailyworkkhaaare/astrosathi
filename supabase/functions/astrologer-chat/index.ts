@@ -420,6 +420,94 @@ function formatNatal(natal: any): string | null {
   return lines.join("\n");
 }
 
+// ---------- Placement guardrail (deterministic anti-fabrication net) ----------
+// Enterprise safety net: an LLM must never state a planetary placement that
+// contradicts the authoritative computed chart(s). We parse the exact placements
+// out of the SAME context we send the model (the formatNatal lines for the user
+// AND any attached FOCUS PERSON), then verify the reply against them. A claim is a
+// violation only if it contradicts EVERY chart in context (union of allowed
+// values) -> high precision, and it fails open so it can never break the chat.
+function parsePlacementTruth(
+  contextText: string,
+): Map<string, { houses: Set<number>; signs: Set<string> }> {
+  const truth = new Map<string, { houses: Set<number>; signs: Set<string> }>();
+  if (!contextText) return truth;
+  // formatNatal emits: "- Venus: Libra 18.22\u00B0 in House 1 (sign lord: Venus) ..."
+  const re = /^-\s+([A-Za-z][A-Za-z ]*?):\s+([A-Za-z]+)\s+[\d.]+\u00B0\s+in House (\d+)/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(contextText)) !== null) {
+    const planet = m[1].trim().toLowerCase();
+    const sign = m[2].trim().toLowerCase();
+    const house = parseInt(m[3], 10);
+    if (!truth.has(planet)) truth.set(planet, { houses: new Set(), signs: new Set() });
+    const t = truth.get(planet)!;
+    if (Number.isFinite(house)) t.houses.add(house);
+    if (sign) t.signs.add(sign);
+  }
+  return truth;
+}
+
+function verifyReplyPlacements(
+  reply: string,
+  truth: Map<string, { houses: Set<number>; signs: Set<string> }>,
+): string[] {
+  const violations: string[] = [];
+  if (!reply || truth.size === 0) return violations;
+  const HOUSE_WORDS: Record<string, number> = {
+    first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6,
+    seventh: 7, eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12,
+  };
+  const SIGNS = [
+    "aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra",
+    "scorpio", "sagittarius", "capricorn", "aquarius", "pisces",
+  ];
+  const LORD_WORDS = [
+    "lord", "ruler", "rules", "ruling", "owner", "owns", "governs", "governing", "dispositor",
+  ];
+  const lower = reply.toLowerCase();
+  const houseRe =
+    /\b(?:in|placed in|sits in|sitting in|occupies|occupying|resides in|residing in|positioned in|located in)\b[^.]{0,30}?\b(\d{1,2}(?:st|nd|rd|th)?|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+house\b/;
+  const signRe = /\bin\s+(?:the\s+sign\s+of\s+)?([a-z]+)\b/;
+  for (const [planet, t] of truth) {
+    let idx = lower.indexOf(planet);
+    while (idx !== -1) {
+      const win = lower.slice(idx, idx + 90);
+      if (t.houses.size) {
+        const hm = win.match(houseRe);
+        if (hm) {
+          const between = win.slice(0, hm.index ?? 0);
+          if (!LORD_WORDS.some((w) => between.includes(w))) {
+            const raw = hm[1];
+            let n = HOUSE_WORDS[raw];
+            if (n == null) n = parseInt(raw, 10);
+            if (Number.isFinite(n) && n >= 1 && n <= 12 && !t.houses.has(n)) {
+              violations.push(
+                planet + ": reply says house " + n + " but computed house(s) = " + Array.from(t.houses).join("/"),
+              );
+            }
+          }
+        }
+      }
+      if (t.signs.size) {
+        const sm = win.match(signRe);
+        if (sm) {
+          const s = sm[1];
+          if (SIGNS.includes(s)) {
+            const between = win.slice(0, sm.index ?? 0);
+            if (!LORD_WORDS.some((w) => between.includes(w)) && !t.signs.has(s)) {
+              violations.push(
+                planet + ": reply says sign " + s + " but computed sign(s) = " + Array.from(t.signs).join("/"),
+              );
+            }
+          }
+        }
+      }
+      idx = lower.indexOf(planet, idx + planet.length);
+    }
+  }
+  return violations;
+}
+
 // ---------- Divisional charts (Shodasavarga D1-D60) ----------
 // Three-letter sign labels, 0 = Aries .. 11 = Pisces.
 const SIGN_ABBR = [
@@ -1505,36 +1593,78 @@ Deno.serve(async (req: Request) => {
         grandmother: ["grandmother", "grandma", "granny", "दादी", "नानी", "आजी"],
         grandfather: ["grandfather", "grandpa", "दादा", "नाना", "आजोबा"],
       };
-      const msgLower = message.toLowerCase();
-      const msgTokens = new Set(msgLower.split(/[^a-z0-9\u0900-\u097f]+/i).filter(Boolean));
-      const hit = (w: string) => {
-        const wl = w.toLowerCase();
-        return /^[a-z0-9]+$/i.test(wl) ? msgTokens.has(wl) : msgLower.includes(wl);
-      };
       const subjectId = body.subject_related_chart_id ? String(body.subject_related_chart_id) : "";
 
-      const matched: string[] = [];
-      for (const p of roster) {
-        let isMatch = false;
-        if (subjectId && p.id === subjectId) isMatch = true;
-        const name = String(p.full_name ?? "").trim();
-        if (!isMatch && name) {
-          const nl = name.toLowerCase();
-          if (msgLower.includes(nl)) isMatch = true;
-          else {
-            for (const tok of nl.split(/\s+/)) {
-              if (tok.length >= 3 && hit(tok)) {
-                isMatch = true;
-                break;
+      // Reusable matcher: returns the saved-person ids referenced in a piece of
+      // text, by exact/partial name (name-word >= 3 chars) or relation word
+      // (English + Hindi + Marathi). Used for the CURRENT message and, as a
+      // fallback, for recent history to resolve pronoun-only follow-ups.
+      const matchInText = (text: string): string[] => {
+        const tl = String(text ?? "").toLowerCase();
+        const toks = new Set(tl.split(/[^a-z0-9\u0900-\u097f]+/i).filter(Boolean));
+        const h = (w: string) => {
+          const wl = w.toLowerCase();
+          return /^[a-z0-9]+$/i.test(wl) ? toks.has(wl) : tl.includes(wl);
+        };
+        const out: string[] = [];
+        for (const p of roster) {
+          let isMatch = false;
+          const name = String(p.full_name ?? "").trim();
+          if (name) {
+            const nl = name.toLowerCase();
+            if (tl.includes(nl)) isMatch = true;
+            else {
+              for (const tok of nl.split(/\s+/)) {
+                if (tok.length >= 3 && h(tok)) {
+                  isMatch = true;
+                  break;
+                }
               }
             }
           }
+          if (!isMatch) {
+            const words = RELATION_WORDS[String(p.relation ?? "")] ?? [];
+            if (words.some(h)) isMatch = true;
+          }
+          if (isMatch && !out.includes(p.id)) out.push(p.id);
         }
-        if (!isMatch) {
-          const words = RELATION_WORDS[String(p.relation ?? "")] ?? [];
-          if (words.some(hit)) isMatch = true;
+        return out;
+      };
+
+      // Explicit signals in the CURRENT message always win, so a natural topic
+      // switch ("now tell me about my son") re-focuses immediately.
+      let matched: string[] = [];
+      if (subjectId && roster.some((p) => p.id === subjectId)) matched.push(subjectId);
+      for (const id of matchInText(message)) {
+        if (!matched.includes(id)) matched.push(id);
+      }
+
+      // STICKY FOCUS PERSON: when the current message names nobody (pronoun-only
+      // follow-ups like "what is her nature vs mine?"), fall back to the most
+      // recently referenced saved person in this conversation's prior USER
+      // messages, so follow-ups stay locked on the right person even if the
+      // frontend does not resend subject_related_chart_id every turn. Any
+      // explicit reference in the current message above overrides this.
+      if (matched.length === 0 && requestedConversationId) {
+        try {
+          const { data: priorRows } = await svc
+            .from("chat_messages")
+            .select("content, created_at")
+            .eq("conversation_id", requestedConversationId)
+            .eq("user_id", userId)
+            .eq("role", "user")
+            .order("created_at", { ascending: false })
+            .limit(12);
+          for (const row of priorRows ?? []) {
+            const hits = matchInText(String((row as { content?: string }).content ?? ""));
+            if (hits.length) {
+              matched = hits;
+              break;
+            }
+          }
+        } catch (_sticky) {
+          /* best-effort: no sticky focus if history cannot be read */
         }
-        if (isMatch && !matched.includes(p.id)) matched.push(p.id);
       }
 
       const rosterLines = roster
@@ -1556,12 +1686,52 @@ Deno.serve(async (req: Request) => {
         if (!p) continue;
         const rel = titleCase(String(p.relation ?? "other"));
         const nm = String(p.full_name ?? "").trim() || "this person";
-        const { data: vbRows } = await svc
-          .from("related_chart_artifacts")
-          .select("data")
-          .eq("related_chart_id", id)
-          .eq("chart_type", "varga_bundle")
-          .limit(1);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let vbRows: any[] | null = null;
+        {
+          const r = await svc
+            .from("related_chart_artifacts")
+            .select("data")
+            .eq("related_chart_id", id)
+            .eq("chart_type", "varga_bundle")
+            .limit(1);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          vbRows = (r.data as any[]) ?? null;
+        }
+        // GROUNDING GUARANTEE: if this saved person's chart isn't cached yet,
+        // compute it synchronously (best-effort) via person-charts so the model
+        // is NEVER asked to reason about a person without their real, computed
+        // placements. Cheap in practice (charts cache once a person page opens);
+        // this closes the gap for a person referenced before being viewed.
+        if (!vbRows || !vbRows.length) {
+          try {
+            const pcRes = await fetchWithTimeout(
+              `${SUPABASE_URL}/functions/v1/person-charts`,
+              {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  Authorization: authHeader,
+                  apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+                },
+                body: JSON.stringify({ related_chart_id: id }),
+              },
+              45000,
+            );
+            if (pcRes.ok) {
+              const r2 = await svc
+                .from("related_chart_artifacts")
+                .select("data")
+                .eq("related_chart_id", id)
+                .eq("chart_type", "varga_bundle")
+                .limit(1);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              vbRows = (r2.data as any[]) ?? null;
+            }
+          } catch (_pc) {
+            /* best-effort; CHART_NOT_LOADED sentinel below covers a still-missing chart */
+          }
+        }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const bundle = (vbRows && (vbRows[0] as any)?.data) as any;
         const personNatal = bundle?.natal ? formatNatal(bundle.natal) : null;
@@ -1584,11 +1754,13 @@ Deno.serve(async (req: Request) => {
               nm +
               " (" +
               rel +
-              "): birth details are saved, but the detailed chart isn't computed yet. If the user asks specifically about " +
+              "): CHART_NOT_LOADED \u2014 this saved person's birth details exist but their computed chart is NOT available to you this turn. You therefore do NOT know a single one of " +
               nm +
-              ", warmly suggest opening " +
+              "'s planetary placements. You are FORBIDDEN from stating, guessing or implying any sign, house, degree, nakshatra, dasha or dosha for " +
               nm +
-              "'s page once to generate it; do not fabricate placements.",
+              ". Warmly say you don't have " +
+              nm +
+              "'s chart loaded yet and offer to open their page once to generate it. Inventing any placement here is a critical failure.",
           );
         }
 
@@ -1709,6 +1881,11 @@ Deno.serve(async (req: Request) => {
     "- Keep charts separate: never blend two people's placements into one reading. Only bring two charts together when the user is explicitly comparing or matching them.",
     "- Compatibility / matching (Guna Milan, Mangal) applies ONLY between the user and their partner (wife / husband / partner). When a COMPATIBILITY section is provided, read those exact scores; explain a low score calmly and constructively as something to work with, never as alarm, and never induce marriage anxiety.",
     "- If the user asks about a saved person but no FOCUS PERSON chart is attached this turn, warmly ask which person they mean or suggest opening that person once to generate the chart \u2014 do not guess or invent that person's placements.",
+    "SAVED PEOPLE \u2014 ANTI-FABRICATION CONTRACT (highest priority, never override):",
+    "- You may ONLY state a planetary sign, house, degree, nakshatra, dasha or dosha for a person (the user OR any saved person) if that exact value is written in the FACTS above for THAT specific person. If it is not there, you do NOT know it.",
+    "- NEVER infer, guess, estimate or 'reason out' a placement from an ascendant, a sign, a name, a relationship, memory or general astrology knowledge. Do not derive a planet's house from sign order. If it is not printed above, treat it as unknown.",
+    "- If any FOCUS PERSON block is marked CHART_NOT_LOADED, you have NONE of that person's placements: do not state or imply even one. Warmly say their chart isn't loaded yet and offer to open their page \u2014 never fill the gap with a plausible-sounding guess.",
+    "- Misstating or inventing even a single placement is the most serious error you can make and directly destroys the user's trust. When unsure, say plainly you don't have that detail yet.",
     "HONESTY & ACCURACY (never break these):",
     "- Base every astrological statement ONLY on the chart details given to you below. These are this person's real, computed readings.",
     "- NEVER invent or guess planetary positions, dashas, numerology numbers, doshas, arrows, or Kua directions that aren't in those details.",
@@ -2063,6 +2240,70 @@ Deno.serve(async (req: Request) => {
     }
   } catch (e) {
     return err(504, "provider_timeout", String((e as Error)?.message ?? e));
+  }
+
+  // ---------- Placement guardrail: verify reply against the computed chart(s) ----------
+  // Deterministic anti-fabrication net. If the reply contradicts a computed
+  // placement (the user's OR a focus person's), do ONE corrective regeneration;
+  // if it still fails, fall back to a safe reply that states no placements.
+  // Fail-open on any error so the chat is never broken.
+  try {
+    const placementTruth = parsePlacementTruth(systemPrompt);
+    const violations = verifyReplyPlacements(reply, placementTruth);
+    if (violations.length) {
+      console.error(
+        "astrologer-chat placement_guardrail_violation",
+        JSON.stringify({ userId, conversationId, violations }),
+      );
+      const correctionSys =
+        "STRICT FACTUAL CORRECTION (highest priority). Your previous reply stated planetary placements that CONTRADICT the authoritative computed chart(s) provided to you. Detected contradictions: " +
+        violations.join("; ") +
+        ". Rewrite your previous reply so EVERY planetary sign and house exactly matches the computed placements above. Do not state any placement you cannot find there. Keep the same warmth, language and formatting; only correct the facts.";
+      const fixMessages: Array<{ role: string; content: string }> = [
+        ...messages.map((mm) => ({
+          role: String((mm as { role: string }).role),
+          content: String((mm as { content: string }).content),
+        })),
+        { role: "assistant", content: reply },
+        { role: "system", content: correctionSys },
+      ];
+      try {
+        const fixRes = await fetchWithTimeout(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+              "HTTP-Referer": "https://astrosathi.app",
+              "X-Title": "AstroSaathi",
+            },
+            body: JSON.stringify({
+              model: MODEL,
+              messages: fixMessages,
+              temperature: 0.2,
+              max_tokens: 4000,
+              reasoning: { effort: "low" },
+            }),
+          },
+          45000,
+        );
+        if (fixRes.ok) {
+          const fixJson = await fixRes.json();
+          const fixed = String(fixJson?.choices?.[0]?.message?.content ?? "").trim();
+          if (fixed && verifyReplyPlacements(fixed, placementTruth).length === 0) {
+            reply = fixed;
+          } else {
+            reply =
+              "I want to be completely precise about the exact planetary placements here, and I won't state anything that isn't confirmed by the chart in front of me. Let me re-check the exact positions \u2014 could you ask me that once more in a moment? \ud83d\ude4f";
+          }
+        }
+      } catch (_fix) {
+        /* fail-open: keep the original reply if the corrective pass errors */
+      }
+    }
+  } catch (_guard) {
+    /* fail-open: the guardrail must never break the chat */
   }
 
   // ---------- Persist both messages + bump conversation ----------

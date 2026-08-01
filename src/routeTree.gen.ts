@@ -30,6 +30,7 @@ import { Route as TodayHoroscopeRouteImport } from './routes/today.horoscope'
 import { Route as TodayMarketsRouteImport } from './routes/today.markets'
 import { Route as TodayPanchangRouteImport } from './routes/today.panchang'
 import { Route as PeopleIdIndexRouteImport } from './routes/people.$id.index'
+import { Route as PeopleIdCompatibilityRouteImport } from './routes/people.$id.compatibility'
 import { Route as PeopleIdEditRouteImport } from './routes/people.$id.edit'
 
 const IndexRoute = IndexRouteImport.update({
@@ -137,6 +138,11 @@ const PeopleIdIndexRoute = PeopleIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PeopleIdRoute,
 } as any)
+const PeopleIdCompatibilityRoute = PeopleIdCompatibilityRouteImport.update({
+  id: '/compatibility',
+  path: '/compatibility',
+  getParentRoute: () => PeopleIdRoute,
+} as any)
 const PeopleIdEditRoute = PeopleIdEditRouteImport.update({
   id: '/edit',
   path: '/edit',
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/today/panchang': typeof TodayPanchangRoute
   '/people/': typeof PeopleIndexRoute
   '/today/': typeof TodayIndexRoute
+  '/people/$id/compatibility': typeof PeopleIdCompatibilityRoute
   '/people/$id/edit': typeof PeopleIdEditRoute
   '/people/$id/': typeof PeopleIdIndexRoute
 }
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/today/panchang': typeof TodayPanchangRoute
   '/people': typeof PeopleIndexRoute
   '/today': typeof TodayIndexRoute
+  '/people/$id/compatibility': typeof PeopleIdCompatibilityRoute
   '/people/$id/edit': typeof PeopleIdEditRoute
   '/people/$id': typeof PeopleIdIndexRoute
 }
@@ -211,6 +219,7 @@ export interface FileRoutesById {
   '/today/panchang': typeof TodayPanchangRoute
   '/people/': typeof PeopleIndexRoute
   '/today/': typeof TodayIndexRoute
+  '/people/$id/compatibility': typeof PeopleIdCompatibilityRoute
   '/people/$id/edit': typeof PeopleIdEditRoute
   '/people/$id/': typeof PeopleIdIndexRoute
 }
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/today/panchang'
     | '/people/'
     | '/today/'
+    | '/people/$id/compatibility'
     | '/people/$id/edit'
     | '/people/$id/'
   fileRoutesByTo: FileRoutesByTo
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/today/panchang'
     | '/people'
     | '/today'
+    | '/people/$id/compatibility'
     | '/people/$id/edit'
     | '/people/$id'
   id:
@@ -283,6 +294,7 @@ export interface FileRouteTypes {
     | '/today/panchang'
     | '/people/'
     | '/today/'
+    | '/people/$id/compatibility'
     | '/people/$id/edit'
     | '/people/$id/'
   fileRoutesById: FileRoutesById
@@ -454,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PeopleIdIndexRouteImport
       parentRoute: typeof PeopleIdRoute
     }
+    '/people/$id/compatibility': {
+      id: '/people/$id/compatibility'
+      path: '/compatibility'
+      fullPath: '/people/$id/compatibility'
+      preLoaderRoute: typeof PeopleIdCompatibilityRouteImport
+      parentRoute: typeof PeopleIdRoute
+    }
     '/people/$id/edit': {
       id: '/people/$id/edit'
       path: '/edit'
@@ -491,11 +510,13 @@ const TodayRouteChildren: TodayRouteChildren = {
 const TodayRouteWithChildren = TodayRoute._addFileChildren(TodayRouteChildren)
 
 interface PeopleIdRouteChildren {
+  PeopleIdCompatibilityRoute: typeof PeopleIdCompatibilityRoute
   PeopleIdEditRoute: typeof PeopleIdEditRoute
   PeopleIdIndexRoute: typeof PeopleIdIndexRoute
 }
 
 const PeopleIdRouteChildren: PeopleIdRouteChildren = {
+  PeopleIdCompatibilityRoute: PeopleIdCompatibilityRoute,
   PeopleIdEditRoute: PeopleIdEditRoute,
   PeopleIdIndexRoute: PeopleIdIndexRoute,
 }

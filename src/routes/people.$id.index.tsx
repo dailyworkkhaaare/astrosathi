@@ -1,14 +1,14 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Heart, Pencil } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { ChartFrame } from "@/components/chart/ChartFrame";
 import { usePersonCharts } from "@/lib/queries";
 import { buildVargaTable, mapPlanets, VARGA_TO_ENUM, type NormalizedPlanet } from "@/lib/charts";
 import { VARGA_KEYS, type PlanetKey, type VargaKey } from "@/lib/chart-types";
-import { RELATIONS, type Relation } from "@/lib/related-charts";
+import { COMPAT_RELATIONS, RELATIONS, type Relation } from "@/lib/related-charts";
 
 export const Route = createFileRoute("/people/$id/")({
   head: () => ({
@@ -126,6 +126,27 @@ function PersonDetailPage() {
             />
             <BasicStat label={t("people.detail.sun")} value={bundle.basic.sun?.name} />
           </div>
+
+          {COMPAT_RELATIONS.includes(bundle.person.relation) && (
+            <Link
+              to="/people/$id/compatibility"
+              params={{ id }}
+              className="tap-press flex min-h-11 w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              style={{ boxShadow: "var(--shadow-soft)" }}
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+                <Heart size={18} aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {t("people.detail.compatibility")}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {t("people.detail.compatibilityHint")}
+                </span>
+              </span>
+            </Link>
+          )}
 
           <div
             className="rounded-2xl border border-border bg-card p-5"

@@ -1099,8 +1099,90 @@
       "moon": "Moon",
       "sun": "Sun",
       "loadError": "Could not load this chart.",
-      "missingCoords": "This person has no birth coordinates — edit the birth place first."
+      "missingCoords": "This person has no birth coordinates — edit the birth place first.",
+      "compatibility": "Compatibility",
+      "compatibilityHint": "See how your charts align"
     },
-    "saveFailed": "Could not save. Please try again."
+    "saveFailed": "Could not save. Please try again.",
+    "compatibility": {
+      "title": "Compatibility",
+      "subtitle": "How your chart aligns with {{partner}}'s",
+      "back": "Compatibility",
+      "loadError": "Could not load compatibility.",
+      "errors": {
+        "no_self_profile": "Complete your own birth details first to see compatibility.",
+        "not_compat_eligible": "Compatibility is only available for a spouse or partner.",
+        "missing_self_coordinates": "Your birth place is missing — add it to your profile to see compatibility.",
+        "missing_partner_coordinates": "{{partner}}'s birth place is missing — edit their details to see compatibility."
+      },
+      "gunaMilan": {
+        "title": "Guna Milan",
+        "gotLabel": "{{got}} / {{max}}",
+        "kutasTitle": "The 8 kutas",
+        "verdicts": {
+          "excellent": "An excellent match",
+          "very_good": "A very good match",
+          "good": "A good match",
+          "average": "An average match",
+          "needs_care": "A match that needs a little care"
+        }
+      },
+      "kutas": {
+        "varna": {
+          "name": "Varna",
+          "meaning": "Compares spiritual temperament and ego compatibility."
+        },
+        "vashya": {
+          "name": "Vashya",
+          "meaning": "Looks at mutual attraction and influence between you two."
+        },
+        "tara": {
+          "name": "Tara",
+          "meaning": "Checks birth-star compatibility for health and wellbeing."
+        },
+        "yoni": {
+          "name": "Yoni",
+          "meaning": "Compares intimate and instinctive compatibility."
+        },
+        "grahaMaitri": {
+          "name": "Graha Maitri",
+          "meaning": "Measures mental and intellectual compatibility."
+        },
+        "gana": {
+          "name": "Gana",
+          "meaning": "Compares temperament — calm, active or intense energies."
+        },
+        "bhakoot": {
+          "name": "Bhakoot",
+          "meaning": "Checks moon-sign harmony for love, family and prosperity."
+        },
+        "nadi": {
+          "name": "Nadi",
+          "meaning": "Checks genetic and health compatibility, the most heavily weighted kuta."
+        }
+      },
+      "mangal": {
+        "title": "Mangal Dosha",
+        "selfLabel": "You",
+        "manglik": "Manglik",
+        "notManglik": "Not manglik",
+        "verdicts": {
+          "both_manglik_balanced": "You're both manglik, which tends to balance each other out.",
+          "none_manglik": "Neither of you carries manglik dosha.",
+          "one_manglik": "Only one of you is manglik. This is common, and manageable with the right remedies."
+        }
+      },
+      "synastry": {
+        "title": "Chart overlay",
+        "subtitle": "Where {{partner}}'s planets fall in your houses",
+        "empty": "No standout overlay here, and that's alright too.",
+        "templates": {
+          "benefic": "{{planet}} lands in your {{house}}, a warm and supportive placement.",
+          "saturn": "{{planet}} lands in your {{house}}, bringing a steadiness that grows with time.",
+          "mars": "Mars lands in your {{house}}, a spark that calls for patience."
+        },
+        "tableTitle": "Full overlay"
+      }
+    }
   }
 }

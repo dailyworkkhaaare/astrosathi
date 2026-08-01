@@ -216,3 +216,76 @@ export type PersonChartsBundle = {
   natal: unknown;
   charts: Record<string, PersonChartsVarga>;
 };
+
+// ---------- compatibility response shape ----------
+// Mirrors supabase/functions/compatibility/index.ts's `bundle` envelope.
+
+export const COMPAT_RELATIONS: Relation[] = ["wife", "husband", "partner"];
+
+export type CompatibilityPerson = {
+  name: string;
+  gender: Gender | null;
+  moon_sign: number;
+  moon_sign_name: string;
+  moon_nakshatra_index: number;
+  moon_nakshatra: string;
+  asc_sign: number;
+  asc_sign_name: string;
+};
+
+export type CompatibilityKuta = {
+  name: string;
+  got: number;
+  max: number;
+  boy?: string;
+  girl?: string;
+  relationship?: string;
+};
+
+export type CompatibilityGunaMilan = {
+  total: number;
+  max: number;
+  kutas: CompatibilityKuta[];
+  verdict: "excellent" | "very_good" | "good" | "average" | "needs_care";
+};
+
+export type CompatibilityMangalPerson = {
+  mars_house_from_lagna: number;
+  mars_house_from_moon: number;
+  manglik_from_lagna: boolean;
+  manglik_from_moon: boolean;
+  manglik: boolean;
+};
+
+export type CompatibilityMangal = {
+  self: CompatibilityMangalPerson;
+  partner: CompatibilityMangalPerson;
+  verdict: "both_manglik_balanced" | "none_manglik" | "one_manglik";
+};
+
+export type CompatibilitySynastryOverlay = {
+  planet: string;
+  sign: number;
+  sign_name: string;
+  house: number;
+};
+
+export type CompatibilitySynastry = {
+  partner_planets_in_self_houses: CompatibilitySynastryOverlay[];
+  self_planets_in_partner_houses: CompatibilitySynastryOverlay[];
+  highlights: string[];
+};
+
+export type CompatibilityBundle = {
+  version: string;
+  provider: string;
+  provider_version: string;
+  related_chart_id: string;
+  assumed_gender: boolean;
+  groom_is: "self" | "partner";
+  self: CompatibilityPerson;
+  partner: CompatibilityPerson & { related_chart_id: string; relation: Relation };
+  guna_milan: CompatibilityGunaMilan;
+  mangal: CompatibilityMangal;
+  synastry: CompatibilitySynastry;
+};

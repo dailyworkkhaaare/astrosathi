@@ -27,6 +27,7 @@ import {
   listRelatedCharts,
   type RelatedChart,
   type PersonChartsBundle,
+  type CompatibilityBundle,
 } from "@/lib/related-charts";
 
 // ---------------------------------------------------------------- constants
@@ -1296,6 +1297,48 @@ export function usePersonCharts(
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const bundle = (data as any)?.data as PersonChartsBundle | undefined;
+      if (!bundle) return { error: { code: "provider_error", message: "Empty response" } };
+      return { data: bundle };
+    },
+  });
+}
+
+export type CompatibilityValue =
+  | { data: CompatibilityBundle; error?: undefined }
+  | { data?: undefined; error: { code: string; message: string } };
+
+export function useCompatibility(
+  relatedChartId: string | undefined,
+): UseQueryResult<CompatibilityValue> {
+  const userId = useCurrentUserId();
+  return useQuery<CompatibilityValue>({
+    queryKey: ["related-charts", "compatibility", userId, relatedChartId],
+    enabled: userId !== null && !!relatedChartId,
+    staleTime: CHART_STALE_MS,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("compatibility", {
+        body: { related_chart_id: relatedChartId },
+      });
+      if (error) {
+        let code = "provider_error";
+        let message = error.message ?? "Request failed";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ctx = (error as any).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = await ctx.json();
+            if (body?.error?.code) code = String(body.error.code);
+            if (body?.error?.message) message = String(body.error.message);
+          } catch {
+            /* ignore */
+          }
+        }
+        return { error: { code, message } };
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bundle = (data as any)?.data as CompatibilityBundle | undefined;
       if (!bundle) return { error: { code: "provider_error", message: "Empty response" } };
       return { data: bundle };
     },

@@ -427,7 +427,9 @@
       "editBirth": "Edit birth details",
       "birthHint": "Name, date, time and place used to build your chart.",
       "people": "People",
-      "peopleHint": "Saved charts for family, friends & partners."
+      "peopleHint": "Saved charts for family, friends & partners.",
+      "memory": "Memory & Privacy",
+      "memoryHint": "See, edit or delete what AstroSaathi remembers about you."
     },
     "prefs": {
       "title": "Preferences",
@@ -478,6 +480,92 @@
       "deleteBody": "This will remove your profile, chats, and preferences from this device. This action cannot be undone.",
       "cancel": "Cancel",
       "confirm": "Delete data"
+    },
+    "memory": {
+      "back": "Back to settings",
+      "title": "Memory & Privacy",
+      "masterTitle": "Memory",
+      "masterLabel": "Let AstroSaathi remember me",
+      "masterHelp": "When off, AstroSaathi won't use or store new personal memory.",
+      "retentionTitle": "Default retention",
+      "retentionLabel": "Keep new memories for",
+      "retentionHelp": "How long new memories are kept by default.",
+      "retentionOptions": {
+        "forever": "Forever",
+        "days_30": "30 days",
+        "chat": "This chat only",
+        "never": "Never"
+      },
+      "memoriesTitle": "Your memories",
+      "emptyAll": "Nothing remembered yet.",
+      "topics": {
+        "career": "Career",
+        "health": "Health",
+        "marriage": "Marriage",
+        "relationships": "Relationships",
+        "finance": "Finance",
+        "children": "Children",
+        "education": "Education",
+        "travel": "Travel",
+        "property": "Property",
+        "business": "Business",
+        "spirituality": "Spirituality",
+        "family": "Family",
+        "other": "Other"
+      },
+      "updated": "Updated {{time}}",
+      "expires": "Expires {{date}}",
+      "expiresIn": "Expires {{date}}",
+      "excludedFromAi": "Excluded from AI",
+      "deleteCard": "Delete this memory",
+      "deleteCardTitle": "Delete this memory?",
+      "deleteCardBody": "This memory will be permanently removed and can't be recovered.",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "continue": "Continue",
+      "prefsTitle": "Preferences",
+      "prefsEmpty": "Nothing learned yet.",
+      "prefsCaption": "Learned automatically from your chats.",
+      "resetPrefs": "Reset learned preferences",
+      "resetPrefsTitle": "Reset learned preferences?",
+      "resetPrefsBody": "AstroSaathi will forget the tone and style it has learned from your chats. Your saved memories are not affected.",
+      "prefKeys": {
+        "preferred_language": "Preferred language",
+        "preferred_tone": "Preferred tone",
+        "detail_level": "Detail level",
+        "likes_tables": "Likes tables",
+        "remedies_first": "Remedies first",
+        "wants_practical": "Wants practical guidance",
+        "likes_followup": "Likes follow-up questions",
+        "communication_style": "Communication style"
+      },
+      "on": "on",
+      "off": "off",
+      "moodTitle": "Current mood",
+      "clearMood": "Clear",
+      "clearMoodTitle": "Clear your current mood?",
+      "clearMoodBody": "AstroSaathi will stop factoring this mood into its replies.",
+      "dangerTitle": "Export & delete",
+      "export": "Export my data",
+      "deleteAll": "Delete all memories",
+      "deleteAllTitle": "Delete all memories?",
+      "deleteAllBody1": "This permanently deletes every memory AstroSaathi has stored about you, including your current mood. This can't be undone.",
+      "deleteAllBody2": "Are you sure? This is your last chance to keep them.",
+      "time": {
+        "justNow": "just now",
+        "minutesAgo": "{{n}}m ago",
+        "hoursAgo": "{{n}}h ago",
+        "daysAgo": "{{n}}d ago",
+        "monthsAgo": "{{n}}mo ago"
+      },
+      "toasts": {
+        "saved": "Saved.",
+        "error": "Something went wrong. Please try again.",
+        "deleted": "Deleted.",
+        "exported": "Your data has been downloaded.",
+        "deletedAll": "All memories deleted.",
+        "deletedAllPartial": "Memories deleted. Some legacy data couldn't be cleared."
+      }
     }
   },
   "states": {

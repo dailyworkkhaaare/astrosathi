@@ -17,6 +17,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import "../i18n";
 import { AppShell } from "../components/layout/AppShell";
 import { PwaRegister } from "../components/PwaRegister";
+import { Toaster } from "../components/ui/sonner";
 import { supabase } from "../integrations/supabase/client";
 import { APP_VERSION } from "../lib/preferences";
 import { PERSIST_STORAGE_KEY, clearChartGatewayCache } from "../lib/queries";
@@ -173,6 +174,7 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
       </AppShell>
+      <Toaster position="bottom-center" />
     </AppQueryProvider>
   );
 }

@@ -25,6 +25,8 @@ import { Route as OnboardingConsentRouteImport } from './routes/onboarding.conse
 import { Route as PeopleIndexRouteImport } from './routes/people.index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
 import { Route as PeopleNewRouteImport } from './routes/people.new'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsMemoryRouteImport } from './routes/settings.memory'
 import { Route as TodayIndexRouteImport } from './routes/today.index'
 import { Route as TodayHoroscopeRouteImport } from './routes/today.horoscope'
 import { Route as TodayMarketsRouteImport } from './routes/today.markets'
@@ -113,6 +115,16 @@ const PeopleNewRoute = PeopleNewRouteImport.update({
   path: '/people/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsMemoryRoute = SettingsMemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const TodayIndexRoute = TodayIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -157,7 +169,7 @@ export interface FileRoutesByFullPath {
   '/language': typeof LanguageRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/terms': typeof TermsRoute
   '/today': typeof TodayRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -165,10 +177,12 @@ export interface FileRoutesByFullPath {
   '/onboarding/consent': typeof OnboardingConsentRoute
   '/people/$id': typeof PeopleIdRouteWithChildren
   '/people/new': typeof PeopleNewRoute
+  '/settings/memory': typeof SettingsMemoryRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
   '/people/': typeof PeopleIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/today/': typeof TodayIndexRoute
   '/people/$id/compatibility': typeof PeopleIdCompatibilityRoute
   '/people/$id/edit': typeof PeopleIdEditRoute
@@ -182,16 +196,17 @@ export interface FileRoutesByTo {
   '/language': typeof LanguageRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/onboarding/birth': typeof OnboardingBirthRoute
   '/onboarding/consent': typeof OnboardingConsentRoute
   '/people/new': typeof PeopleNewRoute
+  '/settings/memory': typeof SettingsMemoryRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
   '/people': typeof PeopleIndexRoute
+  '/settings': typeof SettingsIndexRoute
   '/today': typeof TodayIndexRoute
   '/people/$id/compatibility': typeof PeopleIdCompatibilityRoute
   '/people/$id/edit': typeof PeopleIdEditRoute
@@ -206,7 +221,7 @@ export interface FileRoutesById {
   '/language': typeof LanguageRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/terms': typeof TermsRoute
   '/today': typeof TodayRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
@@ -214,10 +229,12 @@ export interface FileRoutesById {
   '/onboarding/consent': typeof OnboardingConsentRoute
   '/people/$id': typeof PeopleIdRouteWithChildren
   '/people/new': typeof PeopleNewRoute
+  '/settings/memory': typeof SettingsMemoryRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
   '/people/': typeof PeopleIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/today/': typeof TodayIndexRoute
   '/people/$id/compatibility': typeof PeopleIdCompatibilityRoute
   '/people/$id/edit': typeof PeopleIdEditRoute
@@ -241,10 +258,12 @@ export interface FileRouteTypes {
     | '/onboarding/consent'
     | '/people/$id'
     | '/people/new'
+    | '/settings/memory'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
     | '/people/'
+    | '/settings/'
     | '/today/'
     | '/people/$id/compatibility'
     | '/people/$id/edit'
@@ -258,16 +277,17 @@ export interface FileRouteTypes {
     | '/language'
     | '/privacy'
     | '/reset-password'
-    | '/settings'
     | '/terms'
     | '/auth/callback'
     | '/onboarding/birth'
     | '/onboarding/consent'
     | '/people/new'
+    | '/settings/memory'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
     | '/people'
+    | '/settings'
     | '/today'
     | '/people/$id/compatibility'
     | '/people/$id/edit'
@@ -289,10 +309,12 @@ export interface FileRouteTypes {
     | '/onboarding/consent'
     | '/people/$id'
     | '/people/new'
+    | '/settings/memory'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
     | '/people/'
+    | '/settings/'
     | '/today/'
     | '/people/$id/compatibility'
     | '/people/$id/edit'
@@ -307,7 +329,7 @@ export interface RootRouteChildren {
   LanguageRoute: typeof LanguageRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
   TermsRoute: typeof TermsRoute
   TodayRoute: typeof TodayRouteWithChildren
   OnboardingBirthRoute: typeof OnboardingBirthRoute
@@ -431,6 +453,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PeopleNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/memory': {
+      id: '/settings/memory'
+      path: '/memory'
+      fullPath: '/settings/memory'
+      preLoaderRoute: typeof SettingsMemoryRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/today/': {
       id: '/today/'
       path: '/'
@@ -493,6 +529,20 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface SettingsRouteChildren {
+  SettingsMemoryRoute: typeof SettingsMemoryRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsMemoryRoute: SettingsMemoryRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 interface TodayRouteChildren {
   TodayHoroscopeRoute: typeof TodayHoroscopeRoute
   TodayMarketsRoute: typeof TodayMarketsRoute
@@ -533,7 +583,7 @@ const rootRouteChildren: RootRouteChildren = {
   LanguageRoute: LanguageRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
   TermsRoute: TermsRoute,
   TodayRoute: TodayRouteWithChildren,
   OnboardingBirthRoute: OnboardingBirthRoute,

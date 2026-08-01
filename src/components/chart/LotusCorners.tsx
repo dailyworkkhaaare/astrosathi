@@ -60,42 +60,45 @@ export function LotusCorners() {
           transform={`translate(${c.x} ${c.y})`}
           className={`motion-fade-in motion-delay-${i + 1}`}
         >
-          <g transform={`rotate(${c.angle})`}>
-            <path
-              d={petalPath(17, 4.6)}
-              fill="color-mix(in oklab, var(--accent) 8%, transparent)"
-              stroke="currentColor"
-              strokeWidth={0.45}
-              vectorEffect="non-scaling-stroke"
-            />
-            <path
-              d={`M 0 -1 L 0 ${-17 * 0.88}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={0.25}
-              opacity={0.6}
-              vectorEffect="non-scaling-stroke"
-            />
+          {/* lotus bloom at half opacity vs. the double-rule border/ticks */}
+          <g opacity={0.5}>
+            <g transform={`rotate(${c.angle})`}>
+              <path
+                d={petalPath(17, 4.6)}
+                fill="color-mix(in oklab, var(--accent) 8%, transparent)"
+                stroke="currentColor"
+                strokeWidth={0.45}
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                d={`M 0 -1 L 0 ${-17 * 0.88}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={0.25}
+                opacity={0.6}
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+            <g transform={`rotate(${c.angle - 24})`}>
+              <path
+                d={petalPath(12.5, 3.4)}
+                fill="color-mix(in oklab, var(--accent) 6%, transparent)"
+                stroke="currentColor"
+                strokeWidth={0.4}
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+            <g transform={`rotate(${c.angle + 24})`}>
+              <path
+                d={petalPath(12.5, 3.4)}
+                fill="color-mix(in oklab, var(--accent) 6%, transparent)"
+                stroke="currentColor"
+                strokeWidth={0.4}
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+            <circle cx={0} cy={0} r={1.1} fill="currentColor" opacity={0.7} />
           </g>
-          <g transform={`rotate(${c.angle - 24})`}>
-            <path
-              d={petalPath(12.5, 3.4)}
-              fill="color-mix(in oklab, var(--accent) 6%, transparent)"
-              stroke="currentColor"
-              strokeWidth={0.4}
-              vectorEffect="non-scaling-stroke"
-            />
-          </g>
-          <g transform={`rotate(${c.angle + 24})`}>
-            <path
-              d={petalPath(12.5, 3.4)}
-              fill="color-mix(in oklab, var(--accent) 6%, transparent)"
-              stroke="currentColor"
-              strokeWidth={0.4}
-              vectorEffect="non-scaling-stroke"
-            />
-          </g>
-          <circle cx={0} cy={0} r={1.1} fill="currentColor" opacity={0.7} />
         </g>
       ))}
     </svg>

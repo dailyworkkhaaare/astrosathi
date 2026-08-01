@@ -435,7 +435,7 @@ function ChartsTab() {
                 <svg
                   viewBox="0 0 480 480"
                   preserveAspectRatio="none"
-                  className="pointer-events-none absolute inset-2"
+                  className="pointer-events-none absolute inset-0"
                   aria-hidden="true"
                 >
                   {NORTH_CHART_HOUSE_REGIONS.map((r) => (

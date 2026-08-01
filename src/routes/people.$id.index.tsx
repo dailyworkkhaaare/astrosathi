@@ -114,7 +114,6 @@ function PersonDetailPage() {
       {!loading && bundle && (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <BasicStat label={t("people.detail.ascendant")} value={bundle.basic.ascendant?.name} />
             <BasicStat
               label={t("people.detail.moon")}
               value={bundle.basic.moon?.name}
@@ -125,6 +124,7 @@ function PersonDetailPage() {
               }
             />
             <BasicStat label={t("people.detail.sun")} value={bundle.basic.sun?.name} />
+            <BasicStat label={t("people.detail.ascendant")} value={bundle.basic.ascendant?.name} />
           </div>
 
           <div

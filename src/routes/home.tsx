@@ -150,37 +150,33 @@ function HomePage() {
         </h1>
       </header>
 
-      <Link
-        to="/life"
-        className="tap-press motion-fade-up flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <span className="inline-flex items-center gap-2">
-          <CalendarClock size={15} aria-hidden="true" className="text-muted-foreground" />
-          {t("life.entryLabel")}
-        </span>
-        <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-      </Link>
+      <div className="motion-fade-up grid grid-cols-2 gap-3">
+        <Link
+          to="/life"
+          className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+        >
+          <CalendarClock size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate">{t("life.entryLabel")}</span>
+          <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+        </Link>
 
-      <Link
-        to="/nudges"
-        className="tap-press motion-fade-up flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <span className="inline-flex items-center gap-2">
-          <Bell size={15} aria-hidden="true" className="text-muted-foreground" />
-          {t("nudges.entryLabel")}
-        </span>
-        <span className="inline-flex items-center gap-2">
+        <Link
+          to="/nudges"
+          className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+        >
+          <Bell size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate">{t("nudges.entryLabel")}</span>
           {unreadNudges > 0 && (
             <span
-              className="inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground"
+              className="inline-flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground"
               aria-label={String(unreadNudges)}
             >
               {unreadNudges > 99 ? "99+" : unreadNudges}
             </span>
           )}
-          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </span>
-      </Link>
+          <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+        </Link>
+      </div>
 
       {isProfileIncomplete && <IncompleteProfileHeroCard />}
 

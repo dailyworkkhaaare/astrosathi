@@ -416,17 +416,6 @@
     "thumbsUp": "Helpful",
     "thumbsDown": "Not helpful",
     "toastError": "Couldn't save that — please try again.",
-    "confidence": {
-      "high": "High confidence",
-      "medium": "Moderate confidence",
-      "low": "Low confidence"
-    },
-    "whyThis": "Why this?",
-    "basis": {
-      "title": "Based on your chart:",
-      "noChart": "This was general guidance — no birth chart was loaded for it.",
-      "none": "General astrological principles, not a specific placement."
-    },
     "outcome": {
       "ask": "Did this come true?",
       "happened": "Happened",

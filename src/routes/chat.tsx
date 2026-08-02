@@ -50,8 +50,7 @@ import {
 } from "@/lib/todayTransits";
 import { getFeedbackForMessages } from "@/lib/feedback";
 import {
-  MessageFollowUps,
-  RatingButtons,
+  MessageActionRow,
   type FeedbackEntry,
   type Provenance,
 } from "@/components/chat/MessageFeedback";
@@ -1844,26 +1843,12 @@ function MessageRow({
           <StreamingMarkdown content={message.content ?? ""} streaming={streaming} />
         </div>
         {!streaming && message.content && (
-          <div className="mt-2 flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
-            <IconAction label={copied ? t("chat.copied") : t("chat.copy")} onClick={doCopy}>
-              {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
-            </IconAction>
-            {message.dbId && (
-              <RatingButtons
-                messageId={message.dbId}
-                conversationId={conversationId}
-                content={message.content}
-                feedback={feedback}
-                onFeedbackChange={onFeedbackChange}
-              />
-            )}
-          </div>
-        )}
-        {!streaming && message.dbId && (
-          <MessageFollowUps
+          <MessageActionRow
+            content={message.content}
+            copied={copied}
+            onCopy={doCopy}
             messageId={message.dbId}
             conversationId={conversationId}
-            content={message.content}
             provenance={message.provenance}
             feedback={feedback}
             onFeedbackChange={onFeedbackChange}

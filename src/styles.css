@@ -371,6 +371,27 @@
     transform: scale(0.96);
   }
 
+  /* Thumbs-rating bounce: a quick, playful confirmation on tap */
+  @keyframes as-bounce-tap {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(0.85);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  .motion-bounce-tap {
+    animation: as-bounce-tap var(--motion-micro) var(--ease-standard);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .motion-bounce-tap {
+      animation: none !important;
+    }
+  }
+
   /* Slow ambient glow — floating chat button only (one glow per screen law) */
   .motion-glow-pulse {
     animation: as-glow-pulse 3s var(--ease-standard) infinite;

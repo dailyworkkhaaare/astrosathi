@@ -417,14 +417,15 @@
     "thumbsDown": "Not helpful",
     "toastError": "Couldn't save that — please try again.",
     "outcome": {
+      "ariaLabel": "Was this prediction accurate?",
       "ask": "Did this come true?",
       "happened": "Happened",
       "partly": "Partly",
       "notYet": "Not yet",
-      "didNot": "Didn't happen",
-      "saved": "Thanks — noted."
+      "didNot": "Didn't happen"
     },
     "remedy": {
+      "ariaLabel": "Did the remedy help?",
       "ask": "If you tried a suggested remedy, did it help?",
       "yes": "Yes",
       "somewhat": "A little",

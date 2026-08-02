@@ -1435,5 +1435,99 @@
       "dismissed": "Dismissed",
       "error": "Something went wrong. Please try again."
     }
+  },
+  "journal": {
+    "title": "Reflection Journal",
+    "subtitle": "Note how a day actually felt — we'll stamp it with the sky.",
+    "entryLabel": "Reflection Journal",
+    "entryHint": "Note how each period actually felt, with the sky of that day.",
+    "addEntry": "New reflection",
+    "editEntry": "Edit reflection",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirmDeleteTitle": "Delete this reflection?",
+    "confirmDeleteBody": "This reflection and its astrology context will be permanently removed.",
+    "empty": {
+      "title": "Nothing written yet",
+      "body": "Add your first reflection and we'll stamp it with the daśā and transits of that day."
+    },
+    "fields": {
+      "date": "Date",
+      "title": "Title",
+      "titlePlaceholder": "A word or two",
+      "content": "What happened, what shifted",
+      "contentPlaceholder": "Write freely — a few lines is enough.",
+      "mood": "Mood",
+      "tags": "Tags",
+      "tagsHint": "Enter or comma to add",
+      "tagsPlaceholder": "e.g. work, family, sleep",
+      "optional": "(optional)"
+    },
+    "moods": {
+      "happy": "Happy",
+      "hopeful": "Hopeful",
+      "calm": "Calm",
+      "neutral": "Neutral",
+      "confused": "Confused",
+      "anxious": "Anxious",
+      "sad": "Sad",
+      "angry": "Angry"
+    },
+    "context": {
+      "dasha": "Daśā",
+      "saturnIn": "Saturn in {{sign}}",
+      "jupiterIn": "Jupiter in {{sign}}",
+      "sadeSati": "Sade Sati",
+      "phase": {
+        "rising": "rising",
+        "peak": "peak",
+        "setting": "setting"
+      }
+    },
+    "astrologyPending": "Astrology pending",
+    "astrologyError": "Astrology couldn't stamp",
+    "placingInChart": "Reading the sky…",
+    "refreshAstrology": "Refresh",
+    "removeTag": "Remove {{tag}}",
+    "errors": {
+      "contentRequired": "Please write a few words.",
+      "dateRequired": "Please pick a date."
+    }
+  },
+  "voice": {
+    "startInput": "Speak your question",
+    "stopInput": "Stop recording",
+    "recording": "Recording",
+    "transcribing": "Transcribing…",
+    "readAloud": "Read this reply aloud",
+    "stopReading": "Stop reading",
+    "micDenied": "Microphone access denied — enable it in your browser settings.",
+    "sttError": "Couldn't hear that, please try again.",
+    "playError": "Couldn't play audio.",
+    "settingsTitle": "Voice",
+    "settingsHint": "Speak your questions and tap to hear replies aloud.",
+    "inputEnabled": "Voice input (microphone)",
+    "inputEnabledHelp": "Show the mic button in the chat composer.",
+    "sttLang": "Speech language",
+    "sttLangHelp": "The language you'll speak in. Auto follows the app language.",
+    "sttLangOptions": {
+      "auto": "Auto (follow app language)",
+      "en": "English",
+      "hi": "हिन्दी",
+      "mr": "मराठी"
+    },
+    "speaker": "Read-aloud voice",
+    "speakerHelp": "The voice used when reading replies aloud.",
+    "speakers": {
+      "shubh": "Shubh",
+      "aditya": "Aditya",
+      "ritu": "Ritu",
+      "priya": "Priya",
+      "neha": "Neha"
+    },
+    "pace": "Read-aloud speed",
+    "paceHelp": "How fast replies are read aloud.",
+    "languageNote": "Voice is powered by Sarvam. Nothing is recorded — audio streams through and is discarded. Preferences are saved on this device."
   }
 }

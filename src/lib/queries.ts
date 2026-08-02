@@ -40,6 +40,15 @@ import {
   type LifeEventInput,
 } from "@/lib/life-events";
 import {
+  createEntry as createJournalEntry,
+  deleteEntry as deleteJournalEntry,
+  listEntries as listJournalEntries,
+  stampEntry as stampJournalEntry,
+  updateEntry as updateJournalEntry,
+  type JournalEntry,
+  type JournalEntryInput,
+} from "@/lib/journal";
+import {
   actOnNudge,
   dismissNudge,
   getProactiveSettings,
@@ -1446,6 +1455,92 @@ export function useRestampLifeEvent() {
     mutationFn: (id: string) => stampLifeEvent(id, true),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...LIFE_EVENTS_ROOT, userId] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------- reflection journal
+
+const JOURNAL_ROOT = ["reflection-journal"] as const;
+
+export function useJournal(): UseQueryResult<JournalEntry[]> {
+  const userId = useCurrentUserId();
+  return useQuery<JournalEntry[]>({
+    queryKey: [...JOURNAL_ROOT, userId],
+    enabled: userId !== null,
+    staleTime: 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: listJournalEntries,
+  });
+}
+
+// Best-effort astrology stamping: a failure here must never fail the parent
+// mutation — the entry still exists with context_status='pending' and can be
+// re-stamped manually from the UI.
+function useStampAndInvalidateJournal() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return async (id: string, force?: boolean) => {
+    try {
+      await stampJournalEntry(id, force);
+    } catch {
+      /* best-effort */
+    }
+    void queryClient.invalidateQueries({ queryKey: [...JOURNAL_ROOT, userId] });
+  };
+}
+
+export function useCreateJournalEntry() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  const stampAndInvalidate = useStampAndInvalidateJournal();
+  return useMutation({
+    mutationFn: (input: JournalEntryInput) => createJournalEntry(input),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: [...JOURNAL_ROOT, userId] });
+      if (result.entry) void stampAndInvalidate(result.entry.id);
+    },
+  });
+}
+
+export function useUpdateJournalEntry() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  const stampAndInvalidate = useStampAndInvalidateJournal();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<JournalEntryInput> }) =>
+      updateJournalEntry(id, patch),
+    onSuccess: async (result, variables) => {
+      await queryClient.invalidateQueries({ queryKey: [...JOURNAL_ROOT, userId] });
+      // Context is a function of the date only — no need to re-stamp when just
+      // the content, mood, or tags change.
+      if (result.entry && "entry_date" in variables.patch) {
+        void stampAndInvalidate(result.entry.id, true);
+      }
+    },
+  });
+}
+
+export function useDeleteJournalEntry() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return useMutation({
+    mutationFn: (id: string) => deleteJournalEntry(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...JOURNAL_ROOT, userId] });
+    },
+  });
+}
+
+// Manual "Refresh astrology" retry for a pending/error entry.
+export function useRestampJournalEntry() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return useMutation({
+    mutationFn: (id: string) => stampJournalEntry(id, true),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...JOURNAL_ROOT, userId] });
     },
   });
 }

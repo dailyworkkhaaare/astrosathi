@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
+  BookHeart,
   CalendarClock,
   ChevronRight,
   Clock,
@@ -177,6 +178,15 @@ function HomePage() {
           <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
         </Link>
       </div>
+
+      <Link
+        to="/journal"
+        className="motion-fade-up tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+      >
+        <BookHeart size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate">{t("journal.entryLabel")}</span>
+        <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+      </Link>
 
       {isProfileIncomplete && <IncompleteProfileHeroCard />}
 

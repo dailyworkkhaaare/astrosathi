@@ -18,8 +18,10 @@ import {
   ArrowUp,
   Check,
   Copy,
+  Loader2,
   Menu,
   MessageSquarePlus,
+  Mic,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -27,8 +29,17 @@ import {
   Sparkles,
   Square,
   Trash2,
+  Volume2,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  langToBCP47,
+  useReadAloud,
+  useSpeechRecognition,
+  useVoiceSettings,
+} from "@/lib/voice/useVoice";
+import { RecordingWaveform } from "@/components/voice/RecordingWaveform";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
@@ -328,8 +339,22 @@ function buildSuggestedPrompts(
 
 function ChatPage() {
   useRequireOnboarding();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { seed, subjectRelatedChartId } = Route.useSearch();
+  const { settings: voiceSettings } = useVoiceSettings();
+  const readAloud = useReadAloud({
+    onError: () => toast.error(t("voice.playError")),
+  });
+  const ttsLangCode = langToBCP47(i18n.language, voiceSettings.sttLang);
+  const speakMessage = useCallback(
+    (id: string, text: string) => {
+      void readAloud.play(id, text, ttsLangCode, {
+        speaker: voiceSettings.speaker,
+        pace: voiceSettings.pace,
+      });
+    },
+    [readAloud, ttsLangCode, voiceSettings.speaker, voiceSettings.pace],
+  );
   const navigate = useNavigate({ from: Route.fullPath });
   const [profileName, setProfileName] = useState<string | null>(null);
   useEffect(() => {
@@ -759,36 +784,95 @@ function ChatPage() {
     el.style.height = Math.min(el.scrollHeight, 220) + "px";
   }, [input]);
 
-  // Auto-scroll on message change unless the user scrolled up
+  // Auto-scroll on message change unless the user scrolled up. Hysteresis
+  // between the exit and re-entry distances stops the pin state flickering
+  // right at a single boundary (trackpad jitter, momentum scroll).
+  const PIN_EXIT_PX = 80; // scrolling further than this un-pins (shows jump-to-latest)
+  const PIN_REENTER_PX = 32; // must come back this close to silently re-lock
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     const onScroll = () => {
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-      setPinnedToBottom(distance < 80);
+      setPinnedToBottom((prev) => (prev ? distance < PIN_EXIT_PX : distance < PIN_REENTER_PX));
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
   }, [messages.length, sending]);
 
+  // Once pinned, track new content every frame (imperceptible, since the
+  // per-frame growth is tiny). But the exact frame the user scrolls back
+  // into the pin zone gets a short eased catch-up instead of an instant
+  // `scrollTop = scrollHeight` snap — mid-stream that target is still
+  // growing, so a hard jump there reads as a jerk. The tween re-targets the
+  // bottom every tick, so it still lands correctly even while text keeps
+  // streaming in underneath it.
+  const wasPinnedRef = useRef(true);
+  const catchUpRafRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!pinnedToBottom) return;
     const el = listRef.current;
     if (!el) return;
-    if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current);
-    scrollRafRef.current = requestAnimationFrame(() => {
-      scrollRafRef.current = null;
-      el.scrollTop = el.scrollHeight;
-    });
-    return () => {
-      if (scrollRafRef.current !== null) {
-        cancelAnimationFrame(scrollRafRef.current);
-        scrollRafRef.current = null;
+
+    const stopCatchUp = () => {
+      if (catchUpRafRef.current !== null) {
+        cancelAnimationFrame(catchUpRafRef.current);
+        catchUpRafRef.current = null;
       }
     };
+
+    if (!pinnedToBottom) {
+      wasPinnedRef.current = false;
+      stopCatchUp();
+      return;
+    }
+
+    const justRePinned = !wasPinnedRef.current;
+    wasPinnedRef.current = true;
+
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
+    if (!justRePinned || reduce) {
+      // Steady-state tracking, or a catch-up glide is already in flight for
+      // this pin — let it keep owning the frame rather than fighting it.
+      if (catchUpRafRef.current !== null) return;
+      if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        el.scrollTop = el.scrollHeight;
+      });
+      return () => {
+        if (scrollRafRef.current !== null) {
+          cancelAnimationFrame(scrollRafRef.current);
+          scrollRafRef.current = null;
+        }
+      };
+    }
+
+    // Just re-entered the pin zone: ease into the bottom instead of snapping.
+    const DURATION_MS = 220; // design.md --motion-standard
+    const startTop = el.scrollTop;
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / DURATION_MS);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      const target = el.scrollHeight - el.clientHeight;
+      el.scrollTop = startTop + (target - startTop) * eased;
+      catchUpRafRef.current = progress < 1 ? requestAnimationFrame(tick) : null;
+    };
+    catchUpRafRef.current = requestAnimationFrame(tick);
+    return stopCatchUp;
   }, [messages, sending, pinnedToBottom]);
+
+  // Safety net: cancel any in-flight catch-up tween on unmount.
+  useEffect(() => {
+    return () => {
+      if (catchUpRafRef.current !== null) cancelAnimationFrame(catchUpRafRef.current);
+    };
+  }, []);
 
   const scrollToBottom = () => {
     const el = listRef.current;
@@ -1047,6 +1131,8 @@ function ChatPage() {
     async (raw: string) => {
       const text = raw.trim();
       if (!text || sending) return;
+      // Cancel any read-aloud in progress — the user is moving on.
+      readAloud.stop();
       setMessages((m) => [...m, { id: newId(), role: "user", content: text }]);
       setInput("");
       setPinnedToBottom(true);
@@ -1054,7 +1140,7 @@ function ChatPage() {
       if (pendingSubjectChartId) setPendingSubjectChartId(null);
       await sendToBackend(text, subjectRelatedChartId);
     },
-    [sending, sendToBackend, pendingSubjectChartId],
+    [sending, sendToBackend, pendingSubjectChartId, readAloud],
   );
 
   const handleRetry = useCallback(() => {
@@ -1200,6 +1286,9 @@ function ChatPage() {
                         conversationId={conversationId}
                         feedback={m.dbId ? feedbackMap[m.dbId] : undefined}
                         onFeedbackChange={updateFeedback}
+                        isSpeaking={readAloud.playingId === m.id}
+                        isSpeakLoading={readAloud.loadingId === m.id}
+                        onToggleSpeak={() => speakMessage(m.id, m.content)}
                       />
                     ))}
                     {sending && !streamingId && (
@@ -1240,6 +1329,8 @@ function ChatPage() {
                 onKeyDown={onKeyDown}
                 sending={sending}
                 textareaRef={textareaRef}
+                voiceInputEnabled={voiceSettings.inputEnabled}
+                sttLangCode={ttsLangCode}
               />
             </>
           ) : (
@@ -1292,6 +1383,8 @@ function ChatPage() {
                     onKeyDown={onKeyDown}
                     sending={sending}
                     textareaRef={textareaRef}
+                    voiceInputEnabled={voiceSettings.inputEnabled}
+                    sttLangCode={ttsLangCode}
                     inline
                   />
                 </div>
@@ -1767,6 +1860,9 @@ function MessageRow({
   conversationId,
   feedback,
   onFeedbackChange,
+  isSpeaking,
+  isSpeakLoading,
+  onToggleSpeak,
 }: {
   message: ChatMessage;
   streaming: boolean;
@@ -1775,6 +1871,9 @@ function MessageRow({
   conversationId: string | null;
   feedback?: FeedbackEntry;
   onFeedbackChange: (messageId: string, patch: Partial<FeedbackEntry>) => void;
+  isSpeaking: boolean;
+  isSpeakLoading: boolean;
+  onToggleSpeak: () => void;
 }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -1843,16 +1942,40 @@ function MessageRow({
           <StreamingMarkdown content={message.content ?? ""} streaming={streaming} />
         </div>
         {!streaming && message.content && (
-          <MessageActionRow
-            content={message.content}
-            copied={copied}
-            onCopy={doCopy}
-            messageId={message.dbId}
-            conversationId={conversationId}
-            provenance={message.provenance}
-            feedback={feedback}
-            onFeedbackChange={onFeedbackChange}
-          />
+          <div className="mt-1 flex flex-wrap items-center gap-0.5">
+            <MessageActionRow
+              content={message.content}
+              copied={copied}
+              onCopy={doCopy}
+              messageId={message.dbId}
+              conversationId={conversationId}
+              provenance={message.provenance}
+              feedback={feedback}
+              onFeedbackChange={onFeedbackChange}
+            />
+            <button
+              type="button"
+              onClick={onToggleSpeak}
+              disabled={isSpeakLoading}
+              aria-label={isSpeaking ? t("voice.stopReading") : t("voice.readAloud")}
+              aria-pressed={isSpeaking}
+              title={isSpeaking ? t("voice.stopReading") : t("voice.readAloud")}
+              className={
+                "tap-press grid h-9 w-9 -my-[10px] place-items-center rounded-full transition-[opacity,color,background-color] duration-[140ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait " +
+                (isSpeaking || isSpeakLoading
+                  ? "text-accent opacity-100"
+                  : "text-muted-foreground/55 opacity-40 hover:bg-muted/60 hover:text-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100")
+              }
+            >
+              {isSpeakLoading ? (
+                <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              ) : isSpeaking ? (
+                <Square size={14} className="fill-current" aria-hidden="true" />
+              ) : (
+                <Volume2 size={16} aria-hidden="true" />
+              )}
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -1920,6 +2043,8 @@ function Composer({
   onKeyDown,
   sending,
   textareaRef,
+  voiceInputEnabled,
+  sttLangCode,
   inline = false,
 }: {
   value: string;
@@ -1929,10 +2054,58 @@ function Composer({
   onKeyDown: (e: ReactKeyboardEvent<HTMLTextAreaElement>) => void;
   sending: boolean;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  voiceInputEnabled: boolean;
+  sttLangCode: string;
   inline?: boolean;
 }) {
   const { t } = useTranslation();
   const canSend = value.trim().length > 0 && !sending;
+  // Cloud STT (Sarvam via edge fn). Segments record + transcribe under 30s
+  // caps; onPartial fires with the full accumulated transcript so we can
+  // just replace what the mic contributed (keeping any user-typed prefix).
+  const prefixRef = useRef<string>("");
+  const onPartial = useCallback(
+    (transcript: string) => {
+      const prefix = prefixRef.current;
+      const joined = prefix ? `${prefix.replace(/\s+$/, "")} ${transcript}` : transcript;
+      onChange(joined);
+      textareaRef.current?.focus();
+    },
+    [onChange, textareaRef],
+  );
+  const onError = useCallback(
+    (message: string) => {
+      if (message === "mic_denied") toast.error(t("voice.micDenied"));
+      else toast.error(t("voice.sttError"));
+    },
+    [t],
+  );
+  const stt = useSpeechRecognition({ langCode: sttLangCode, onPartial, onError });
+  const showMic = stt.supported && voiceInputEnabled;
+  const startMic = () => {
+    prefixRef.current = value;
+    void stt.start();
+  };
+  const stopMic = () => stt.stop();
+  const micDisabled = sending;
+
+  // Elapsed timer for the recording bar. Ticks once per second while
+  // `recording` is true; resets on stop.
+  const [elapsedSec, setElapsedSec] = useState(0);
+  useEffect(() => {
+    if (!stt.recording) {
+      setElapsedSec(0);
+      return;
+    }
+    setElapsedSec(0);
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [stt.recording]);
+  const mm = String(Math.floor(elapsedSec / 60)).padStart(2, "0");
+  const ss = String(elapsedSec % 60).padStart(2, "0");
 
   return (
     <div
@@ -1943,25 +2116,95 @@ function Composer({
       }
     >
       <div className="mx-auto w-full max-w-3xl">
+        {stt.busy && !stt.recording && (
+          <div className="motion-fade-up mb-2 flex justify-start" role="status" aria-live="polite">
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-xs font-medium text-accent shadow-sm backdrop-blur">
+              <span className="flex items-center gap-1" aria-hidden="true">
+                <span
+                  className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
+                  style={{ animationDelay: "0ms" }}
+                />
+                <span
+                  className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
+                  style={{ animationDelay: "150ms" }}
+                />
+                <span
+                  className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
+                  style={{ animationDelay: "300ms" }}
+                />
+              </span>
+              <span>{t("voice.transcribing")}</span>
+            </div>
+          </div>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (canSend) onSend();
           }}
-          className="flex items-end gap-2 rounded-3xl border border-border/70 bg-card/80 p-2 shadow-[var(--shadow-elevated)] backdrop-blur-xl transition-all focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20"
+          className={
+            "flex items-end gap-2 rounded-3xl border bg-card/80 p-2 shadow-[var(--shadow-elevated)] backdrop-blur-xl transition-all focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 " +
+            (stt.busy && !stt.recording
+              ? "border-accent/50 ring-2 ring-accent/25 shadow-[var(--shadow-glow-gold)]"
+              : "border-border/70")
+          }
         >
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            rows={1}
-            disabled={sending}
-            placeholder={t("chat.composerPlaceholder")}
-            aria-label={t("chat.composerPlaceholder")}
-            className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none md:text-sm"
-          />
-          {sending ? (
+          {stt.recording ? (
+            <div
+              role="status"
+              aria-live="polite"
+              aria-label={t("voice.recording")}
+              className="motion-fade-up flex min-h-[44px] flex-1 items-center gap-3 rounded-2xl bg-accent/5 px-3 py-1.5 ring-1 ring-accent/25"
+            >
+              <span className="flex items-center gap-2 shrink-0">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-full bg-accent shadow-[0_0_6px_var(--glow-gold)] animate-pulse motion-reduce:animate-none"
+                />
+                <span className="font-mono text-xs tabular-nums text-accent">
+                  {mm}:{ss}
+                </span>
+              </span>
+              <div className="relative h-10 flex-1 min-w-0">
+                <RecordingWaveform stream={stt.stream} />
+              </div>
+            </div>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={onKeyDown}
+              rows={1}
+              disabled={sending}
+              placeholder={t("chat.composerPlaceholder")}
+              aria-label={t("chat.composerPlaceholder")}
+              className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none md:text-sm"
+            />
+          )}
+          {showMic && !stt.recording && (
+            <button
+              type="button"
+              onClick={startMic}
+              disabled={micDisabled}
+              aria-label={t("voice.startInput")}
+              title={t("voice.startInput")}
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Mic size={16} aria-hidden="true" />
+            </button>
+          )}
+          {stt.recording ? (
+            <button
+              type="button"
+              onClick={stopMic}
+              aria-label={t("voice.stopInput")}
+              title={t("voice.stopInput")}
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground shadow-[var(--shadow-glow-gold)] transition-all hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Square size={14} className="fill-current" aria-hidden="true" />
+            </button>
+          ) : sending ? (
             <button
               type="button"
               onClick={onStop}

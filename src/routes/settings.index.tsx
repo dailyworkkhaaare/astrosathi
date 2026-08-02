@@ -2,7 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  AudioLines,
   Bell,
+  BookHeart,
   Brain,
   CalendarClock,
   CalendarDays,
@@ -226,6 +228,40 @@ function SettingsPage() {
               {t("settings.profile.proactive")}
               <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
                 {t("settings.profile.proactiveHint")}
+              </span>
+            </span>
+          </span>
+          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
+        </button>
+        <Divider />
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/settings/voice" })}
+          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <span className="inline-flex items-center gap-2">
+            <AudioLines size={14} aria-hidden="true" className="text-muted-foreground" />
+            <span>
+              {t("voice.settingsTitle")}
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                {t("voice.settingsHint")}
+              </span>
+            </span>
+          </span>
+          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
+        </button>
+        <Divider />
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/journal" })}
+          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <span className="inline-flex items-center gap-2">
+            <BookHeart size={14} aria-hidden="true" className="text-muted-foreground" />
+            <span>
+              {t("journal.entryLabel")}
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                {t("journal.entryHint")}
               </span>
             </span>
           </span>

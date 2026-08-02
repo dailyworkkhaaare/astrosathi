@@ -2985,6 +2985,14 @@ Deno.serve(async (req: Request) => {
     valence: string | null;
     astro_context: Record<string, unknown> | null;
   }> = [];
+  let journalRows: Array<{
+    title: string | null;
+    content: string;
+    mood: string | null;
+    tags: string[];
+    entry_date: string;
+    astro_context: Record<string, unknown> | null;
+  }> = [];
   let learningFeedback: Array<{
     kind: string;
     topic: string | null;
@@ -3074,6 +3082,47 @@ Deno.serve(async (req: Request) => {
                 : null,
           }),
         );
+      }
+
+      // Journal reflections (feature ⑧): the person's OWN recent reflections
+      // — how periods actually felt, in their words, with the astrology running
+      // at the time. Journal entries are free-form + tag-based (not topic-typed),
+      // so pull the most recent handful and, when the question is about specific
+      // life areas, prefer reflections tagged with those areas. Best-effort.
+      try {
+        const { data: jRows } = await svc
+          .from("user_reflection_journal")
+          .select(
+            "title, content, mood, tags, entry_date, astro_context, context_status",
+          )
+          .eq("user_id", userId)
+          .order("entry_date", { ascending: false })
+          .limit(12);
+        let jr = (jRows ?? []) as Array<Record<string, unknown>>;
+        if (relevantTopics.length > 0) {
+          const matched = jr.filter((r) => {
+            const tags = Array.isArray(r.tags)
+              ? (r.tags as unknown[]).map((t) => String(t).toLowerCase())
+              : [];
+            return tags.some((t) => relevantTopics.includes(t));
+          });
+          if (matched.length > 0) jr = matched;
+        }
+        journalRows = jr.slice(0, 5).map((r) => ({
+          title: (r.title as string | null) ?? null,
+          content: String(r.content ?? ""),
+          mood: (r.mood as string | null) ?? null,
+          tags: Array.isArray(r.tags) ? (r.tags as unknown[]).map(String) : [],
+          entry_date: String(r.entry_date ?? ""),
+          astro_context:
+            r.astro_context &&
+            typeof r.astro_context === "object" &&
+            !Array.isArray(r.astro_context)
+              ? (r.astro_context as Record<string, unknown>)
+              : null,
+        }));
+      } catch (_j) {
+        /* best-effort: journal reflections are optional context */
       }
 
       // Short-lived emotional state, ignored once expired.
@@ -3250,6 +3299,57 @@ Deno.serve(async (req: Request) => {
       ]
     : [];
 
+  const journalText = journalRows
+    .map((r) => {
+      if (!r.content.trim() && !r.title) return "";
+      const when = r.entry_date ? r.entry_date.slice(0, 7) : "";
+      const bits: string[] = [];
+      const body = (r.content || r.title || "").trim().replace(/\s+/g, " ");
+      const snippet = body.length > 200 ? body.slice(0, 200) + "\u2026" : body;
+      const head: string[] = [];
+      if (when) head.push(when);
+      if (r.mood) head.push("felt " + r.mood);
+      if (r.tags.length) head.push("tags: " + r.tags.join(", "));
+      const ac = (r.astro_context ?? {}) as Record<string, unknown>;
+      const dasha = ac.dasha as
+        | {
+            maha?: { name?: string } | null;
+            antar?: { name?: string } | null;
+            pratyantar?: { name?: string } | null;
+          }
+        | undefined;
+      if (dasha) {
+        const lords = [
+          dasha.maha?.name,
+          dasha.antar?.name,
+          dasha.pratyantar?.name,
+        ]
+          .filter(Boolean)
+          .join("-");
+        if (lords) bits.push("dasha " + lords);
+      }
+      const ss = ac.sade_sati as
+        { active?: boolean; phase?: string | null } | undefined;
+      if (ss && ss.active) {
+        bits.push("Sade Sati" + (ss.phase ? " (" + ss.phase + ")" : ""));
+      }
+      const headStr = head.length ? "(" + head.join("; ") + ") " : "";
+      const detail = bits.length ? " | " + bits.join("; ") : "";
+      return "- " + headStr + snippet + detail;
+    })
+    .filter(Boolean)
+    .join("\n");
+  const journalBlock = journalText
+    ? [
+        {
+          role: "system",
+          content:
+            "THIS PERSON'S OWN REFLECTION-JOURNAL ENTRIES (how they actually felt during recent periods, in their own words, with the astrology that was running at the time; treat as ground truth about their lived experience, reflect it back gently and specifically when relevant, and never contradict or re-predict it):\n" +
+            journalText,
+        },
+      ]
+    : [];
+
   const emotionalText = (() => {
     if (!emotionalState) return "";
     const s = emotionalState;
@@ -3368,6 +3468,7 @@ Deno.serve(async (req: Request) => {
   // injected this turn. Shows up in the Edge Function logs ONLY; it is never
   // streamed to the client, so the frontend UI never sees it.
   console.log(`[astrologer-chat] knowledge_used=${knowledgeCount}`);
+  console.log(`[astrologer-chat] journal_used=${journalRows.length}`);
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -3376,6 +3477,7 @@ Deno.serve(async (req: Request) => {
     ...memoryBlock,
     ...topicMemoryBlock,
     ...lifeEventsBlock,
+    ...journalBlock,
     ...emotionalBlock,
     ...learningBlock,
     ...knowledgeBlock,

@@ -48,10 +48,25 @@ import {
   INGRESS_SOON_MS,
   PLANET_KEY_BY_CODE,
 } from "@/lib/todayTransits";
+import { getFeedbackForMessages } from "@/lib/feedback";
+import {
+  MessageFeedback,
+  type FeedbackEntry,
+  type Provenance,
+} from "@/components/chat/MessageFeedback";
 
 type ChatRole = "user" | "assistant";
-export type ChatMessage = { id: string; role: ChatRole; content: string };
+export type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+  // Persisted chat_messages.id — absent until the row is written/hydrated,
+  // which is when the feedback footer becomes available.
+  dbId?: string;
+  provenance?: Provenance;
+};
 type Conversation = { id: string; title: string | null; updated_at: string };
+type FeedbackMap = Record<string, FeedbackEntry>;
 
 function newId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -382,6 +397,11 @@ function ChatPage() {
 
   // Messages
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Rating/outcome/remedy selections keyed by persisted chat_messages.id.
+  const [feedbackMap, setFeedbackMap] = useState<FeedbackMap>({});
+  const updateFeedback = useCallback((messageId: string, patch: Partial<FeedbackEntry>) => {
+    setFeedbackMap((prev) => ({ ...prev, [messageId]: { ...prev[messageId], ...patch } }));
+  }, []);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -414,6 +434,13 @@ function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRafRef = useRef<number | null>(null);
+  // Tracks the freshest known conversation id for provenance hydration after
+  // a stream completes, since `conversationId` state lags behind onMeta/the
+  // response payload within the same sendToBackend call.
+  const latestConvIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    latestConvIdRef.current = conversationId;
+  }, [conversationId]);
 
   // Streaming plumbing: buffer deltas in a ref and flush once per animation
   // frame so React commits at most once per frame — no per-token re-renders,
@@ -610,21 +637,65 @@ function ChatPage() {
     setPendingSubjectChartId(null);
     const { data } = await supabase
       .from("chat_messages")
-      .select("role, content, created_at")
+      .select("id, role, content, created_at, metadata")
       .eq("conversation_id", id)
       .order("created_at", { ascending: true });
     const rows = Array.isArray(data) ? data : [];
-    setMessages(
-      rows
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({
-          id: newId(),
-          role: m.role as ChatRole,
-          content: String(m.content ?? ""),
-        })),
-    );
+    const mapped: ChatMessage[] = rows
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => ({
+        id: newId(),
+        dbId: typeof m.id === "string" ? m.id : undefined,
+        role: m.role as ChatRole,
+        content: String(m.content ?? ""),
+        provenance: (m.metadata as { provenance?: Provenance } | null)?.provenance,
+      }));
+    setMessages(mapped);
     setPinnedToBottom(true);
+
+    const assistantDbIds = mapped
+      .filter((m) => m.role === "assistant" && m.dbId)
+      .map((m) => m.dbId as string);
+    if (assistantDbIds.length > 0) {
+      getFeedbackForMessages(assistantDbIds)
+        .then((fb) => setFeedbackMap((prev) => ({ ...prev, ...fb })))
+        .catch(() => {
+          /* fail-soft: selections just won't be pre-filled */
+        });
+    }
   }, []);
+
+  // Hydrates the id + provenance metadata of the most recently persisted
+  // assistant row onto the (client-only-id) streamed bubble, so the
+  // feedback footer can appear without a full reload. Fail-soft.
+  const hydrateLastAssistantMessage = useCallback(
+    async (convId: string | null, assistantId: string) => {
+      if (!convId) return;
+      try {
+        const { data } = await supabase
+          .from("chat_messages")
+          .select("id, metadata")
+          .eq("conversation_id", convId)
+          .eq("role", "assistant")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const row = Array.isArray(data) ? data[0] : null;
+        const rowId = row && typeof row.id === "string" ? row.id : null;
+        if (!rowId) return;
+        const provenance = (row?.metadata as { provenance?: Provenance } | null)?.provenance;
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === assistantId);
+          if (idx === -1) return prev;
+          const next = prev.slice();
+          next[idx] = { ...next[idx], dbId: rowId, provenance };
+          return next;
+        });
+      } catch {
+        /* fail-soft: footer just won't appear for this turn */
+      }
+    },
+    [],
+  );
 
   // Initial mount: fetch conversations, open the most recent one only if it
   // was active in the last 15 minutes. After a longer gap the user is most
@@ -786,6 +857,7 @@ function ChatPage() {
             {
               onMeta: (cid) => {
                 if (cid && cid !== conversationId) setConversationId(cid);
+                if (cid) latestConvIdRef.current = cid;
                 setStreamPhase("thinking");
               },
               onDelta: (chunk) => {
@@ -820,6 +892,7 @@ function ChatPage() {
             abortRef.current = null;
             setSrFinal(finalText);
             void refetchConversations();
+            void hydrateLastAssistantMessage(latestConvIdRef.current, assistantId);
             return;
           }
           // Connected but empty — fall through to the buffered fallback.
@@ -887,6 +960,7 @@ function ChatPage() {
         };
         if (payload.conversation_id && payload.conversation_id !== conversationId)
           setConversationId(payload.conversation_id);
+        if (payload.conversation_id) latestConvIdRef.current = payload.conversation_id;
         const reply = (payload.reply ?? "").trim();
         if (!reply) throw new Error("empty_response");
 
@@ -926,6 +1000,7 @@ function ChatPage() {
         bufferRef.current = "";
         setSrFinal(reply);
         void refetchConversations();
+        void hydrateLastAssistantMessage(latestConvIdRef.current, assistantId);
       } catch (e) {
         console.error("[astrologer-chat] request failed:", e);
         const partial = bufferRef.current.trim();
@@ -963,6 +1038,7 @@ function ChatPage() {
       scheduleFlush,
       cancelPendingFrame,
       typewriterReveal,
+      hydrateLastAssistantMessage,
       t,
     ],
   );
@@ -1004,6 +1080,7 @@ function ChatPage() {
 
   const handleNewChat = useCallback(() => {
     setMessages([]);
+    setFeedbackMap({});
     setInput("");
     setConversationId(null);
     setError(null);
@@ -1120,6 +1197,9 @@ function ChatPage() {
                         streaming={m.id === streamingId}
                         onCopy={() => copy(m.content)}
                         onEdit={undefined}
+                        conversationId={conversationId}
+                        feedback={m.dbId ? feedbackMap[m.dbId] : undefined}
+                        onFeedbackChange={updateFeedback}
                       />
                     ))}
                     {sending && !streamingId && (
@@ -1684,11 +1764,17 @@ function MessageRow({
   streaming,
   onCopy,
   onEdit,
+  conversationId,
+  feedback,
+  onFeedbackChange,
 }: {
   message: ChatMessage;
   streaming: boolean;
   onCopy: () => void;
   onEdit?: () => void;
+  conversationId: string | null;
+  feedback?: FeedbackEntry;
+  onFeedbackChange: (messageId: string, patch: Partial<FeedbackEntry>) => void;
 }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -1762,6 +1848,16 @@ function MessageRow({
               {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
             </IconAction>
           </div>
+        )}
+        {!streaming && message.dbId && (
+          <MessageFeedback
+            messageId={message.dbId}
+            conversationId={conversationId}
+            content={message.content}
+            provenance={message.provenance}
+            feedback={feedback}
+            onFeedbackChange={onFeedbackChange}
+          />
         )}
       </div>
     </div>

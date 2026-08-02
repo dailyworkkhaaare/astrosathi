@@ -412,6 +412,37 @@
       "w4": "Compatibility with a Leo partner"
     }
   },
+  "feedback": {
+    "thumbsUp": "Helpful",
+    "thumbsDown": "Not helpful",
+    "toastError": "Couldn't save that — please try again.",
+    "confidence": {
+      "high": "High confidence",
+      "medium": "Moderate confidence",
+      "low": "Low confidence"
+    },
+    "whyThis": "Why this?",
+    "basis": {
+      "title": "Based on your chart:",
+      "noChart": "This was general guidance — no birth chart was loaded for it.",
+      "none": "General astrological principles, not a specific placement."
+    },
+    "outcome": {
+      "ask": "Did this come true?",
+      "happened": "Happened",
+      "partly": "Partly",
+      "notYet": "Not yet",
+      "didNot": "Didn't happen",
+      "saved": "Thanks — noted."
+    },
+    "remedy": {
+      "ask": "If you tried a suggested remedy, did it help?",
+      "yes": "Yes",
+      "somewhat": "A little",
+      "no": "No",
+      "notTried": "Haven't tried"
+    }
+  },
   "settings": {
     "title": "Settings",
     "languageLabel": "Language",

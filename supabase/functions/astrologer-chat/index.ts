@@ -59,7 +59,7 @@ const CONTEXT_CHART_TYPES = [
 ];
 // Rolling-summary memory tuning. Recent turns are sent verbatim; older turns
 // are folded into a compact running summary so long chats stay cheap.
-const SUMMARY_TRIGGER = 5; // fold once this many un-summarized messages exist
+const SUMMARY_TRIGGER = 20; // fold once this many un-summarized messages exist
 const SUMMARY_FOLD_BATCH = 10; // oldest messages folded into the summary per pass
 const SUMMARY_MAX_MESSAGES = 50; // safety cap on verbatim messages loaded per turn
 const SUMMARY_MAX_WORDS = 300; // target length of the rolling summary
@@ -583,6 +583,100 @@ function verifyReplyPlacements(
   return violations;
 }
 
+// ---------- CI-2 Trust: answer provenance + a calm, honest confidence tag ----------
+// Zero extra model call. We reuse the SAME grounded placements already sent to the
+// model (parsePlacementTruth), detect which of them the reply leans on, and whether
+// the answer is forward-looking. Persisted to chat_messages.metadata so the UI can
+// show "the chart behind this" + a confidence tag, and feedback can attach to a
+// concrete, still-meaningful prediction. Never throws (callers stay best-effort).
+type AnswerProvenance = {
+  version: number;
+  confidence: "high" | "medium" | "low" | null;
+  is_prediction: boolean;
+  chart_loaded: boolean;
+  basis: string[];
+  has_remedy: boolean;
+};
+
+function buildAnswerProvenance(reply: string, contextText: string): AnswerProvenance {
+  const ctx = String(contextText || "");
+  const out: AnswerProvenance = {
+    version: 1,
+    confidence: null,
+    is_prediction: false,
+    // The emitted sentinel reads "CHART_NOT_LOADED \u2014 ..."; the instruction text
+    // uses "CHART_NOT_LOADED, ...", so this only trips on a real missing chart.
+    chart_loaded: !ctx.includes("CHART_NOT_LOADED \u2014"),
+    basis: [],
+    has_remedy: false,
+  };
+  try {
+    const text = String(reply || "");
+    if (!text.trim()) return out;
+    const lower = text.toLowerCase();
+
+    // 1) Which grounded natal placements does the reply actually reference?
+    const truth = parsePlacementTruth(ctx);
+    const CAP: Record<string, string> = {
+      ascendant: "Ascendant", sun: "Sun", moon: "Moon", mercury: "Mercury",
+      venus: "Venus", mars: "Mars", jupiter: "Jupiter", saturn: "Saturn",
+      rahu: "Rahu", ketu: "Ketu",
+    };
+    const cap = (w: string) => CAP[w] || w.charAt(0).toUpperCase() + w.slice(1);
+    for (const [planet, t] of truth) {
+      if (out.basis.length >= 6) break;
+      const p = planet.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (!new RegExp("\\b" + p + "\\b").test(lower)) continue;
+      const sign = t.signs.size ? cap(Array.from(t.signs)[0]) : null;
+      const house = t.houses.size ? Array.from(t.houses)[0] : null;
+      let s = cap(planet);
+      if (sign && house != null) s += " in " + sign + " (House " + house + ")";
+      else if (sign) s += " in " + sign;
+      else if (house != null) s += " in House " + house;
+      out.basis.push(s);
+    }
+
+    // 2) Non-natal chart mechanics the answer leans on.
+    const has = (arr: string[]) => arr.some((w) => lower.includes(w));
+    if (has(["dasha", "mahadasha", "antardasha", "vimshottari", "vimśottarī", "daśā", "दशा", "महादशा"]))
+      out.basis.push("Vimśottarī daśā period");
+    if (has(["transit", "gochar", "gochara", "गोचर", "current sky", "currently moving through"]))
+      out.basis.push("Current transits (gochara)");
+    if (has(["nakshatra", "नक्षत्र"])) out.basis.push("Nakshatra placement");
+
+    // 3) Forward-looking prediction? (inherently less certain, even if grounded)
+    const PREDICTION_WORDS = [
+      "will ", "going to", "upcoming", "in the future", "future", "next year",
+      "next month", "coming month", "coming week", "coming year", "timing",
+      "when will", "predict", "forecast", "expect", "likely", "period ahead",
+      "bhavishya", "hoga", "hogi", "honge", "aane wala", "aane wali",
+      "भविष्य", "होगा", "होगी", "कब", "आने वाला", "होणार",
+    ];
+    out.is_prediction = PREDICTION_WORDS.some((w) => lower.includes(w));
+
+    // 5) Did the answer actually suggest a remedy/upaya? Lets the UI ask
+    // "did the remedy help?" ONLY on replies that contain one.
+    const REMEDY_WORDS = [
+      "remedy", "remedies", "upaya", "upay", "mantra", "chant", "recite",
+      "gemstone", "rudraksha", "yantra", "donate", "donation", "charity",
+      "puja", "pooja", "fasting", "fast on", "offer water", "light a lamp",
+      "उपाय", "मंत्र", "रत्न", "दान", "पूजा", "व्रत", "जप", "यंत्र",
+    ];
+    out.has_remedy = REMEDY_WORDS.some((w) => lower.includes(w));
+
+    // 4) Calibrate a calm, honest confidence.
+    const grounded = out.basis.length;
+    if (!out.chart_loaded) out.confidence = "low";
+    else if (grounded === 0) out.confidence = null;
+    else if (out.is_prediction) out.confidence = "medium";
+    else if (grounded >= 2) out.confidence = "high";
+    else out.confidence = "medium";
+  } catch (_e) {
+    /* best-effort: never break persistence over provenance */
+  }
+  return out;
+}
+
 // ---------- Divisional charts (Shodasavarga D1-D60) ----------
 // Three-letter sign labels, 0 = Aries .. 11 = Pisces.
 const SIGN_ABBR = [
@@ -1071,12 +1165,22 @@ type CompanionEmotional = {
   state: Record<string, unknown>;
   ttlDays: number | null;
 };
+type CompanionLifeEvent = {
+  title: string;
+  description: string | null;
+  category: string;
+  eventDate: string;
+  datePrecision: string;
+  valence: string | null;
+  confidence: string | null;
+};
 function parseCompanionMemoryJson(raw: string): {
   summary: string;
   facts: string;
   topics: CompanionTopicMemory[];
   preferences: Record<string, unknown> | null;
   emotional: CompanionEmotional | null;
+  lifeEvents: CompanionLifeEvent[];
 } | null {
   let text = raw.trim();
   const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
@@ -1133,8 +1237,92 @@ function parseCompanionMemoryJson(raw: string): {
     if (Object.keys(e).length > 0) emotional = { state: e, ttlDays };
   }
 
-  if (!summary && !facts && topics.length === 0 && !preferences && !emotional) return null;
-  return { summary, facts, topics, preferences, emotional };
+  const lifeEvents: CompanionLifeEvent[] = [];
+  if (Array.isArray(obj.life_events)) {
+    for (const entry of obj.life_events) {
+      if (!entry || typeof entry !== "object") continue;
+      const row = entry as Record<string, unknown>;
+      const title = typeof row.title === "string" ? row.title.trim() : "";
+      if (!title) continue;
+      const rawDate = typeof row.date === "string" ? row.date.trim() : "";
+      const parts = rawDate.split("-");
+      const digits = (s: string) =>
+        s.length > 0 && [...s].every((ch) => ch >= "0" && ch <= "9");
+      let eventDate = "";
+      let datePrecision = "exact";
+      if (
+        parts.length === 3 &&
+        parts[0].length === 4 &&
+        digits(parts[0]) &&
+        parts[1].length === 2 &&
+        digits(parts[1]) &&
+        parts[2].length === 2 &&
+        digits(parts[2])
+      ) {
+        eventDate = rawDate;
+        datePrecision = "exact";
+      } else if (
+        parts.length === 2 &&
+        parts[0].length === 4 &&
+        digits(parts[0]) &&
+        parts[1].length === 2 &&
+        digits(parts[1])
+      ) {
+        eventDate = rawDate + "-01";
+        datePrecision = "month";
+      } else if (parts.length === 1 && parts[0].length === 4 && digits(parts[0])) {
+        eventDate = rawDate + "-01-01";
+        datePrecision = "year";
+      } else {
+        continue;
+      }
+      if (typeof row.date_precision === "string") {
+        const dp = row.date_precision.trim().toLowerCase();
+        if (["exact", "month", "year", "approx"].includes(dp)) datePrecision = dp;
+      }
+      let category =
+        typeof row.category === "string" ? row.category.trim().toLowerCase() : "other";
+      if (!TOPIC_MEMORY_TOPICS.has(category)) category = "other";
+      const description =
+        typeof row.description === "string" && row.description.trim()
+          ? row.description.trim()
+          : null;
+      let valence: string | null = null;
+      if (typeof row.valence === "string") {
+        const v = row.valence.trim().toLowerCase();
+        if (["positive", "negative", "neutral", "mixed"].includes(v)) valence = v;
+      }
+      let confidence: string | null = null;
+      if (typeof row.confidence === "number" && isFinite(row.confidence)) {
+        confidence =
+          row.confidence >= 0.75 ? "high" : row.confidence >= 0.4 ? "medium" : "low";
+      } else if (typeof row.confidence === "string") {
+        const c = row.confidence.trim().toLowerCase();
+        if (["high", "medium", "low"].includes(c)) confidence = c;
+      }
+      lifeEvents.push({
+        title,
+        description,
+        category,
+        eventDate,
+        datePrecision,
+        valence,
+        confidence,
+      });
+      if (lifeEvents.length >= 8) break;
+    }
+  }
+
+  if (
+    !summary &&
+    !facts &&
+    topics.length === 0 &&
+    !preferences &&
+    !emotional &&
+    lifeEvents.length === 0
+  )
+    return null;
+  return { summary, facts, topics, preferences, emotional, lifeEvents };
 }
 
 // Rolling-summary + durable-facts memory. When enough messages have piled up
@@ -1152,6 +1340,8 @@ async function maybeSummarizeConversation(opts: {
   model: string;
   rememberFacts: boolean;
   currentFacts: string | null;
+  authHeader: string;
+  supabaseUrl: string;
 }): Promise<void> {
   const {
     svc,
@@ -1163,6 +1353,8 @@ async function maybeSummarizeConversation(opts: {
     model,
     rememberFacts,
     currentFacts,
+    authHeader,
+    supabaseUrl,
   } = opts;
 
   const { count } = await svc
@@ -1197,12 +1389,13 @@ async function maybeSummarizeConversation(opts: {
     const existingFacts = currentFacts && currentFacts.trim() ? currentFacts.trim() : "(none yet)";
     sumSystem = [
       "You maintain long-term memory for a Vedic astrology companion app, based on one ongoing conversation.",
-      'Return ONLY a single JSON object with these fields: "summary" (string), "facts" (string), "topics" (array), "preferences" (object), "emotional" (object). No code fences, no commentary.',
+      'Return ONLY a single JSON object with these fields: "summary" (string), "facts" (string), "topics" (array), "preferences" (object), "emotional" (object), "life_events" (array). No code fences, no commentary.',
       `"summary": an updated running summary of THIS conversation - merge the EXISTING SUMMARY with the NEW MESSAGES, under ${SUMMARY_MAX_WORDS} words, compact third-person notes, dropping greetings, small talk and repetition.`,
       `"facts": an updated list of durable facts about this specific person that stay true across conversations - their life situation, relationships, work, recurring concerns, goals, stated preferences, and important guidance already given. Merge the EXISTING FACTS with anything new and lasting from the messages, and drop anything transient or already superseded. At most 25 facts, one concise fact per line, third person, under ${FACTS_MAX_WORDS} words total.`,
       '"topics": an array of structured per-life-area memories, each an object { "topic", "summary", "data", "confidence" }. "topic" MUST be exactly one of: career, health, marriage, relationships, finance, children, education, travel, property, business, spirituality, family, other. "summary" is a one or two sentence digest of that life area for this person. "data" is a small flat object of concrete key facts (for example current_company, role, concern, goal, timeline). "confidence" is a number from 0 to 1. Only include a topic when the messages contain real signal about it; otherwise return an empty array. Never invent details.',
       '"preferences": an object capturing how this person likes to be answered, only when clearly evidenced. Recognized keys: preferred_language, preferred_tone, detail_level (one of brief, balanced, detailed), likes_tables (boolean), remedies_first (boolean), wants_practical (boolean), likes_followup (boolean), communication_style. Omit any key you are unsure about; return an empty object when nothing is clear.',
       '"emotional": a SHORT-LIVED note about the person\'s current emotional state, only if clearly present. Object with keys: mood (string), sensitivities (array of strings), guidance (array of short tone instructions), ttl_days (integer days to keep this relevant, default 14). Return an empty object when there is no clear emotional signal.',
+      '"life_events": an array of REAL, dated life events the person mentions about their OWN life (for example a job change, marriage, childbirth, relocation, bereavement, a health episode, starting a business, buying property). Each item is an object { "title", "description", "category", "date", "date_precision", "valence", "confidence" }. "title" is a short label. "category" MUST be one of the topic values listed above. "date" is when it happened, given as "YYYY-MM-DD", or "YYYY-MM", or "YYYY" when only partly known; OMIT the event entirely if not even a year can be inferred. "date_precision" is one of exact, month, year, approx. "valence" is one of positive, negative, neutral, mixed. "confidence" is a number from 0 to 1. Only include events the person actually states have happened or are scheduled - never predictions, hypotheticals, or astrological transits. Return an empty array when none.',
       "Never fabricate; prefer omission over guessing.",
     ].join(" ");
     sumUser =
@@ -1353,6 +1546,75 @@ async function maybeSummarizeConversation(opts: {
         );
       } catch {
         // Ignore emotional-state write failures.
+      }
+    }
+
+    // 4) Life-timeline events (CI-3.3): file REAL dated events the person
+    // mentioned, deduped against earlier auto-extractions, then trigger the
+    // CI-3.2 stamper so each new event gets its dasha/transit context.
+    if (companion.lifeEvents.length > 0) {
+      try {
+        const { data: existing } = await svc
+          .from("user_life_events")
+          .select("title, event_date")
+          .eq("user_id", userId)
+          .eq("source", "ai_extracted");
+        const seen = new Set(
+          (existing ?? []).map(
+            (r: { title: string; event_date: string }) =>
+              `${r.event_date}|${String(r.title).trim().toLowerCase()}`,
+          ),
+        );
+        const toInsert: Record<string, unknown>[] = [];
+        for (const le of companion.lifeEvents) {
+          const key = `${le.eventDate}|${le.title.toLowerCase()}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          toInsert.push({
+            user_id: userId,
+            title: le.title,
+            description: le.description,
+            category: le.category,
+            event_date: le.eventDate,
+            date_precision: le.datePrecision,
+            valence: le.valence,
+            source: "ai_extracted",
+            confidence: le.confidence,
+            source_conversation_id: conversationId,
+            astro_context: {},
+          });
+        }
+        if (toInsert.length > 0) {
+          const { error: insErr } = await svc
+            .from("user_life_events")
+            .insert(toInsert);
+          if (insErr) {
+            console.error(
+              "[astrologer-chat] life_events insert failed:",
+              insErr.message,
+            );
+          } else if (supabaseUrl && authHeader) {
+            // Fire-and-forget stamping; failure just leaves events unstamped.
+            try {
+              await fetchWithTimeout(
+                `${supabaseUrl}/functions/v1/life-event-context`,
+                {
+                  method: "POST",
+                  headers: {
+                    "content-type": "application/json",
+                    Authorization: authHeader,
+                  },
+                  body: JSON.stringify({}),
+                },
+                20000,
+              );
+            } catch {
+              // Stamping is best-effort.
+            }
+          }
+        }
+      } catch {
+        // Ignore life-event write failures.
       }
     }
   }
@@ -2194,6 +2456,23 @@ Deno.serve(async (req: Request) => {
     data: Record<string, unknown> | null;
   }> = [];
   let emotionalState: Record<string, unknown> | null = null;
+  let lifeEventRows: Array<{
+    title: string;
+    description: string | null;
+    category: string;
+    event_date: string;
+    date_precision: string | null;
+    valence: string | null;
+    astro_context: Record<string, unknown> | null;
+  }> = [];
+  let learningFeedback: Array<{
+    kind: string;
+    topic: string | null;
+    outcome: string | null;
+    remedy: string | null;
+    summary: string | null;
+    note: string | null;
+  }> = [];
   {
     const { data: prof } = await svc
       .from("profiles")
@@ -2243,6 +2522,37 @@ Deno.serve(async (req: Request) => {
           }));
       }
 
+      // CI-3.4 timeline retrieval: pull the person's REAL past life events in
+      // the life areas this question touches, so answers can ground in what
+      // actually happened (and the astrology of the time) instead of guessing.
+      if (relevantTopics.length > 0) {
+        const { data: leRows } = await svc
+          .from("user_life_events")
+          .select(
+            "title, description, category, event_date, date_precision, valence, astro_context",
+          )
+          .eq("user_id", userId)
+          .in("category", relevantTopics)
+          .order("event_date", { ascending: false })
+          .limit(8);
+        lifeEventRows = ((leRows ?? []) as Array<Record<string, unknown>>).map(
+          (r) => ({
+            title: String(r.title ?? ""),
+            description: (r.description as string | null) ?? null,
+            category: String(r.category ?? "other"),
+            event_date: String(r.event_date ?? ""),
+            date_precision: (r.date_precision as string | null) ?? null,
+            valence: (r.valence as string | null) ?? null,
+            astro_context:
+              r.astro_context &&
+              typeof r.astro_context === "object" &&
+              !Array.isArray(r.astro_context)
+                ? (r.astro_context as Record<string, unknown>)
+                : null,
+          }),
+        );
+      }
+
       // Short-lived emotional state, ignored once expired.
       const { data: emo } = await svc
         .from("user_emotional_state")
@@ -2260,6 +2570,34 @@ Deno.serve(async (req: Request) => {
         ) {
           emotionalState = st as Record<string, unknown>;
         }
+      }
+
+      // CI-2.4 Learning loop: the user's OWN feedback on past guidance. Read
+      // recent confirmed outcomes + remedy signals (not raw thumbs) so the model
+      // can calibrate confidence, gently own past misses, and lean on remedies
+      // that helped. Best-effort; never breaks the chat.
+      try {
+        const { data: fbRows } = await svc
+          .from("user_prediction_feedback")
+          .select(
+            "feedback_kind, topic, outcome, remedy_helped, prediction_summary, note, created_at",
+          )
+          .eq("user_id", userId)
+          .in("feedback_kind", ["outcome", "remedy"])
+          .order("created_at", { ascending: false })
+          .limit(12);
+        learningFeedback = ((fbRows ?? []) as Array<Record<string, unknown>>)
+          .map((r) => ({
+            kind: String(r.feedback_kind ?? ""),
+            topic: (r.topic as string | null) ?? null,
+            outcome: (r.outcome as string | null) ?? null,
+            remedy: (r.remedy_helped as string | null) ?? null,
+            summary: (r.prediction_summary as string | null) ?? null,
+            note: (r.note as string | null) ?? null,
+          }))
+          .filter((r) => r.outcome || r.remedy);
+      } catch (_fb) {
+        /* best-effort: feedback is optional context */
       }
     }
   }
@@ -2334,6 +2672,54 @@ Deno.serve(async (req: Request) => {
       ]
     : [];
 
+  const lifeEventsText = lifeEventRows
+    .map((r) => {
+      if (!r.title || !r.event_date) return "";
+      const when =
+        r.date_precision === "year"
+          ? r.event_date.slice(0, 4)
+          : r.date_precision === "month"
+            ? r.event_date.slice(0, 7)
+            : r.event_date;
+      const bits: string[] = [];
+      if (r.description && r.description.trim()) bits.push(r.description.trim());
+      if (r.valence) bits.push("felt " + r.valence);
+      const ac = (r.astro_context ?? {}) as Record<string, unknown>;
+      const dasha = ac.dasha as
+        | {
+            maha?: { name?: string } | null;
+            antar?: { name?: string } | null;
+            pratyantar?: { name?: string } | null;
+          }
+        | undefined;
+      if (dasha) {
+        const lords = [dasha.maha?.name, dasha.antar?.name, dasha.pratyantar?.name]
+          .filter(Boolean)
+          .join("-");
+        if (lords) bits.push("dasha " + lords);
+      }
+      const ss = ac.sade_sati as
+        | { active?: boolean; phase?: string | null }
+        | undefined;
+      if (ss && ss.active) {
+        bits.push("Sade Sati" + (ss.phase ? " (" + ss.phase + ")" : ""));
+      }
+      const detail = bits.length ? " | " + bits.join("; ") : "";
+      return "- [" + r.category + "] " + when + ": " + r.title + detail;
+    })
+    .filter(Boolean)
+    .join("\n");
+  const lifeEventsBlock = lifeEventsText
+    ? [
+        {
+          role: "system",
+          content:
+            "THIS PERSON'S REAL LIFE EVENTS relevant to what they're asking (things that actually happened, with the astrology that was running at the time; treat as ground truth, reference naturally when useful, and never contradict or re-predict them):\n" +
+            lifeEventsText,
+        },
+      ]
+    : [];
+
   const emotionalText = (() => {
     if (!emotionalState) return "";
     const s = emotionalState;
@@ -2359,13 +2745,53 @@ Deno.serve(async (req: Request) => {
       ]
     : [];
 
+  const OUTCOME_PHRASE: Record<string, string> = {
+    happened: "came true",
+    partly: "partly came true",
+    not_yet: "has not happened yet",
+    did_not: "did not happen",
+  };
+  const REMEDY_PHRASE: Record<string, string> = {
+    yes: "helped them",
+    somewhat: "helped a little",
+    no: "did not help",
+    not_tried: "was not tried yet",
+  };
+  const learningText = learningFeedback
+    .map((r) => {
+      const topic = r.topic ? `[${r.topic}] ` : "";
+      if (r.kind === "outcome" && r.outcome) {
+        const what = r.summary ? `"${r.summary}" ` : "a past prediction ";
+        return `- ${topic}${what}\u2192 they reported it ${OUTCOME_PHRASE[r.outcome] ?? r.outcome}.`;
+      }
+      if (r.kind === "remedy" && r.remedy) {
+        const extra = r.note ? ` (${r.note})` : "";
+        return `- ${topic}a suggested remedy ${REMEDY_PHRASE[r.remedy] ?? r.remedy}${extra}.`;
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+  const learningBlock = learningText
+    ? [
+        {
+          role: "system",
+          content:
+            "WHAT THIS PERSON HAS TOLD YOU ABOUT PAST GUIDANCE (their own feedback \u2014 use it to calibrate how confident you sound, gently acknowledge when a past prediction did not pan out, and prefer remedies they said helped; never mention that you track feedback):\n" +
+            learningText,
+        },
+      ]
+    : [];
+
   const messages = [
     { role: "system", content: systemPrompt },
     ...preferencesBlock,
     ...factsBlock,
     ...memoryBlock,
     ...topicMemoryBlock,
+    ...lifeEventsBlock,
     ...emotionalBlock,
+    ...learningBlock,
     ...history,
     { role: "user", content: message },
   ];
@@ -2497,12 +2923,18 @@ Deno.serve(async (req: Request) => {
           // (see non-streaming path for the full rationale).
           const assistantTs = Date.now();
           const userTs = assistantTs - 1000;
-          await svc.from("chat_messages").insert([
+          const answerProvenance = buildAnswerProvenance(full, systemPrompt);
+          // Both rows MUST carry identical keys: PostgREST rejects a bulk insert
+          // whose objects differ in shape (PGRST102 "All object keys must match"),
+          // which was silently dropping every chat message.
+          const { error: persistErr } = await svc.from("chat_messages").insert([
             {
               conversation_id: conversationId,
               user_id: userId,
               role: "user",
               content: message,
+              model: null,
+              metadata: {},
               created_at: new Date(userTs).toISOString(),
             },
             {
@@ -2511,9 +2943,18 @@ Deno.serve(async (req: Request) => {
               role: "assistant",
               content: full,
               model: MODEL,
+              metadata: { provenance: answerProvenance },
               created_at: new Date(assistantTs).toISOString(),
             },
           ]);
+          if (persistErr) {
+            console.error(
+              "[astrologer-chat] stream chat_messages insert failed:",
+              persistErr.message,
+              persistErr.details ?? "",
+              persistErr.hint ?? "",
+            );
+          }
           await svc
             .from("chat_conversations")
             .update({ updated_at: new Date().toISOString() })
@@ -2531,6 +2972,8 @@ Deno.serve(async (req: Request) => {
               model: SUMMARY_MODEL,
               rememberFacts: memoryEnabled,
               currentFacts: userFacts,
+              authHeader,
+              supabaseUrl: SUPABASE_URL,
             }),
           );
         } catch {
@@ -2655,12 +3098,17 @@ Deno.serve(async (req: Request) => {
   // before its question \u2014 scrambling the transcript sent back to the model.
   const assistantTs = Date.now();
   const userTs = assistantTs - 1000;
-  await svc.from("chat_messages").insert([
+  const answerProvenance = buildAnswerProvenance(reply, systemPrompt);
+  // Identical keys on both rows (see streaming path): a heterogeneous bulk
+  // insert is rejected by PostgREST and was silently dropping chat messages.
+  const { error: persistErr } = await svc.from("chat_messages").insert([
     {
       conversation_id: conversationId,
       user_id: userId,
       role: "user",
       content: message,
+      model: null,
+      metadata: {},
       created_at: new Date(userTs).toISOString(),
     },
     {
@@ -2669,9 +3117,18 @@ Deno.serve(async (req: Request) => {
       role: "assistant",
       content: reply,
       model: MODEL,
+      metadata: { provenance: answerProvenance },
       created_at: new Date(assistantTs).toISOString(),
     },
   ]);
+  if (persistErr) {
+    console.error(
+      "[astrologer-chat] chat_messages insert failed:",
+      persistErr.message,
+      persistErr.details ?? "",
+      persistErr.hint ?? "",
+    );
+  }
   await svc
     .from("chat_conversations")
     .update({ updated_at: new Date().toISOString() })
@@ -2689,6 +3146,8 @@ Deno.serve(async (req: Request) => {
       model: SUMMARY_MODEL,
       rememberFacts: memoryEnabled,
       currentFacts: userFacts,
+      authHeader,
+      supabaseUrl: SUPABASE_URL,
     }),
   );
 

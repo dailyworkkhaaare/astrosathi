@@ -2,11 +2,19 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarClock,
+  Check,
+  Moon,
+  Orbit,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
-import { Divider, Group, Row, Toggle } from "@/components/settings/primitives";
+import { Group, Toggle } from "@/components/settings/primitives";
 import {
   Select,
   SelectContent,
@@ -34,6 +42,15 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 // A sentinel we translate to null server-side. Radix Select never accepts
 // value="" (throws), so we use a literal "off" here and convert on write.
 const QUIET_OFF = "off";
+
+// Same icon vocabulary the /nudges feed uses per kind, so the same idea
+// reads consistently in both places.
+const KIND_ICON: Record<string, LucideIcon> = {
+  dasha_change: Orbit,
+  sade_sati_phase: Moon,
+  transit_alert: Sparkles,
+  life_event_followup: CalendarClock,
+};
 
 function ProactiveSettingsPage() {
   useRequireOnboarding();
@@ -191,25 +208,43 @@ function ProactiveSettingsPage() {
 
         {/* Muted kinds */}
         <Group title={t("settings.proactive.mutedKinds")} delay={4}>
-          {NUDGE_KINDS.map((kind, i) => {
-            const included = !local.muted_kinds.includes(kind);
-            return (
-              <div key={kind}>
-                <Row label={t(`settings.proactive.kinds.${kind}`)}>
-                  <Toggle
-                    id={`proactive-kind-${kind}`}
-                    checked={included}
-                    onChange={(v) => onToggleKind(kind, v)}
-                  />
-                </Row>
-                {i < NUDGE_KINDS.length - 1 && <Divider />}
-              </div>
-            );
-          })}
-          <div className="px-4 pb-3 pt-1">
-            <p className="text-[11px] text-muted-foreground">
+          <div className="flex flex-col gap-3 px-4 py-3">
+            <p className="text-xs leading-snug text-muted-foreground">
               {t("settings.proactive.mutedKindsHint")}
             </p>
+            <div className="flex flex-wrap gap-2">
+              {NUDGE_KINDS.map((kind) => {
+                const included = !local.muted_kinds.includes(kind);
+                const Icon = KIND_ICON[kind];
+                return (
+                  <button
+                    key={kind}
+                    id={`proactive-kind-${kind}`}
+                    type="button"
+                    role="switch"
+                    aria-checked={included}
+                    onClick={() => onToggleKind(kind, !included)}
+                    className={cn(
+                      "tap-press inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      included
+                        ? "border-primary/50 bg-primary/10 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "flex h-4 w-4 items-center justify-center rounded-full transition-colors",
+                        included ? "bg-primary text-primary-foreground" : "border border-border",
+                      )}
+                    >
+                      {included ? <Check size={10} strokeWidth={3} /> : <Icon size={10} />}
+                    </span>
+                    <span>{t(`settings.proactive.kinds.${kind}`)}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </Group>
       </div>

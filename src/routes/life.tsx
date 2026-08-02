@@ -134,6 +134,34 @@ function fmtRibbonYear(ms: number): string {
   return Number.isNaN(d.getTime()) ? "" : String(d.getUTCFullYear());
 }
 
+// Derive the exact birth instant from the daśā API's own numbers: the end of
+// the first mahadasha minus dasha_balance.duration (an ISO-8601 duration like
+// "P9Y8M6DT1H8M39S"). The first mahadasha itself starts well before birth
+// (Vimshottari periods are computed from the natal nakshatra, not from
+// birth), so this is the only reliable way to know where "birth" sits inside
+// it — matches the same derivation used by DashaSection.tsx for Home's
+// daśā timeline.
+function birthMsFromDasha(firstMahaEnd: string, balanceDuration: string | null): number | null {
+  if (!balanceDuration) return null;
+  const m = balanceDuration
+    .trim()
+    .match(/^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/);
+  if (!m) return null;
+  const endMs = Date.parse(firstMahaEnd);
+  if (!Number.isFinite(endMs)) return null;
+  const d = new Date(endMs);
+  d.setUTCFullYear(d.getUTCFullYear() - Number(m[1] ?? 0));
+  d.setUTCMonth(d.getUTCMonth() - Number(m[2] ?? 0));
+  d.setUTCDate(d.getUTCDate() - Number(m[3] ?? 0));
+  d.setUTCHours(
+    d.getUTCHours() - Number(m[4] ?? 0),
+    d.getUTCMinutes() - Number(m[5] ?? 0),
+    d.getUTCSeconds() - Math.floor(Number(m[6] ?? 0)),
+  );
+  const birthMs = d.getTime();
+  return Number.isFinite(birthMs) ? birthMs : null;
+}
+
 function LifePage() {
   useRequireOnboarding();
   const { t, i18n } = useTranslation();
@@ -204,6 +232,11 @@ function LifePage() {
       <DashaRibbon
         events={events}
         periods={dashaQuery.data?.periods ?? []}
+        balanceDuration={
+          dashaQuery.data?.balance?.duration != null
+            ? String(dashaQuery.data.balance.duration)
+            : null
+        }
         isLoading={dashaQuery.isLoading}
         onMarkerClick={scrollToEvent}
       />
@@ -290,11 +323,13 @@ function LifePage() {
 function DashaRibbon({
   events,
   periods,
+  balanceDuration,
   isLoading,
   onMarkerClick,
 }: {
   events: LifeEvent[];
   periods: { id: number; name: string; start: string; end: string }[];
+  balanceDuration: string | null;
   isLoading: boolean;
   onMarkerClick: (id: string) => void;
 }) {
@@ -302,7 +337,11 @@ function DashaRibbon({
   const cycle = periods.slice(0, 9);
   if (isLoading || cycle.length === 0) return null;
 
-  const rangeStartMs = Date.parse(cycle[0].start);
+  // The first mahadasha starts before birth (Vimshottari periods run from the
+  // natal nakshatra, not from birth) — clamp the ribbon to actually start at
+  // birth so it never shows years the user wasn't alive for.
+  const birthMs = birthMsFromDasha(cycle[0].end, balanceDuration) ?? Date.parse(cycle[0].start);
+  const rangeStartMs = birthMs;
   const rangeEndMs = Date.parse(cycle[cycle.length - 1].end);
   const totalMs = rangeEndMs - rangeStartMs;
   if (!Number.isFinite(totalMs) || totalMs <= 0) return null;
@@ -390,7 +429,10 @@ function DashaRibbon({
               aria-label={t("life.context.dasha")}
             >
               {cycle.map((p) => {
-                const spanMs = Date.parse(p.end) - Date.parse(p.start);
+                const pStartMs = Math.max(Date.parse(p.start), rangeStartMs);
+                const pEndMs = Date.parse(p.end);
+                if (pEndMs <= rangeStartMs) return null;
+                const spanMs = pEndMs - pStartMs;
                 const widthPct = (spanMs / totalMs) * 100;
                 const tone = mahaToneFor(p.id);
                 return (

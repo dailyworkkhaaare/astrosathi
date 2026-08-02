@@ -1296,5 +1296,73 @@
         "tableTitle": "Full overlay"
       }
     }
+  },
+  "life": {
+    "title": "Life Timeline",
+    "subtitle": "Your life, mapped against the sky",
+    "addEvent": "Add milestone",
+    "editEvent": "Edit milestone",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirmDeleteTitle": "Delete this milestone?",
+    "confirmDeleteBody": "This can't be undone.",
+    "astrologyPending": "Astrology pending",
+    "placingInChart": "Placing in your chart…",
+    "refreshAstrology": "Refresh astrology",
+    "approxTag": "approx.",
+    "empty": {
+      "title": "Your story hasn't been mapped yet",
+      "body": "Add your first milestone — a job, a move, a marriage — and AstroSaathi will place it against your daśā and transits. It also quietly picks up events you mention while chatting."
+    },
+    "fields": {
+      "title": "Title",
+      "description": "Description",
+      "category": "Category",
+      "date": "Date",
+      "precision": "How precise is this date?",
+      "valence": "How did it feel?"
+    },
+    "errors": {
+      "titleRequired": "Please add a title.",
+      "dateRequired": "Please add a date."
+    },
+    "categories": {
+      "career": "Career",
+      "health": "Health",
+      "marriage": "Marriage",
+      "relationships": "Relationships",
+      "finance": "Finance",
+      "children": "Children",
+      "education": "Education",
+      "travel": "Travel",
+      "property": "Property",
+      "business": "Business",
+      "spirituality": "Spirituality",
+      "family": "Family",
+      "other": "Other"
+    },
+    "valences": {
+      "positive": "Positive",
+      "negative": "Difficult",
+      "neutral": "Neutral",
+      "mixed": "Mixed"
+    },
+    "precisions": {
+      "exact": "Exact date",
+      "month": "Month & year",
+      "year": "Year only",
+      "approx": "Approximate"
+    },
+    "context": {
+      "dasha": "Daśā",
+      "sadeSati": "Sade Sati",
+      "phaseRising": "rising",
+      "phasePeak": "peak",
+      "phaseSetting": "setting",
+      "transitIn": "Jupiter in {{sign}}"
+    },
+    "entryLabel": "Life Timeline",
+    "entryHint": "Your milestones, mapped against your daśā and transits."
   }
 }

@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as LanguageRouteImport } from './routes/language'
+import { Route as LifeRouteImport } from './routes/life'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -58,6 +59,11 @@ const HomeRoute = HomeRouteImport.update({
 const LanguageRoute = LanguageRouteImport.update({
   id: '/language',
   path: '/language',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LifeRoute = LifeRouteImport.update({
+  id: '/life',
+  path: '/life',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/home': typeof HomeRoute
   '/language': typeof LanguageRoute
+  '/life': typeof LifeRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/home': typeof HomeRoute
   '/language': typeof LanguageRoute
+  '/life': typeof LifeRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/home': typeof HomeRoute
   '/language': typeof LanguageRoute
+  '/life': typeof LifeRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/home'
     | '/language'
+    | '/life'
     | '/privacy'
     | '/reset-password'
     | '/settings'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/home'
     | '/language'
+    | '/life'
     | '/privacy'
     | '/reset-password'
     | '/terms'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/home'
     | '/language'
+    | '/life'
     | '/privacy'
     | '/reset-password'
     | '/settings'
@@ -327,6 +339,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   HomeRoute: typeof HomeRoute
   LanguageRoute: typeof LanguageRoute
+  LifeRoute: typeof LifeRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -374,6 +387,13 @@ declare module '@tanstack/react-router' {
       path: '/language'
       fullPath: '/language'
       preLoaderRoute: typeof LanguageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/life': {
+      id: '/life'
+      path: '/life'
+      fullPath: '/life'
+      preLoaderRoute: typeof LifeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -581,6 +601,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   HomeRoute: HomeRoute,
   LanguageRoute: LanguageRoute,
+  LifeRoute: LifeRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRouteWithChildren,

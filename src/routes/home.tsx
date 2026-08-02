@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  CalendarClock,
   ChevronRight,
   Clock,
   Compass,
@@ -146,6 +147,17 @@ function HomePage() {
           {t("home.title")}
         </h1>
       </header>
+
+      <Link
+        to="/life"
+        className="tap-press motion-fade-up flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="inline-flex items-center gap-2">
+          <CalendarClock size={15} aria-hidden="true" className="text-muted-foreground" />
+          {t("life.entryLabel")}
+        </span>
+        <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
+      </Link>
 
       {isProfileIncomplete && <IncompleteProfileHeroCard />}
 

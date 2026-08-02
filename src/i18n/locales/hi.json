@@ -1296,5 +1296,73 @@
         "tableTitle": "पूरा अध्यारोपण"
       }
     }
+  },
+  "life": {
+    "title": "जीवन समयरेखा",
+    "subtitle": "आकाश के सापेक्ष आपका जीवन",
+    "addEvent": "मील का पत्थर जोड़ें",
+    "editEvent": "मील का पत्थर संपादित करें",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएं",
+    "confirmDeleteTitle": "क्या यह मील का पत्थर हटाना है?",
+    "confirmDeleteBody": "यह पूर्ववत नहीं किया जा सकता।",
+    "astrologyPending": "ज्योतिष विश्लेषण बाकी",
+    "placingInChart": "आपकी कुंडली में रखा जा रहा है…",
+    "refreshAstrology": "ज्योतिष ताज़ा करें",
+    "approxTag": "लगभग",
+    "empty": {
+      "title": "आपकी कहानी अभी शुरू नहीं हुई है",
+      "body": "अपना पहला पत्थर जोड़ें — नौकरी, स्थानांतरण, विवाह — और AstroSaathi इसे आपकी दशा और गोचर के सापेक्ष रखेगा। यह चैट में बताई गई घटनाओं को भी चुपचाप से पहचानता है।"
+    },
+    "fields": {
+      "title": "शीर्षक",
+      "description": "विवरण",
+      "category": "श्रेणी",
+      "date": "तिथि",
+      "precision": "यह तिथि कितनी सटीक है?",
+      "valence": "यह कैसा रहा?"
+    },
+    "errors": {
+      "titleRequired": "कृपया शीर्षक जोड़ें।",
+      "dateRequired": "कृपया तिथि जोड़ें।"
+    },
+    "categories": {
+      "career": "करियर",
+      "health": "स्वास्थ्य",
+      "marriage": "विवाह",
+      "relationships": "रिश्ते",
+      "finance": "वित्त",
+      "children": "संतान",
+      "education": "शिक्षा",
+      "travel": "यात्रा",
+      "property": "संपत्ति",
+      "business": "व्यापार",
+      "spirituality": "आध्यात्मिकता",
+      "family": "परिवार",
+      "other": "अन्य"
+    },
+    "valences": {
+      "positive": "सकारात्मक",
+      "negative": "कठिन",
+      "neutral": "तटस्थ",
+      "mixed": "मिश्रित"
+    },
+    "precisions": {
+      "exact": "सटीक तिथि",
+      "month": "माह और वर्ष",
+      "year": "केवल वर्ष",
+      "approx": "लगभग"
+    },
+    "context": {
+      "dasha": "दशा",
+      "sadeSati": "साढ़ेसाती",
+      "phaseRising": "आरंभिक",
+      "phasePeak": "चरम",
+      "phaseSetting": "समाप्ति",
+      "transitIn": "गुरु {{sign}} में"
+    },
+    "entryLabel": "जीवन समयरेखा",
+    "entryHint": "आपके मील के पत्थर, आपकी दशा और गोचर के साथ।"
   }
 }

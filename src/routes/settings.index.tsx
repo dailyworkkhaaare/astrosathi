@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Brain,
+  CalendarClock,
   ChevronRight,
   FileText,
   LogOut,
@@ -199,6 +200,23 @@ function SettingsPage() {
               {t("settings.profile.memory")}
               <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
                 {t("settings.profile.memoryHint")}
+              </span>
+            </span>
+          </span>
+          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
+        </button>
+        <Divider />
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/life" })}
+          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <span className="inline-flex items-center gap-2">
+            <CalendarClock size={14} aria-hidden="true" className="text-muted-foreground" />
+            <span>
+              {t("life.entryLabel")}
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                {t("life.entryHint")}
               </span>
             </span>
           </span>

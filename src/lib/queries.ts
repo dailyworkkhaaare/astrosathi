@@ -4,6 +4,7 @@
 // new Edge Function call until the entry goes stale.
 
 import {
+  useMutation,
   useQuery,
   useQueryClient,
   type QueryClient,
@@ -29,6 +30,15 @@ import {
   type PersonChartsBundle,
   type CompatibilityBundle,
 } from "@/lib/related-charts";
+import {
+  createLifeEvent,
+  deleteLifeEvent,
+  listLifeEvents,
+  stampLifeEvent,
+  updateLifeEvent,
+  type LifeEvent,
+  type LifeEventInput,
+} from "@/lib/life-events";
 
 // ---------------------------------------------------------------- constants
 
@@ -1341,6 +1351,92 @@ export function useCompatibility(
       const bundle = (data as any)?.data as CompatibilityBundle | undefined;
       if (!bundle) return { error: { code: "provider_error", message: "Empty response" } };
       return { data: bundle };
+    },
+  });
+}
+
+// ---------------------------------------------------------------- life timeline
+
+const LIFE_EVENTS_ROOT = ["life-events"] as const;
+
+export function useLifeEvents(): UseQueryResult<LifeEvent[]> {
+  const userId = useCurrentUserId();
+  return useQuery<LifeEvent[]>({
+    queryKey: [...LIFE_EVENTS_ROOT, userId],
+    enabled: userId !== null,
+    staleTime: 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: listLifeEvents,
+  });
+}
+
+// Stamping is best-effort: a failure there must not fail the create/update
+// mutation itself, so it's caught and swallowed after the initial refetch.
+function useStampAndInvalidate() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return async (id: string, force?: boolean) => {
+    try {
+      await stampLifeEvent(id, force);
+    } catch {
+      /* best-effort */
+    }
+    void queryClient.invalidateQueries({ queryKey: [...LIFE_EVENTS_ROOT, userId] });
+  };
+}
+
+export function useCreateLifeEvent() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  const stampAndInvalidate = useStampAndInvalidate();
+  return useMutation({
+    mutationFn: (input: LifeEventInput) => createLifeEvent(input),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: [...LIFE_EVENTS_ROOT, userId] });
+      if (result.event) void stampAndInvalidate(result.event.id);
+    },
+  });
+}
+
+export function useUpdateLifeEvent() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  const stampAndInvalidate = useStampAndInvalidate();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<LifeEventInput> }) =>
+      updateLifeEvent(id, patch),
+    onSuccess: async (result, variables) => {
+      await queryClient.invalidateQueries({ queryKey: [...LIFE_EVENTS_ROOT, userId] });
+      if (result.event) {
+        const datesOrCategoryChanged =
+          "event_date" in variables.patch || "category" in variables.patch;
+        void stampAndInvalidate(result.event.id, datesOrCategoryChanged);
+      }
+    },
+  });
+}
+
+export function useDeleteLifeEvent() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return useMutation({
+    mutationFn: (id: string) => deleteLifeEvent(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...LIFE_EVENTS_ROOT, userId] });
+    },
+  });
+}
+
+// Manual "Refresh astrology" retry — force-restamps a single event without
+// touching its other fields.
+export function useRestampLifeEvent() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return useMutation({
+    mutationFn: (id: string) => stampLifeEvent(id, true),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...LIFE_EVENTS_ROOT, userId] });
     },
   });
 }

@@ -59,11 +59,86 @@ const CONTEXT_CHART_TYPES = [
 ];
 // Rolling-summary memory tuning. Recent turns are sent verbatim; older turns
 // are folded into a compact running summary so long chats stay cheap.
-const SUMMARY_TRIGGER = 20; // fold once this many un-summarized messages exist
+const SUMMARY_TRIGGER = 5; // fold once this many un-summarized messages exist
 const SUMMARY_FOLD_BATCH = 10; // oldest messages folded into the summary per pass
 const SUMMARY_MAX_MESSAGES = 50; // safety cap on verbatim messages loaded per turn
 const SUMMARY_MAX_WORDS = 300; // target length of the rolling summary
 const FACTS_MAX_WORDS = 300; // cap on the durable, cross-conversation user-facts memory
+
+// --- Companion Intelligence (CI-1.2) ---
+// Allowed structured-memory topics; must match the user_topic_memory CHECK.
+const TOPIC_MEMORY_TOPICS = new Set([
+  "career",
+  "health",
+  "marriage",
+  "relationships",
+  "finance",
+  "children",
+  "education",
+  "travel",
+  "property",
+  "business",
+  "spirituality",
+  "family",
+  "other",
+]);
+// Default lifetime for an auto-detected emotional-state note.
+const EMOTIONAL_DEFAULT_TTL_DAYS = 14;
+
+// CI-1.3 Reasoning Planner: lightweight keyword -> life-area classifier used to
+// retrieve ONLY the structured topic memory relevant to the current question.
+const TOPIC_KEYWORDS: Array<[string, string[]]> = [
+  ["career", ["job", "career", "work", "promotion", "boss", "office", "salary", "interview", "resign", "appraisal", "naukri", "kaam", "daftar"]],
+  ["health", ["health", "illness", "disease", "sick", "body", "mental", "stress", "anxiety", "depress", "sehat", "bimar", "bimari", "tabiyat", "aarogya"]],
+  ["marriage", ["marriage", "marry", "wedding", "spouse", "wife", "husband", "divorce", "shaadi", "vivah", "lagna", "patni", "pati"]],
+  ["relationships", ["relationship", "love", "boyfriend", "girlfriend", "breakup", "crush", "affair", "partner", "rishta", "pyaar", "prem", "premika", "premi"]],
+  ["finance", ["money", "finance", "wealth", "loan", "debt", "invest", "savings", "income", "paisa", "dhan", "kharch", "daulat", "paise"]],
+  ["children", ["child", "children", "baby", "kids", "pregnan", "conceive", "son", "daughter", "bachcha", "santaan", "santan", "aulad", "garbh"]],
+  ["education", ["education", "study", "studies", "exam", "college", "university", "degree", "school", "admission", "padhai", "pariksha", "shiksha"]],
+  ["travel", ["travel", "trip", "abroad", "foreign", "visa", "relocat", "journey", "migrate", "videsh", "pardes", "yatra", "safar"]],
+  ["property", ["property", "house", "home", "land", "plot", "real estate", "flat", "apartment", "ghar", "makaan", "zameen", "jameen", "sampatti"]],
+  ["business", ["business", "startup", "venture", "entrepreneur", "trade", "vyapar", "vyavsay", "dhandha", "dukaan"]],
+  ["spirituality", ["spiritual", "temple", "puja", "pooja", "mantra", "meditat", "karma", "moksha", "dharma", "bhakti", "sadhana", "prayer"]],
+  ["family", ["family", "mother", "father", "parents", "brother", "sister", "mom", "dad", "maa", "mata", "pita", "papa", "bhai", "behan", "parivar", "gharwale"]],
+];
+
+// Map the user's message to the set of life-areas it touches (may be empty).
+function classifyTopics(message: string): string[] {
+  const m = message.toLowerCase();
+  const hits: string[] = [];
+  for (const [topic, kws] of TOPIC_KEYWORDS) {
+    if (kws.some((k) => m.includes(k))) hits.push(topic);
+  }
+  return hits;
+}
+
+// Render structured preferences into a short, plain instruction (or "").
+function buildPreferenceInstruction(prefs: Record<string, unknown> | null): string {
+  if (!prefs || typeof prefs !== "object") return "";
+  const p = prefs as Record<string, unknown>;
+  const lines: string[] = [];
+  if (typeof p.preferred_language === "string" && p.preferred_language.trim()) {
+    lines.push(
+      `They generally prefer ${p.preferred_language.trim()} - but always mirror the language of their current message.`,
+    );
+  }
+  if (typeof p.preferred_tone === "string" && p.preferred_tone.trim()) {
+    lines.push(`Preferred tone: ${p.preferred_tone.trim()}.`);
+  }
+  if (p.detail_level === "brief") lines.push("Keep answers short and to the point.");
+  else if (p.detail_level === "detailed") lines.push("Give thorough, detailed explanations.");
+  else if (p.detail_level === "balanced") lines.push("Keep answers moderate in length.");
+  if (p.likes_tables === false) lines.push("Avoid tables; prefer flowing prose or simple lists.");
+  else if (p.likes_tables === true) lines.push("Tables are welcome when genuinely helpful.");
+  if (p.remedies_first === true) lines.push("Lead with practical remedies before deeper explanation.");
+  if (p.wants_practical === true) lines.push("Favor practical, actionable guidance over theory.");
+  if (p.likes_followup === true) lines.push("Ending with one gentle follow-up question is welcome.");
+  else if (p.likes_followup === false) lines.push("Do not end with follow-up questions.");
+  if (typeof p.communication_style === "string" && p.communication_style.trim()) {
+    lines.push(`Communication style: ${p.communication_style.trim()}.`);
+  }
+  return lines.join(" ");
+}
 
 // ---------------------------------------------------------------------------
 // Chart normalization for the LLM context.
@@ -983,6 +1058,85 @@ function parseSummaryFactsJson(raw: string): { summary: string; facts: string } 
   }
 }
 
+// Defensively parse the richer Companion-Intelligence memory JSON
+// ({ summary, facts, topics[], preferences{}, emotional{} }) from a model
+// reply, tolerating code fences or stray prose. Returns null if unusable.
+type CompanionTopicMemory = {
+  topic: string;
+  summary: string;
+  data: Record<string, unknown>;
+  confidence: number | null;
+};
+type CompanionEmotional = {
+  state: Record<string, unknown>;
+  ttlDays: number | null;
+};
+function parseCompanionMemoryJson(raw: string): {
+  summary: string;
+  facts: string;
+  topics: CompanionTopicMemory[];
+  preferences: Record<string, unknown> | null;
+  emotional: CompanionEmotional | null;
+} | null {
+  let text = raw.trim();
+  const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fence) text = fence[1].trim();
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  let obj: Record<string, unknown>;
+  try {
+    obj = JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  const summary = typeof obj.summary === "string" ? obj.summary.trim() : "";
+  const facts = typeof obj.facts === "string" ? obj.facts.trim() : "";
+
+  const topics: CompanionTopicMemory[] = [];
+  if (Array.isArray(obj.topics)) {
+    for (const entry of obj.topics) {
+      if (!entry || typeof entry !== "object") continue;
+      const row = entry as Record<string, unknown>;
+      let topic = typeof row.topic === "string" ? row.topic.trim().toLowerCase() : "";
+      if (!topic) continue;
+      if (!TOPIC_MEMORY_TOPICS.has(topic)) topic = "other";
+      const tSummary = typeof row.summary === "string" ? row.summary.trim() : "";
+      const data =
+        row.data && typeof row.data === "object" && !Array.isArray(row.data)
+          ? (row.data as Record<string, unknown>)
+          : {};
+      let confidence: number | null = null;
+      if (typeof row.confidence === "number" && isFinite(row.confidence)) {
+        confidence = Math.max(0, Math.min(1, row.confidence));
+      }
+      if (!tSummary && Object.keys(data).length === 0) continue;
+      topics.push({ topic, summary: tSummary, data, confidence });
+    }
+  }
+
+  let preferences: Record<string, unknown> | null = null;
+  if (obj.preferences && typeof obj.preferences === "object" && !Array.isArray(obj.preferences)) {
+    const p = obj.preferences as Record<string, unknown>;
+    if (Object.keys(p).length > 0) preferences = p;
+  }
+
+  let emotional: CompanionEmotional | null = null;
+  if (obj.emotional && typeof obj.emotional === "object" && !Array.isArray(obj.emotional)) {
+    const e = { ...(obj.emotional as Record<string, unknown>) };
+    let ttlDays: number | null = null;
+    if (typeof e.ttl_days === "number" && isFinite(e.ttl_days as number)) {
+      ttlDays = Math.max(1, Math.min(120, Math.round(e.ttl_days as number)));
+    }
+    delete e.ttl_days;
+    if (Object.keys(e).length > 0) emotional = { state: e, ttlDays };
+  }
+
+  if (!summary && !facts && topics.length === 0 && !preferences && !emotional) return null;
+  return { summary, facts, topics, preferences, emotional };
+}
+
 // Rolling-summary + durable-facts memory. When enough messages have piled up
 // beyond what the summary already covers, fold the oldest batch into a fresh
 // compact summary using a cheap model; when the user has memory enabled, the
@@ -1043,9 +1197,13 @@ async function maybeSummarizeConversation(opts: {
     const existingFacts = currentFacts && currentFacts.trim() ? currentFacts.trim() : "(none yet)";
     sumSystem = [
       "You maintain long-term memory for a Vedic astrology companion app, based on one ongoing conversation.",
-      'Return ONLY a single JSON object with exactly two string fields: "summary" and "facts". No code fences, no commentary.',
+      'Return ONLY a single JSON object with these fields: "summary" (string), "facts" (string), "topics" (array), "preferences" (object), "emotional" (object). No code fences, no commentary.',
       `"summary": an updated running summary of THIS conversation - merge the EXISTING SUMMARY with the NEW MESSAGES, under ${SUMMARY_MAX_WORDS} words, compact third-person notes, dropping greetings, small talk and repetition.`,
       `"facts": an updated list of durable facts about this specific person that stay true across conversations - their life situation, relationships, work, recurring concerns, goals, stated preferences, and important guidance already given. Merge the EXISTING FACTS with anything new and lasting from the messages, and drop anything transient or already superseded. At most 25 facts, one concise fact per line, third person, under ${FACTS_MAX_WORDS} words total.`,
+      '"topics": an array of structured per-life-area memories, each an object { "topic", "summary", "data", "confidence" }. "topic" MUST be exactly one of: career, health, marriage, relationships, finance, children, education, travel, property, business, spirituality, family, other. "summary" is a one or two sentence digest of that life area for this person. "data" is a small flat object of concrete key facts (for example current_company, role, concern, goal, timeline). "confidence" is a number from 0 to 1. Only include a topic when the messages contain real signal about it; otherwise return an empty array. Never invent details.',
+      '"preferences": an object capturing how this person likes to be answered, only when clearly evidenced. Recognized keys: preferred_language, preferred_tone, detail_level (one of brief, balanced, detailed), likes_tables (boolean), remedies_first (boolean), wants_practical (boolean), likes_followup (boolean), communication_style. Omit any key you are unsure about; return an empty object when nothing is clear.',
+      '"emotional": a SHORT-LIVED note about the person\'s current emotional state, only if clearly present. Object with keys: mood (string), sensitivities (array of strings), guidance (array of short tone instructions), ttl_days (integer days to keep this relevant, default 14). Return an empty object when there is no clear emotional signal.',
+      "Never fabricate; prefer omission over guessing.",
     ].join(" ");
     sumUser =
       "EXISTING SUMMARY:\n" +
@@ -1083,7 +1241,7 @@ async function maybeSummarizeConversation(opts: {
           { role: "user", content: sumUser },
         ],
         temperature: 0.3,
-        max_tokens: rememberFacts ? 900 : 600,
+        max_tokens: rememberFacts ? 1400 : 600,
       }),
     },
     30000,
@@ -1095,13 +1253,14 @@ async function maybeSummarizeConversation(opts: {
 
   let newSummary = "";
   let newFacts = "";
+  let companion: ReturnType<typeof parseCompanionMemoryJson> = null;
   if (rememberFacts) {
-    const parsed = parseSummaryFactsJson(rawOut);
-    if (parsed) {
-      newSummary = parsed.summary;
-      newFacts = parsed.facts;
+    companion = parseCompanionMemoryJson(rawOut);
+    if (companion) {
+      newSummary = companion.summary;
+      newFacts = companion.facts;
     } else {
-      // Couldn't parse JSON: salvage the reply as the summary, skip facts.
+      // Couldn't parse JSON: salvage the reply as the summary, skip structured memory.
       newSummary = rawOut;
     }
   } else {
@@ -1131,6 +1290,71 @@ async function maybeSummarizeConversation(opts: {
       },
       { onConflict: "user_id" },
     );
+  }
+
+  // --- Companion Intelligence (CI-1.2): structured memory, preferences, emotion ---
+  // Best-effort and additive. Never blocks the chat and never alters the flat
+  // user_memory fallback above. All writes use the service-role client.
+  if (rememberFacts && companion) {
+    // 1) Structured per-topic memory: one evolving row per user x topic.
+    for (const t of companion.topics) {
+      try {
+        await svc.from("user_topic_memory").upsert(
+          {
+            user_id: userId,
+            topic: t.topic,
+            summary: t.summary || null,
+            data: t.data ?? {},
+            confidence: t.confidence,
+            source_conversation_id: conversationId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,topic" },
+        );
+      } catch {
+        // Ignore a single malformed topic row.
+      }
+    }
+
+    // 2) Answer preferences: shallow-merge into profiles.preferences.
+    if (companion.preferences) {
+      try {
+        const { data: prof } = await svc
+          .from("profiles")
+          .select("preferences")
+          .eq("user_id", userId)
+          .maybeSingle();
+        const existingPrefs =
+          prof &&
+          typeof (prof as { preferences?: unknown }).preferences === "object" &&
+          (prof as { preferences?: unknown }).preferences
+            ? (prof as { preferences: Record<string, unknown> }).preferences
+            : {};
+        const mergedPrefs = { ...existingPrefs, ...companion.preferences };
+        await svc.from("profiles").update({ preferences: mergedPrefs }).eq("user_id", userId);
+      } catch {
+        // Ignore preference-merge failures.
+      }
+    }
+
+    // 3) Short-lived emotional state: single row per user, auto-expiring.
+    if (companion.emotional) {
+      try {
+        const ttl = companion.emotional.ttlDays ?? EMOTIONAL_DEFAULT_TTL_DAYS;
+        const expiresAt = new Date(Date.now() + ttl * 86400000).toISOString();
+        await svc.from("user_emotional_state").upsert(
+          {
+            user_id: userId,
+            state: companion.emotional.state,
+            expires_at: expiresAt,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" },
+        );
+      } catch {
+        // Ignore emotional-state write failures.
+      }
+    }
   }
 }
 
@@ -1960,17 +2184,28 @@ Deno.serve(async (req: Request) => {
 
   // ---------- Load durable, cross-conversation memory (privacy-gated) ----------
   // profiles.memory_enabled defaults to true; only load and inject stored
-  // facts when the person has memory turned on.
+  // memory when the person has memory turned on.
   let memoryEnabled = true;
   let userFacts: string | null = null;
+  let userPreferences: Record<string, unknown> | null = null;
+  let topicMemoryRows: Array<{
+    topic: string;
+    summary: string | null;
+    data: Record<string, unknown> | null;
+  }> = [];
+  let emotionalState: Record<string, unknown> | null = null;
   {
     const { data: prof } = await svc
       .from("profiles")
-      .select("memory_enabled")
+      .select("memory_enabled, preferences")
       .eq("user_id", userId)
       .maybeSingle();
     if (prof && typeof (prof as { memory_enabled?: boolean }).memory_enabled === "boolean") {
       memoryEnabled = (prof as { memory_enabled: boolean }).memory_enabled;
+    }
+    const rawPrefs = (prof as { preferences?: unknown } | null)?.preferences;
+    if (rawPrefs && typeof rawPrefs === "object" && !Array.isArray(rawPrefs)) {
+      userPreferences = rawPrefs as Record<string, unknown>;
     }
     if (memoryEnabled) {
       const { data: mem } = await svc
@@ -1979,6 +2214,53 @@ Deno.serve(async (req: Request) => {
         .eq("user_id", userId)
         .maybeSingle();
       userFacts = (mem as { facts?: string | null } | null)?.facts ?? null;
+
+      const nowMs = Date.now();
+
+      // CI-1.3 Reasoning Planner: retrieve ONLY the topic memory this question
+      // touches, and skip anything retired ('never') or past its expiry.
+      const relevantTopics = classifyTopics(message);
+      if (relevantTopics.length > 0) {
+        const { data: topicRows } = await svc
+          .from("user_topic_memory")
+          .select("topic, summary, data, retention, expires_at")
+          .eq("user_id", userId)
+          .in("topic", relevantTopics);
+        topicMemoryRows = ((topicRows ?? []) as Array<Record<string, unknown>>)
+          .filter((r) => {
+            if (r.retention === "never") return false;
+            const exp = r.expires_at as string | null;
+            if (exp && new Date(exp).getTime() <= nowMs) return false;
+            return true;
+          })
+          .map((r) => ({
+            topic: String(r.topic),
+            summary: (r.summary as string | null) ?? null,
+            data:
+              r.data && typeof r.data === "object" && !Array.isArray(r.data)
+                ? (r.data as Record<string, unknown>)
+                : null,
+          }));
+      }
+
+      // Short-lived emotional state, ignored once expired.
+      const { data: emo } = await svc
+        .from("user_emotional_state")
+        .select("state, expires_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (emo) {
+        const exp = (emo as { expires_at?: string | null }).expires_at ?? null;
+        const st = (emo as { state?: unknown }).state;
+        if (
+          (!exp || new Date(exp).getTime() > nowMs) &&
+          st &&
+          typeof st === "object" &&
+          !Array.isArray(st)
+        ) {
+          emotionalState = st as Record<string, unknown>;
+        }
+      }
     }
   }
 
@@ -2020,10 +2302,70 @@ Deno.serve(async (req: Request) => {
       ]
     : [];
 
+  const preferenceText = memoryEnabled ? buildPreferenceInstruction(userPreferences) : "";
+  const preferencesBlock = preferenceText
+    ? [
+        {
+          role: "system",
+          content:
+            "HOW THIS PERSON LIKES TO BE ANSWERED (learned preferences; honor them unless the current message clearly asks otherwise):\n" +
+            preferenceText,
+        },
+      ]
+    : [];
+
+  const topicMemoryText = topicMemoryRows
+    .map((r) => {
+      const bits: string[] = [];
+      if (r.summary && r.summary.trim()) bits.push(r.summary.trim());
+      if (r.data && Object.keys(r.data).length > 0) bits.push(JSON.stringify(r.data));
+      return bits.length ? `- [${r.topic}] ${bits.join(" | ")}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+  const topicMemoryBlock = topicMemoryText
+    ? [
+        {
+          role: "system",
+          content:
+            "RELEVANT LIFE-AREA MEMORY for what they're asking now (structured notes from earlier chats; weave in naturally, never recite as a list or say you keep notes):\n" +
+            topicMemoryText,
+        },
+      ]
+    : [];
+
+  const emotionalText = (() => {
+    if (!emotionalState) return "";
+    const s = emotionalState;
+    const parts: string[] = [];
+    if (typeof s.mood === "string" && s.mood.trim()) parts.push(`Recent mood: ${s.mood.trim()}.`);
+    if (Array.isArray(s.sensitivities) && s.sensitivities.length) {
+      parts.push(`Be sensitive about: ${s.sensitivities.map(String).join(", ")}.`);
+    }
+    if (Array.isArray(s.guidance) && s.guidance.length) {
+      parts.push(`Tone guidance: ${s.guidance.map(String).join("; ")}.`);
+    }
+    if (typeof s.note === "string" && s.note.trim()) parts.push(s.note.trim());
+    return parts.join(" ");
+  })();
+  const emotionalBlock = emotionalText
+    ? [
+        {
+          role: "system",
+          content:
+            "CURRENT EMOTIONAL CONTEXT (recent and possibly temporary; adjust warmth and tone accordingly, and never mention that you track this):\n" +
+            emotionalText,
+        },
+      ]
+    : [];
+
   const messages = [
     { role: "system", content: systemPrompt },
+    ...preferencesBlock,
     ...factsBlock,
     ...memoryBlock,
+    ...topicMemoryBlock,
+    ...emotionalBlock,
     ...history,
     { role: "user", content: message },
   ];

@@ -456,4 +456,3 @@ function ShieldIcon() {
     </svg>
   );
 }
-

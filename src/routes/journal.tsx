@@ -74,9 +74,9 @@ function monthLabel(key: string, locale: string): string {
     : d.toLocaleDateString(locale, { month: "long", year: "numeric" });
 }
 
-function hasStampedContext(
-  entry: JournalEntry,
-): entry is JournalEntry & { astro_context: Extract<JournalEntry["astro_context"], { version: 1 }> } {
+function hasStampedContext(entry: JournalEntry): entry is JournalEntry & {
+  astro_context: Extract<JournalEntry["astro_context"], { version: 1 }>;
+} {
   return (
     entry.context_status === "stamped" &&
     !!entry.astro_context &&
@@ -300,12 +300,7 @@ function EntryCard({
           {entry.title && (
             <p className="truncate text-base font-semibold text-foreground">{entry.title}</p>
           )}
-          <p
-            className={cn(
-              "text-xs text-muted-foreground",
-              entry.title ? "mt-0.5" : "",
-            )}
-          >
+          <p className={cn("text-xs text-muted-foreground", entry.title ? "mt-0.5" : "")}>
             {formatEntryDate(entry.entry_date, locale)}
           </p>
         </button>
@@ -464,10 +459,7 @@ function JournalEntryFormDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3
-            id="journal-entry-form-title"
-            className="text-base font-semibold text-foreground"
-          >
+          <h3 id="journal-entry-form-title" className="text-base font-semibold text-foreground">
             {isNew ? t("journal.addEntry") : t("journal.editEntry")}
           </h3>
           <button

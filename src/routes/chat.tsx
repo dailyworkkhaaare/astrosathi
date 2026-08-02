@@ -457,8 +457,11 @@ function ChatPage() {
   }, [streamPhase, t]);
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Per-message DOM refs, used only by the "anchor question to top" scroll
+  // below — measuring a specific bubble's position/height needs the real
+  // element, not just React state.
+  const messageElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const scrollRafRef = useRef<number | null>(null);
   // Tracks the freshest known conversation id for provenance hydration after
   // a stream completes, since `conversationId` state lags behind onMeta/the
   // response payload within the same sendToBackend call.
@@ -660,6 +663,10 @@ function ChatPage() {
     setError(null);
     setLastFailed(null);
     setPendingSubjectChartId(null);
+    setPendingAnchorId(null);
+    setAnchoredMessageId(null);
+    setTurnSpacerPx(0);
+    messageElRefs.current.clear();
     const { data } = await supabase
       .from("chat_messages")
       .select("id, role, content, created_at, metadata")
@@ -787,92 +794,204 @@ function ChatPage() {
   // Auto-scroll on message change unless the user scrolled up. Hysteresis
   // between the exit and re-entry distances stops the pin state flickering
   // right at a single boundary (trackpad jitter, momentum scroll).
+  //
+  // Suspended entirely while `anchoredMessageId` is set (see the "anchor
+  // question to top" block below): during that window the container's true
+  // bottom is an arbitrary distance away (it includes reserved empty space
+  // that has nothing to do with whether the user is "caught up"), and — more
+  // importantly — reacting to the anchor's own smooth-scroll animation here
+  // caused a real bug: the animation would pass close enough to what this
+  // hysteresis considers "bottom" mid-transition and flip `pinnedToBottom`
+  // back on before the reply had even started streaming, instantly
+  // cancelling the anchor. Distance-from-bottom just isn't a meaningful
+  // signal during anchor mode, so this tracker stands down until it ends.
   const PIN_EXIT_PX = 80; // scrolling further than this un-pins (shows jump-to-latest)
   const PIN_REENTER_PX = 32; // must come back this close to silently re-lock
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
+  const [anchoredMessageId, setAnchoredMessageId] = useState<string | null>(null);
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     const onScroll = () => {
+      if (anchoredMessageId) return;
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
       setPinnedToBottom((prev) => (prev ? distance < PIN_EXIT_PX : distance < PIN_REENTER_PX));
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
-  }, [messages.length, sending]);
+  }, [messages.length, sending, anchoredMessageId]);
 
-  // Once pinned, track new content every frame (imperceptible, since the
-  // per-frame growth is tiny). But the exact frame the user scrolls back
-  // into the pin zone gets a short eased catch-up instead of an instant
-  // `scrollTop = scrollHeight` snap — mid-stream that target is still
-  // growing, so a hard jump there reads as a jerk. The tween re-targets the
-  // bottom every tick, so it still lands correctly even while text keeps
-  // streaming in underneath it.
-  const wasPinnedRef = useRef(true);
-  const catchUpRafRef = useRef<number | null>(null);
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
+  // ---- "Anchor question to top" on send (ChatGPT/Claude-style) ----
+  // When a new message is sent, the question settles near the TOP of the
+  // viewport instead of the view chasing the reply from the bottom — the
+  // reply then streams into the space reserved below it. Short replies leave
+  // that space empty; a reply that outgrows the reserved space hands off to
+  // the normal bottom-follow behavior below so its tail still streams into
+  // view. Breathing room kept above the anchored bubble, matching the
+  // padding already used elsewhere for small gaps.
+  //
+  // Deliberately decoupled from `pinnedToBottom`/the hysteresis tracker
+  // above — see the note on that effect for why sharing that signal caused
+  // the anchor to cancel itself almost immediately on every send.
+  const ANCHOR_TOP_PADDING = 16;
+  const [pendingAnchorId, setPendingAnchorId] = useState<string | null>(null);
+  const [turnSpacerPx, setTurnSpacerPx] = useState(0);
+  const pendingScrollRef = useRef<{ top: number } | null>(null);
 
-    const stopCatchUp = () => {
-      if (catchUpRafRef.current !== null) {
-        cancelAnimationFrame(catchUpRafRef.current);
-        catchUpRafRef.current = null;
-      }
-    };
-
-    if (!pinnedToBottom) {
-      wasPinnedRef.current = false;
-      stopCatchUp();
+  // Step 1: right after the new user bubble commits, measure it and the
+  // reserved space it needs, then hand off to step 2 (below) once that
+  // reserved space is itself committed to the DOM.
+  useLayoutEffect(() => {
+    if (!pendingAnchorId) return;
+    const container = listRef.current;
+    const anchorEl = messageElRefs.current.get(pendingAnchorId);
+    if (!container || !anchorEl) {
+      // Couldn't measure the new bubble — fall back to the normal
+      // bottom-follow behavior rather than leaving scrolling stuck in
+      // neither mode.
+      setPendingAnchorId(null);
+      setPinnedToBottom(true);
       return;
     }
+    const containerRect = container.getBoundingClientRect();
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const offsetWithinScroll = anchorRect.top - containerRect.top + container.scrollTop;
+    const targetTop = Math.max(0, offsetWithinScroll - ANCHOR_TOP_PADDING);
+    // Generous on purpose — this is the empty space reserved below the
+    // question so it can actually reach the top of the viewport even before
+    // any reply exists. A little extra slack costs nothing; too little means
+    // the browser clamps the scroll short and the question never quite
+    // reaches the top.
+    const reserve = Math.max(0, container.clientHeight - anchorEl.offsetHeight);
+    pendingScrollRef.current = { top: targetTop };
+    setTurnSpacerPx(reserve);
+    setAnchoredMessageId(pendingAnchorId);
+    setPendingAnchorId(null);
+  }, [pendingAnchorId]);
 
-    const justRePinned = !wasPinnedRef.current;
-    wasPinnedRef.current = true;
+  // Step 2: the reserved spacer div has now committed (it's what changed
+  // `turnSpacerPx`), so the container has enough scrollHeight to actually
+  // reach the target — do the one smooth scroll here.
+  useLayoutEffect(() => {
+    const pending = pendingScrollRef.current;
+    if (!pending) return;
+    pendingScrollRef.current = null;
+    const container = listRef.current;
+    if (!container) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    container.scrollTo({ top: pending.top, behavior: reduce ? "auto" : "smooth" });
+  }, [turnSpacerPx]);
+
+  // Step 3: while anchored, watch for the reply outgrowing the reserved
+  // space and release the anchor so the normal bottom-follow behavior below
+  // takes over for the remainder — long replies still stream into view. Also
+  // releases once the turn finishes (`sending` goes false) even if it never
+  // overflowed, so ordinary scroll-tracking resumes for whatever the user
+  // does next; the reserved empty space itself is left in place (per design:
+  // short replies keep their blank space below rather than collapsing it).
+  useEffect(() => {
+    if (!anchoredMessageId) return;
+    if (!sending) {
+      setAnchoredMessageId(null);
+      return;
+    }
+    const container = listRef.current;
+    const anchorEl = messageElRefs.current.get(anchoredMessageId);
+    if (!container || !anchorEl) return;
+
+    let raf: number | null = null;
+    const check = () => {
+      const replyEl = streamingId ? messageElRefs.current.get(streamingId) : null;
+      const used = anchorEl.offsetHeight + (replyEl?.offsetHeight ?? 0);
+      const available = container.clientHeight - ANCHOR_TOP_PADDING;
+      if (used > available) {
+        setAnchoredMessageId(null);
+        setTurnSpacerPx(0);
+        setPinnedToBottom(true);
+        return;
+      }
+      raf = requestAnimationFrame(check);
+    };
+    raf = requestAnimationFrame(check);
+    return () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+    };
+  }, [anchoredMessageId, streamingId, sending]);
+
+  // While pinned AND a reply is actively streaming in, continuously ease the
+  // scroll position toward the bottom every frame instead of ever
+  // hard-snapping to it — smooths per-character growth and the occasional
+  // bigger jump (a whole paragraph/table committing at once) alike.
+  //
+  // Gated strictly to `streamingId` (not just `pinnedToBottom`): keeping this
+  // rAF loop alive for as long as the user was resting at the bottom —
+  // including long after a reply finished — meant it kept force-writing
+  // `scrollTop` every single frame at rest, fighting any attempt to scroll
+  // up before the unpin-distance threshold could even register. That was the
+  // post-stream jerk. Also stands down while `anchoredMessageId` is set, so
+  // it never competes with the anchor's own scroll.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || !pinnedToBottom || !streamingId || anchoredMessageId) return;
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
-    if (!justRePinned || reduce) {
-      // Steady-state tracking, or a catch-up glide is already in flight for
-      // this pin — let it keep owning the frame rather than fighting it.
-      if (catchUpRafRef.current !== null) return;
-      if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current);
-      scrollRafRef.current = requestAnimationFrame(() => {
-        scrollRafRef.current = null;
-        el.scrollTop = el.scrollHeight;
-      });
-      return () => {
-        if (scrollRafRef.current !== null) {
-          cancelAnimationFrame(scrollRafRef.current);
-          scrollRafRef.current = null;
-        }
-      };
-    }
+    // A very large initial gap — opening a long conversation, switching
+    // threads — snaps instantly on the first frame; nobody wants to watch a
+    // multi-second glide down. Anything after that first frame (new content
+    // streaming in, or re-entering the pin zone) eases in continuously.
+    const SNAP_THRESHOLD_PX = 600;
+    const EASE = 0.22; // per-frame convergence factor; higher = snappier follow
+    let primed = false;
+    let raf: number | null = null;
 
-    // Just re-entered the pin zone: ease into the bottom instead of snapping.
-    const DURATION_MS = 220; // design.md --motion-standard
-    const startTop = el.scrollTop;
-    const startedAt = performance.now();
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / DURATION_MS);
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    const tick = () => {
       const target = el.scrollHeight - el.clientHeight;
-      el.scrollTop = startTop + (target - startTop) * eased;
-      catchUpRafRef.current = progress < 1 ? requestAnimationFrame(tick) : null;
+      const delta = target - el.scrollTop;
+      if (!primed) {
+        primed = true;
+        if (Math.abs(delta) > SNAP_THRESHOLD_PX) {
+          el.scrollTop = target;
+          raf = requestAnimationFrame(tick);
+          return;
+        }
+      }
+      if (reduce || Math.abs(delta) < 0.5) {
+        el.scrollTop = target;
+      } else {
+        el.scrollTop += delta * EASE;
+      }
+      raf = requestAnimationFrame(tick);
     };
-    catchUpRafRef.current = requestAnimationFrame(tick);
-    return stopCatchUp;
-  }, [messages, sending, pinnedToBottom]);
+    raf = requestAnimationFrame(tick);
 
-  // Safety net: cancel any in-flight catch-up tween on unmount.
-  useEffect(() => {
     return () => {
-      if (catchUpRafRef.current !== null) cancelAnimationFrame(catchUpRafRef.current);
+      if (raf !== null) cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [pinnedToBottom, streamingId, anchoredMessageId]);
+
+  // Everything else that can move the bottom of the list while pinned but
+  // isn't a per-frame stream — a new user bubble appended, the typing
+  // indicator showing/hiding, an error row, the final commit right as
+  // streaming ends — gets one native smooth scroll, not a persistent loop.
+  // Skipped while the effect above owns the frame (`streamingId` set) or
+  // while anchored, so nothing fights over the scroll position.
+  useEffect(() => {
+    if (streamingId || anchoredMessageId) return;
+    const el = listRef.current;
+    if (!el || !pinnedToBottom) return;
+    const target = el.scrollHeight - el.clientHeight;
+    if (target - el.scrollTop < 0.5) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    el.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
+  }, [messages, sending, streamingId, pinnedToBottom, anchoredMessageId]);
 
   const scrollToBottom = () => {
     const el = listRef.current;
@@ -1133,9 +1252,15 @@ function ChatPage() {
       if (!text || sending) return;
       // Cancel any read-aloud in progress — the user is moving on.
       readAloud.stop();
-      setMessages((m) => [...m, { id: newId(), role: "user", content: text }]);
+      // Drop any leftover reserved space from a previous turn before
+      // measuring the new one, so it doesn't skew the anchor calculation.
+      setAnchoredMessageId(null);
+      setTurnSpacerPx(0);
+      setPinnedToBottom(false);
+      const userMsgId = newId();
+      setMessages((m) => [...m, { id: userMsgId, role: "user", content: text }]);
       setInput("");
-      setPinnedToBottom(true);
+      setPendingAnchorId(userMsgId);
       const subjectRelatedChartId = pendingSubjectChartId ?? undefined;
       if (pendingSubjectChartId) setPendingSubjectChartId(null);
       await sendToBackend(text, subjectRelatedChartId);
@@ -1173,6 +1298,10 @@ function ChatPage() {
     setLastFailed(null);
     setPinnedToBottom(true);
     setPendingSubjectChartId(null);
+    setPendingAnchorId(null);
+    setAnchoredMessageId(null);
+    setTurnSpacerPx(0);
+    messageElRefs.current.clear();
     if (isMobile) setSidebarOpen(false);
     textareaRef.current?.focus();
   }, [isMobile]);
@@ -1289,6 +1418,10 @@ function ChatPage() {
                         isSpeaking={readAloud.playingId === m.id}
                         isSpeakLoading={readAloud.loadingId === m.id}
                         onToggleSpeak={() => speakMessage(m.id, m.content)}
+                        registerRef={(el) => {
+                          if (el) messageElRefs.current.set(m.id, el);
+                          else messageElRefs.current.delete(m.id);
+                        }}
                       />
                     ))}
                     {sending && !streamingId && (
@@ -1304,6 +1437,9 @@ function ChatPage() {
                     )}
                     {error && <ErrorRow message={error} onRetry={handleRetry} />}
                     <div ref={bottomRef} />
+                    {turnSpacerPx > 0 && (
+                      <div aria-hidden="true" style={{ minHeight: turnSpacerPx }} />
+                    )}
                   </div>
                 </div>
                 <SrAnnouncer text={phaseAnnouncement} />
@@ -1863,6 +1999,7 @@ function MessageRow({
   isSpeaking,
   isSpeakLoading,
   onToggleSpeak,
+  registerRef,
 }: {
   message: ChatMessage;
   streaming: boolean;
@@ -1874,6 +2011,7 @@ function MessageRow({
   isSpeaking: boolean;
   isSpeakLoading: boolean;
   onToggleSpeak: () => void;
+  registerRef?: (el: HTMLDivElement | null) => void;
 }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -1885,7 +2023,7 @@ function MessageRow({
 
   if (message.role === "user") {
     return (
-      <div className="motion-fade-up group flex flex-col items-end gap-1.5">
+      <div ref={registerRef} className="motion-fade-up group flex flex-col items-end gap-1.5">
         <div className="max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-tr-sm bg-accent/10 px-4 py-3 text-base leading-relaxed text-foreground shadow-sm ring-1 ring-accent/25">
           {message.content}
         </div>
@@ -1904,7 +2042,7 @@ function MessageRow({
   }
 
   return (
-    <div className="motion-fade-up group">
+    <div ref={registerRef} className="motion-fade-up group">
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2">
           <span className="text-xs font-semibold text-foreground tracking-tight">

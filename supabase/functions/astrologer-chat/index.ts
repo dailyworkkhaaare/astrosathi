@@ -8,7 +8,10 @@
 //   OPENROUTER_API_KEY, and optionally OPENROUTER_MODEL.
 
 // @ts-ignore - esm.sh import (resolved at deploy time)
-import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import {
+  createClient,
+  type SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2.45.4";
 // @ts-ignore - esm.sh import (resolved at deploy time). Same validated engine as transit-compute.
 import { getAscendant } from "https://esm.sh/gh/heirmez/vedic-ephemeris@main/index.mjs";
 
@@ -19,7 +22,8 @@ declare const Deno: any;
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -45,6 +49,34 @@ async function fetchWithTimeout(
     return await fetch(url, { ...init, signal: controller.signal } as never);
   } finally {
     clearTimeout(id);
+  }
+}
+
+// CI-5.3: embed a query string with OpenAI text-embedding-3-small (1536-dim)
+// for knowledge-base retrieval. Best-effort: returns null on any failure.
+async function embedQuery(
+  apiKey: string,
+  text: string,
+): Promise<number[] | null> {
+  try {
+    const resp = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "text-embedding-3-small",
+        input: text.slice(0, 8000),
+        dimensions: 1536,
+      }),
+    });
+    if (!resp.ok) return null;
+    const jr = await resp.json();
+    const emb = jr?.data?.[0]?.embedding;
+    return Array.isArray(emb) ? (emb as number[]) : null;
+  } catch (_e) {
+    return null;
   }
 }
 
@@ -88,18 +120,218 @@ const EMOTIONAL_DEFAULT_TTL_DAYS = 14;
 // CI-1.3 Reasoning Planner: lightweight keyword -> life-area classifier used to
 // retrieve ONLY the structured topic memory relevant to the current question.
 const TOPIC_KEYWORDS: Array<[string, string[]]> = [
-  ["career", ["job", "career", "work", "promotion", "boss", "office", "salary", "interview", "resign", "appraisal", "naukri", "kaam", "daftar"]],
-  ["health", ["health", "illness", "disease", "sick", "body", "mental", "stress", "anxiety", "depress", "sehat", "bimar", "bimari", "tabiyat", "aarogya"]],
-  ["marriage", ["marriage", "marry", "wedding", "spouse", "wife", "husband", "divorce", "shaadi", "vivah", "lagna", "patni", "pati"]],
-  ["relationships", ["relationship", "love", "boyfriend", "girlfriend", "breakup", "crush", "affair", "partner", "rishta", "pyaar", "prem", "premika", "premi"]],
-  ["finance", ["money", "finance", "wealth", "loan", "debt", "invest", "savings", "income", "paisa", "dhan", "kharch", "daulat", "paise"]],
-  ["children", ["child", "children", "baby", "kids", "pregnan", "conceive", "son", "daughter", "bachcha", "santaan", "santan", "aulad", "garbh"]],
-  ["education", ["education", "study", "studies", "exam", "college", "university", "degree", "school", "admission", "padhai", "pariksha", "shiksha"]],
-  ["travel", ["travel", "trip", "abroad", "foreign", "visa", "relocat", "journey", "migrate", "videsh", "pardes", "yatra", "safar"]],
-  ["property", ["property", "house", "home", "land", "plot", "real estate", "flat", "apartment", "ghar", "makaan", "zameen", "jameen", "sampatti"]],
-  ["business", ["business", "startup", "venture", "entrepreneur", "trade", "vyapar", "vyavsay", "dhandha", "dukaan"]],
-  ["spirituality", ["spiritual", "temple", "puja", "pooja", "mantra", "meditat", "karma", "moksha", "dharma", "bhakti", "sadhana", "prayer"]],
-  ["family", ["family", "mother", "father", "parents", "brother", "sister", "mom", "dad", "maa", "mata", "pita", "papa", "bhai", "behan", "parivar", "gharwale"]],
+  [
+    "career",
+    [
+      "job",
+      "career",
+      "work",
+      "promotion",
+      "boss",
+      "office",
+      "salary",
+      "interview",
+      "resign",
+      "appraisal",
+      "naukri",
+      "kaam",
+      "daftar",
+    ],
+  ],
+  [
+    "health",
+    [
+      "health",
+      "illness",
+      "disease",
+      "sick",
+      "body",
+      "mental",
+      "stress",
+      "anxiety",
+      "depress",
+      "sehat",
+      "bimar",
+      "bimari",
+      "tabiyat",
+      "aarogya",
+    ],
+  ],
+  [
+    "marriage",
+    [
+      "marriage",
+      "marry",
+      "wedding",
+      "spouse",
+      "wife",
+      "husband",
+      "divorce",
+      "shaadi",
+      "vivah",
+      "lagna",
+      "patni",
+      "pati",
+    ],
+  ],
+  [
+    "relationships",
+    [
+      "relationship",
+      "love",
+      "boyfriend",
+      "girlfriend",
+      "breakup",
+      "crush",
+      "affair",
+      "partner",
+      "rishta",
+      "pyaar",
+      "prem",
+      "premika",
+      "premi",
+    ],
+  ],
+  [
+    "finance",
+    [
+      "money",
+      "finance",
+      "wealth",
+      "loan",
+      "debt",
+      "invest",
+      "savings",
+      "income",
+      "paisa",
+      "dhan",
+      "kharch",
+      "daulat",
+      "paise",
+    ],
+  ],
+  [
+    "children",
+    [
+      "child",
+      "children",
+      "baby",
+      "kids",
+      "pregnan",
+      "conceive",
+      "son",
+      "daughter",
+      "bachcha",
+      "santaan",
+      "santan",
+      "aulad",
+      "garbh",
+    ],
+  ],
+  [
+    "education",
+    [
+      "education",
+      "study",
+      "studies",
+      "exam",
+      "college",
+      "university",
+      "degree",
+      "school",
+      "admission",
+      "padhai",
+      "pariksha",
+      "shiksha",
+    ],
+  ],
+  [
+    "travel",
+    [
+      "travel",
+      "trip",
+      "abroad",
+      "foreign",
+      "visa",
+      "relocat",
+      "journey",
+      "migrate",
+      "videsh",
+      "pardes",
+      "yatra",
+      "safar",
+    ],
+  ],
+  [
+    "property",
+    [
+      "property",
+      "house",
+      "home",
+      "land",
+      "plot",
+      "real estate",
+      "flat",
+      "apartment",
+      "ghar",
+      "makaan",
+      "zameen",
+      "jameen",
+      "sampatti",
+    ],
+  ],
+  [
+    "business",
+    [
+      "business",
+      "startup",
+      "venture",
+      "entrepreneur",
+      "trade",
+      "vyapar",
+      "vyavsay",
+      "dhandha",
+      "dukaan",
+    ],
+  ],
+  [
+    "spirituality",
+    [
+      "spiritual",
+      "temple",
+      "puja",
+      "pooja",
+      "mantra",
+      "meditat",
+      "karma",
+      "moksha",
+      "dharma",
+      "bhakti",
+      "sadhana",
+      "prayer",
+    ],
+  ],
+  [
+    "family",
+    [
+      "family",
+      "mother",
+      "father",
+      "parents",
+      "brother",
+      "sister",
+      "mom",
+      "dad",
+      "maa",
+      "mata",
+      "pita",
+      "papa",
+      "bhai",
+      "behan",
+      "parivar",
+      "gharwale",
+    ],
+  ],
 ];
 
 // Map the user's message to the set of life-areas it touches (may be empty).
@@ -113,7 +345,9 @@ function classifyTopics(message: string): string[] {
 }
 
 // Render structured preferences into a short, plain instruction (or "").
-function buildPreferenceInstruction(prefs: Record<string, unknown> | null): string {
+function buildPreferenceInstruction(
+  prefs: Record<string, unknown> | null,
+): string {
   if (!prefs || typeof prefs !== "object") return "";
   const p = prefs as Record<string, unknown>;
   const lines: string[] = [];
@@ -125,16 +359,28 @@ function buildPreferenceInstruction(prefs: Record<string, unknown> | null): stri
   if (typeof p.preferred_tone === "string" && p.preferred_tone.trim()) {
     lines.push(`Preferred tone: ${p.preferred_tone.trim()}.`);
   }
-  if (p.detail_level === "brief") lines.push("Keep answers short and to the point.");
-  else if (p.detail_level === "detailed") lines.push("Give thorough, detailed explanations.");
-  else if (p.detail_level === "balanced") lines.push("Keep answers moderate in length.");
-  if (p.likes_tables === false) lines.push("Avoid tables; prefer flowing prose or simple lists.");
-  else if (p.likes_tables === true) lines.push("Tables are welcome when genuinely helpful.");
-  if (p.remedies_first === true) lines.push("Lead with practical remedies before deeper explanation.");
-  if (p.wants_practical === true) lines.push("Favor practical, actionable guidance over theory.");
-  if (p.likes_followup === true) lines.push("Ending with one gentle follow-up question is welcome.");
-  else if (p.likes_followup === false) lines.push("Do not end with follow-up questions.");
-  if (typeof p.communication_style === "string" && p.communication_style.trim()) {
+  if (p.detail_level === "brief")
+    lines.push("Keep answers short and to the point.");
+  else if (p.detail_level === "detailed")
+    lines.push("Give thorough, detailed explanations.");
+  else if (p.detail_level === "balanced")
+    lines.push("Keep answers moderate in length.");
+  if (p.likes_tables === false)
+    lines.push("Avoid tables; prefer flowing prose or simple lists.");
+  else if (p.likes_tables === true)
+    lines.push("Tables are welcome when genuinely helpful.");
+  if (p.remedies_first === true)
+    lines.push("Lead with practical remedies before deeper explanation.");
+  if (p.wants_practical === true)
+    lines.push("Favor practical, actionable guidance over theory.");
+  if (p.likes_followup === true)
+    lines.push("Ending with one gentle follow-up question is welcome.");
+  else if (p.likes_followup === false)
+    lines.push("Do not end with follow-up questions.");
+  if (
+    typeof p.communication_style === "string" &&
+    p.communication_style.trim()
+  ) {
     lines.push(`Communication style: ${p.communication_style.trim()}.`);
   }
   return lines.join(" ");
@@ -180,7 +426,17 @@ const NAKSHATRAS = [
   "Uttara Bhadrapada",
   "Revati",
 ];
-const NAK_LORDS = ["Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury"];
+const NAK_LORDS = [
+  "Ketu",
+  "Venus",
+  "Sun",
+  "Moon",
+  "Mars",
+  "Rahu",
+  "Jupiter",
+  "Saturn",
+  "Mercury",
+];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ctxPick(obj: any, ...keys: string[]): any {
@@ -215,13 +471,20 @@ function isPlanetLike(o: any): boolean {
   return (
     !!o &&
     typeof o === "object" &&
-    (o.rasi != null || o.sign != null || o.zodiac != null || o.longitude != null)
+    (o.rasi != null ||
+      o.sign != null ||
+      o.zodiac != null ||
+      o.longitude != null)
   );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractPlanetArray(payload: any): any[] {
-  const keyed = deepFindArray(payload, ["planet_position", "planetPosition", "planets"]);
+  const keyed = deepFindArray(payload, [
+    "planet_position",
+    "planetPosition",
+    "planets",
+  ]);
   if (keyed.length) return keyed;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const queue: any[] = [payload];
@@ -255,7 +518,9 @@ function ctxIsAsc(p: any): boolean {
   return name === "ascendant" || name === "lagna" || id === 100 || id === "100";
 }
 
-function ctxNakshatra(lonRaw: number): { name: string; lord: string; pada: number } | null {
+function ctxNakshatra(
+  lonRaw: number,
+): { name: string; lord: string; pada: number } | null {
   if (!Number.isFinite(lonRaw)) return null;
   const lon = ((lonRaw % 360) + 360) % 360;
   const SPAN = 360 / 27;
@@ -438,14 +703,21 @@ function formatNatal(natal: any): string | null {
     );
   }
   const sunEntry = arr.find(
-    (p) => !ctxIsAsc(p) && normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "sun",
+    (p) =>
+      !ctxIsAsc(p) &&
+      normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "sun",
   );
   let sunLon: number | null = null;
   if (sunEntry) {
     const sLon = ctxNum(ctxPick(sunEntry, "longitude", "long", "lon"));
     const sRasi = ctxRasiId(sunEntry);
     const sDeg = ctxNum(ctxPick(sunEntry, "degree"));
-    sunLon = sLon != null ? sLon : sRasi != null && sDeg != null ? sRasi * 30 + sDeg : null;
+    sunLon =
+      sLon != null
+        ? sLon
+        : sRasi != null && sDeg != null
+          ? sRasi * 30 + sDeg
+          : null;
   }
   let planetCount = 0;
   for (const p of arr) {
@@ -467,7 +739,9 @@ function formatNatal(natal: any): string | null {
     const lon = ctxNum(ctxPick(p, "longitude", "long", "lon"));
     const degInSign = degRaw != null ? degRaw : lon != null ? lon % 30 : null;
     const nak = lon != null ? ctxNakshatra(lon) : null;
-    const retro = Boolean(ctxPick(p, "is_retrograde", "isRetrograde", "retrograde", "retro"));
+    const retro = Boolean(
+      ctxPick(p, "is_retrograde", "isRetrograde", "retrograde", "retro"),
+    );
     const parts = [
       `${name}:`,
       `${signName || "?"}${degInSign != null ? " " + degInSign.toFixed(2) + "\u00B0" : ""}`,
@@ -475,10 +749,16 @@ function formatNatal(natal: any): string | null {
     ];
     if (lord) parts.push(`(sign lord: ${lord})`);
     if (nak) {
-      parts.push(`nakshatra ${nak.name} pada ${nak.pada}, nakshatra lord ${nak.lord}`);
+      parts.push(
+        `nakshatra ${nak.name} pada ${nak.pada}, nakshatra lord ${nak.lord}`,
+      );
     }
     const effLon =
-      lon != null ? lon : rasiId != null && degInSign != null ? rasiId * 30 + degInSign : null;
+      lon != null
+        ? lon
+        : rasiId != null && degInSign != null
+          ? rasiId * 30 + degInSign
+          : null;
     const states = planetStates({
       name,
       lon: effLon,
@@ -508,13 +788,15 @@ function parsePlacementTruth(
   const truth = new Map<string, { houses: Set<number>; signs: Set<string> }>();
   if (!contextText) return truth;
   // formatNatal emits: "- Venus: Libra 18.22\u00B0 in House 1 (sign lord: Venus) ..."
-  const re = /^-\s+([A-Za-z][A-Za-z ]*?):\s+([A-Za-z]+)\s+[\d.]+\u00B0\s+in House (\d+)/gm;
+  const re =
+    /^-\s+([A-Za-z][A-Za-z ]*?):\s+([A-Za-z]+)\s+[\d.]+\u00B0\s+in House (\d+)/gm;
   let m: RegExpExecArray | null;
   while ((m = re.exec(contextText)) !== null) {
     const planet = m[1].trim().toLowerCase();
     const sign = m[2].trim().toLowerCase();
     const house = parseInt(m[3], 10);
-    if (!truth.has(planet)) truth.set(planet, { houses: new Set(), signs: new Set() });
+    if (!truth.has(planet))
+      truth.set(planet, { houses: new Set(), signs: new Set() });
     const t = truth.get(planet)!;
     if (Number.isFinite(house)) t.houses.add(house);
     if (sign) t.signs.add(sign);
@@ -529,15 +811,43 @@ function verifyReplyPlacements(
   const violations: string[] = [];
   if (!reply || truth.size === 0) return violations;
   const HOUSE_WORDS: Record<string, number> = {
-    first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6,
-    seventh: 7, eighth: 8, ninth: 9, tenth: 10, eleventh: 11, twelfth: 12,
+    first: 1,
+    second: 2,
+    third: 3,
+    fourth: 4,
+    fifth: 5,
+    sixth: 6,
+    seventh: 7,
+    eighth: 8,
+    ninth: 9,
+    tenth: 10,
+    eleventh: 11,
+    twelfth: 12,
   };
   const SIGNS = [
-    "aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra",
-    "scorpio", "sagittarius", "capricorn", "aquarius", "pisces",
+    "aries",
+    "taurus",
+    "gemini",
+    "cancer",
+    "leo",
+    "virgo",
+    "libra",
+    "scorpio",
+    "sagittarius",
+    "capricorn",
+    "aquarius",
+    "pisces",
   ];
   const LORD_WORDS = [
-    "lord", "ruler", "rules", "ruling", "owner", "owns", "governs", "governing", "dispositor",
+    "lord",
+    "ruler",
+    "rules",
+    "ruling",
+    "owner",
+    "owns",
+    "governs",
+    "governing",
+    "dispositor",
   ];
   const lower = reply.toLowerCase();
   const houseRe =
@@ -557,7 +867,11 @@ function verifyReplyPlacements(
             if (n == null) n = parseInt(raw, 10);
             if (Number.isFinite(n) && n >= 1 && n <= 12 && !t.houses.has(n)) {
               violations.push(
-                planet + ": reply says house " + n + " but computed house(s) = " + Array.from(t.houses).join("/"),
+                planet +
+                  ": reply says house " +
+                  n +
+                  " but computed house(s) = " +
+                  Array.from(t.houses).join("/"),
               );
             }
           }
@@ -569,9 +883,16 @@ function verifyReplyPlacements(
           const s = sm[1];
           if (SIGNS.includes(s)) {
             const between = win.slice(0, sm.index ?? 0);
-            if (!LORD_WORDS.some((w) => between.includes(w)) && !t.signs.has(s)) {
+            if (
+              !LORD_WORDS.some((w) => between.includes(w)) &&
+              !t.signs.has(s)
+            ) {
               violations.push(
-                planet + ": reply says sign " + s + " but computed sign(s) = " + Array.from(t.signs).join("/"),
+                planet +
+                  ": reply says sign " +
+                  s +
+                  " but computed sign(s) = " +
+                  Array.from(t.signs).join("/"),
               );
             }
           }
@@ -598,7 +919,10 @@ type AnswerProvenance = {
   has_remedy: boolean;
 };
 
-function buildAnswerProvenance(reply: string, contextText: string): AnswerProvenance {
+function buildAnswerProvenance(
+  reply: string,
+  contextText: string,
+): AnswerProvenance {
   const ctx = String(contextText || "");
   const out: AnswerProvenance = {
     version: 1,
@@ -618,9 +942,16 @@ function buildAnswerProvenance(reply: string, contextText: string): AnswerProven
     // 1) Which grounded natal placements does the reply actually reference?
     const truth = parsePlacementTruth(ctx);
     const CAP: Record<string, string> = {
-      ascendant: "Ascendant", sun: "Sun", moon: "Moon", mercury: "Mercury",
-      venus: "Venus", mars: "Mars", jupiter: "Jupiter", saturn: "Saturn",
-      rahu: "Rahu", ketu: "Ketu",
+      ascendant: "Ascendant",
+      sun: "Sun",
+      moon: "Moon",
+      mercury: "Mercury",
+      venus: "Venus",
+      mars: "Mars",
+      jupiter: "Jupiter",
+      saturn: "Saturn",
+      rahu: "Rahu",
+      ketu: "Ketu",
     };
     const cap = (w: string) => CAP[w] || w.charAt(0).toUpperCase() + w.slice(1);
     for (const [planet, t] of truth) {
@@ -638,29 +969,96 @@ function buildAnswerProvenance(reply: string, contextText: string): AnswerProven
 
     // 2) Non-natal chart mechanics the answer leans on.
     const has = (arr: string[]) => arr.some((w) => lower.includes(w));
-    if (has(["dasha", "mahadasha", "antardasha", "vimshottari", "vimśottarī", "daśā", "दशा", "महादशा"]))
+    if (
+      has([
+        "dasha",
+        "mahadasha",
+        "antardasha",
+        "vimshottari",
+        "vimśottarī",
+        "daśā",
+        "दशा",
+        "महादशा",
+      ])
+    )
       out.basis.push("Vimśottarī daśā period");
-    if (has(["transit", "gochar", "gochara", "गोचर", "current sky", "currently moving through"]))
+    if (
+      has([
+        "transit",
+        "gochar",
+        "gochara",
+        "गोचर",
+        "current sky",
+        "currently moving through",
+      ])
+    )
       out.basis.push("Current transits (gochara)");
     if (has(["nakshatra", "नक्षत्र"])) out.basis.push("Nakshatra placement");
 
     // 3) Forward-looking prediction? (inherently less certain, even if grounded)
     const PREDICTION_WORDS = [
-      "will ", "going to", "upcoming", "in the future", "future", "next year",
-      "next month", "coming month", "coming week", "coming year", "timing",
-      "when will", "predict", "forecast", "expect", "likely", "period ahead",
-      "bhavishya", "hoga", "hogi", "honge", "aane wala", "aane wali",
-      "भविष्य", "होगा", "होगी", "कब", "आने वाला", "होणार",
+      "will ",
+      "going to",
+      "upcoming",
+      "in the future",
+      "future",
+      "next year",
+      "next month",
+      "coming month",
+      "coming week",
+      "coming year",
+      "timing",
+      "when will",
+      "predict",
+      "forecast",
+      "expect",
+      "likely",
+      "period ahead",
+      "bhavishya",
+      "hoga",
+      "hogi",
+      "honge",
+      "aane wala",
+      "aane wali",
+      "भविष्य",
+      "होगा",
+      "होगी",
+      "कब",
+      "आने वाला",
+      "होणार",
     ];
     out.is_prediction = PREDICTION_WORDS.some((w) => lower.includes(w));
 
     // 5) Did the answer actually suggest a remedy/upaya? Lets the UI ask
     // "did the remedy help?" ONLY on replies that contain one.
     const REMEDY_WORDS = [
-      "remedy", "remedies", "upaya", "upay", "mantra", "chant", "recite",
-      "gemstone", "rudraksha", "yantra", "donate", "donation", "charity",
-      "puja", "pooja", "fasting", "fast on", "offer water", "light a lamp",
-      "उपाय", "मंत्र", "रत्न", "दान", "पूजा", "व्रत", "जप", "यंत्र",
+      "remedy",
+      "remedies",
+      "upaya",
+      "upay",
+      "mantra",
+      "chant",
+      "recite",
+      "gemstone",
+      "rudraksha",
+      "yantra",
+      "donate",
+      "donation",
+      "charity",
+      "puja",
+      "pooja",
+      "fasting",
+      "fast on",
+      "offer water",
+      "light a lamp",
+      "उपाय",
+      "मंत्र",
+      "रत्न",
+      "दान",
+      "पूजा",
+      "व्रत",
+      "जप",
+      "यंत्र",
     ];
     out.has_remedy = REMEDY_WORDS.some((w) => lower.includes(w));
 
@@ -721,7 +1119,9 @@ function skySignName(idx: number): string {
 }
 
 function skyNakName(idx: number | null): string {
-  return idx != null && Number.isInteger(idx) && idx >= 0 && idx < 27 ? NAKSHATRAS[idx] : "?";
+  return idx != null && Number.isInteger(idx) && idx >= 0 && idx < 27
+    ? NAKSHATRAS[idx]
+    : "?";
 }
 
 // Whole-sign house of a transiting sign counted from a natal reference sign.
@@ -770,7 +1170,10 @@ type MoonRow = {
 };
 
 // A near, meaningful sign-ingress note (distant linear estimates are noisy).
-function skyIngressNote(nextTs: string | null, nextSign: number | null): string {
+function skyIngressNote(
+  nextTs: string | null,
+  nextSign: number | null,
+): string {
   if (!nextTs || nextSign == null) return "";
   const d = new Date(nextTs);
   if (Number.isNaN(d.getTime())) return "";
@@ -819,7 +1222,10 @@ function formatCurrentSky(args: {
         skyDeg(moon.moon_deg) +
         (h != null ? " - House " + h : "") +
         (moon.moon_nakshatra != null
-          ? " - nakshatra " + skyNakName(moon.moon_nakshatra) + " pada " + (moon.moon_pada ?? "?")
+          ? " - nakshatra " +
+            skyNakName(moon.moon_nakshatra) +
+            " pada " +
+            (moon.moon_pada ?? "?")
           : ""),
     );
   }
@@ -899,7 +1305,9 @@ function formatDasha(dasha: any): string | null {
           curAntar.start,
         )} \u2192 ${ctxDate(curAntar.end)}).`,
       );
-      const praty = Array.isArray(curAntar.pratyantardasha) ? curAntar.pratyantardasha : [];
+      const praty = Array.isArray(curAntar.pratyantardasha)
+        ? curAntar.pratyantardasha
+        : [];
       const curPraty = praty.find(within);
       if (curPraty) {
         lines.push(
@@ -949,7 +1357,8 @@ function formatDoshas(list: any[]): string | null {
         d?.kaal_sarp_dosha?.description ??
         "",
     ).slice(0, 700);
-    const hasStr = has === true ? "PRESENT" : has === false ? "not present" : "see details";
+    const hasStr =
+      has === true ? "PRESENT" : has === false ? "not present" : "see details";
     lines.push(`- ${label}: ${hasStr}${desc ? " \u2014 " + desc : ""}`);
   }
   return lines.length ? lines.join("\n") : null;
@@ -987,7 +1396,9 @@ function formatAvHouses(houses: any[]): string | null {
   for (const h of houses) {
     const sign = String(h?.rasi?.name ?? h?.sign?.name ?? h?.sign ?? "").trim();
     const num = ctxNum(ctxPick(h?.house, "number", "id"));
-    const score = ctxNum(ctxPick(h, "score", "points", "total", "ashtakavarga_points"));
+    const score = ctxNum(
+      ctxPick(h, "score", "points", "total", "ashtakavarga_points"),
+    );
     if (!sign || score == null) continue;
     total += score;
     parts.push(num != null ? `H${num} ${sign}: ${score}` : `${sign}: ${score}`);
@@ -1064,7 +1475,9 @@ function formatDivisionalFromParsed(
   const lines: string[] = [];
 
   // Ascendant: sign per varga (its house is always 1 by definition).
-  const ascEntries = available.map((v) => `${v} ${SIGN_ABBR[parsedByVarga[v]!.ascSignIndex]}`);
+  const ascEntries = available.map(
+    (v) => `${v} ${SIGN_ABBR[parsedByVarga[v]!.ascSignIndex]}`,
+  );
   lines.push(`- Ascendant (Lagna): [${ascEntries.join(", ")}]`);
 
   for (const key of DIV_PLANET_ORDER) {
@@ -1131,7 +1544,9 @@ function runBackground(task: Promise<unknown>): void {
 
 // Defensively parse a { "summary", "facts" } JSON object from a model reply,
 // tolerating code fences or stray prose around it. Returns null if unusable.
-function parseSummaryFactsJson(raw: string): { summary: string; facts: string } | null {
+function parseSummaryFactsJson(
+  raw: string,
+): { summary: string; facts: string } | null {
   let text = raw.trim();
   const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   if (fence) text = fence[1].trim();
@@ -1203,10 +1618,12 @@ function parseCompanionMemoryJson(raw: string): {
     for (const entry of obj.topics) {
       if (!entry || typeof entry !== "object") continue;
       const row = entry as Record<string, unknown>;
-      let topic = typeof row.topic === "string" ? row.topic.trim().toLowerCase() : "";
+      let topic =
+        typeof row.topic === "string" ? row.topic.trim().toLowerCase() : "";
       if (!topic) continue;
       if (!TOPIC_MEMORY_TOPICS.has(topic)) topic = "other";
-      const tSummary = typeof row.summary === "string" ? row.summary.trim() : "";
+      const tSummary =
+        typeof row.summary === "string" ? row.summary.trim() : "";
       const data =
         row.data && typeof row.data === "object" && !Array.isArray(row.data)
           ? (row.data as Record<string, unknown>)
@@ -1221,13 +1638,21 @@ function parseCompanionMemoryJson(raw: string): {
   }
 
   let preferences: Record<string, unknown> | null = null;
-  if (obj.preferences && typeof obj.preferences === "object" && !Array.isArray(obj.preferences)) {
+  if (
+    obj.preferences &&
+    typeof obj.preferences === "object" &&
+    !Array.isArray(obj.preferences)
+  ) {
     const p = obj.preferences as Record<string, unknown>;
     if (Object.keys(p).length > 0) preferences = p;
   }
 
   let emotional: CompanionEmotional | null = null;
-  if (obj.emotional && typeof obj.emotional === "object" && !Array.isArray(obj.emotional)) {
+  if (
+    obj.emotional &&
+    typeof obj.emotional === "object" &&
+    !Array.isArray(obj.emotional)
+  ) {
     const e = { ...(obj.emotional as Record<string, unknown>) };
     let ttlDays: number | null = null;
     if (typeof e.ttl_days === "number" && isFinite(e.ttl_days as number)) {
@@ -1270,7 +1695,11 @@ function parseCompanionMemoryJson(raw: string): {
       ) {
         eventDate = rawDate + "-01";
         datePrecision = "month";
-      } else if (parts.length === 1 && parts[0].length === 4 && digits(parts[0])) {
+      } else if (
+        parts.length === 1 &&
+        parts[0].length === 4 &&
+        digits(parts[0])
+      ) {
         eventDate = rawDate + "-01-01";
         datePrecision = "year";
       } else {
@@ -1278,10 +1707,13 @@ function parseCompanionMemoryJson(raw: string): {
       }
       if (typeof row.date_precision === "string") {
         const dp = row.date_precision.trim().toLowerCase();
-        if (["exact", "month", "year", "approx"].includes(dp)) datePrecision = dp;
+        if (["exact", "month", "year", "approx"].includes(dp))
+          datePrecision = dp;
       }
       let category =
-        typeof row.category === "string" ? row.category.trim().toLowerCase() : "other";
+        typeof row.category === "string"
+          ? row.category.trim().toLowerCase()
+          : "other";
       if (!TOPIC_MEMORY_TOPICS.has(category)) category = "other";
       const description =
         typeof row.description === "string" && row.description.trim()
@@ -1290,12 +1722,17 @@ function parseCompanionMemoryJson(raw: string): {
       let valence: string | null = null;
       if (typeof row.valence === "string") {
         const v = row.valence.trim().toLowerCase();
-        if (["positive", "negative", "neutral", "mixed"].includes(v)) valence = v;
+        if (["positive", "negative", "neutral", "mixed"].includes(v))
+          valence = v;
       }
       let confidence: string | null = null;
       if (typeof row.confidence === "number" && isFinite(row.confidence)) {
         confidence =
-          row.confidence >= 0.75 ? "high" : row.confidence >= 0.4 ? "medium" : "low";
+          row.confidence >= 0.75
+            ? "high"
+            : row.confidence >= 0.4
+              ? "medium"
+              : "low";
       } else if (typeof row.confidence === "string") {
         const c = row.confidence.trim().toLowerCase();
         if (["high", "medium", "low"].includes(c)) confidence = c;
@@ -1376,17 +1813,23 @@ async function maybeSummarizeConversation(opts: {
   if (batch.length === 0) return;
 
   const batchText = batch
-    .map((m) => `${m.role === "assistant" ? "Astrologer" : "Person"}: ${m.content}`)
+    .map(
+      (m) =>
+        `${m.role === "assistant" ? "Astrologer" : "Person"}: ${m.content}`,
+    )
     .join("\n");
 
   const existingSummary =
-    currentSummary && currentSummary.trim() ? currentSummary.trim() : "(none yet)";
+    currentSummary && currentSummary.trim()
+      ? currentSummary.trim()
+      : "(none yet)";
 
   let sumSystem: string;
   let sumUser: string;
 
   if (rememberFacts) {
-    const existingFacts = currentFacts && currentFacts.trim() ? currentFacts.trim() : "(none yet)";
+    const existingFacts =
+      currentFacts && currentFacts.trim() ? currentFacts.trim() : "(none yet)";
     sumSystem = [
       "You maintain long-term memory for a Vedic astrology companion app, based on one ongoing conversation.",
       'Return ONLY a single JSON object with these fields: "summary" (string), "facts" (string), "topics" (array), "preferences" (object), "emotional" (object), "life_events" (array). No code fences, no commentary.',
@@ -1414,7 +1857,11 @@ async function maybeSummarizeConversation(opts: {
       "Drop greetings, small talk, and repetition. Write compact third-person notes, not dialogue.",
       "Output ONLY the updated summary text, nothing else.",
     ].join(" ");
-    sumUser = "EXISTING SUMMARY:\n" + existingSummary + "\n\nNEW MESSAGES:\n" + batchText;
+    sumUser =
+      "EXISTING SUMMARY:\n" +
+      existingSummary +
+      "\n\nNEW MESSAGES:\n" +
+      batchText;
   }
 
   const res = await fetchWithTimeout(
@@ -1524,7 +1971,10 @@ async function maybeSummarizeConversation(opts: {
             ? (prof as { preferences: Record<string, unknown> }).preferences
             : {};
         const mergedPrefs = { ...existingPrefs, ...companion.preferences };
-        await svc.from("profiles").update({ preferences: mergedPrefs }).eq("user_id", userId);
+        await svc
+          .from("profiles")
+          .update({ preferences: mergedPrefs })
+          .eq("user_id", userId);
       } catch {
         // Ignore preference-merge failures.
       }
@@ -1631,9 +2081,11 @@ Deno.serve(async (req: Request) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-  const MODEL = Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.0-flash-001";
+  const MODEL =
+    Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.0-flash-001";
   const SUMMARY_MODEL =
-    Deno.env.get("OPENROUTER_SUMMARY_MODEL") || "google/gemini-2.0-flash-lite-001";
+    Deno.env.get("OPENROUTER_SUMMARY_MODEL") ||
+    "google/gemini-2.0-flash-lite-001";
 
   if (!SUPABASE_URL || !SERVICE_KEY) {
     return err(500, "server_misconfigured", "Supabase env missing");
@@ -1654,7 +2106,9 @@ Deno.serve(async (req: Request) => {
   if (!message) {
     return err(400, "empty_message", "A non-empty 'message' is required");
   }
-  const requestedConversationId = body.conversation_id ? String(body.conversation_id) : "";
+  const requestedConversationId = body.conversation_id
+    ? String(body.conversation_id)
+    : "";
   // When true, reply is streamed token-by-token as Server-Sent Events.
   // When false/absent, the original single-shot JSON response is returned.
   const wantStream = body.stream === true;
@@ -1730,7 +2184,9 @@ Deno.serve(async (req: Request) => {
     if (profileGender) {
       const match = loShuCandidates.find((a) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const g = String((a.chart_jsonb as any)?.kua?.gender ?? "").toLowerCase();
+        const g = String(
+          (a.chart_jsonb as any)?.kua?.gender ?? "",
+        ).toLowerCase();
         return g === profileGender;
       });
       if (match) chosen = match;
@@ -1753,7 +2209,9 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({
           name: birth.full_name ?? null,
           birth_date: birth.birth_date ?? null,
-          birth_time: birth.birth_time_known ? (birth.birth_time ?? null) : null,
+          birth_time: birth.birth_time_known
+            ? (birth.birth_time ?? null)
+            : null,
           birth_time_known: !!birth.birth_time_known,
           place: birth.birth_place_label ?? null,
           timezone: birth.birth_timezone ?? null,
@@ -1773,7 +2231,10 @@ Deno.serve(async (req: Request) => {
         natalText,
     );
   else if (byType.natal)
-    sections.push("VEDIC NATAL CHART (kundali) \u2014 raw data:\n" + capJson(byType.natal, 7000));
+    sections.push(
+      "VEDIC NATAL CHART (kundali) \u2014 raw data:\n" +
+        capJson(byType.natal, 7000),
+    );
   // Divisional charts: pull each varga's north-Indian SVG through chart-gateway
   // (Prokerala token + generation + freshness + caching all live there) and
   // parse it the SAME way the app does, so the AI reads the exact signs AND
@@ -1808,7 +2269,10 @@ Deno.serve(async (req: Request) => {
           signIndex: Number(p.sign),
           house: Number(p.house),
         }))
-        .filter((p) => p.key && Number.isFinite(p.signIndex) && Number.isFinite(p.house));
+        .filter(
+          (p) =>
+            p.key && Number.isFinite(p.signIndex) && Number.isFinite(p.house),
+        );
       if (!positions.length) continue;
       const ascSignIndex = Number(row.asc_sign);
       if (!Number.isFinite(ascSignIndex)) continue;
@@ -1821,17 +2285,23 @@ Deno.serve(async (req: Request) => {
       "DIVISIONAL CHARTS (Shodasavarga D1\u2013D60) \u2014 read directly from this person's own Prokerala varga charts, so they MATCH the charts shown in the app exactly. Each entry gives the body's sign and its whole-sign house (Hn, counted from that varga's ascendant). Use these for finer judgement: D9/Navamsa = marriage, dharma & inner strength; D10/Dasamsa = career & status; D7 = children; D4 = home/property; D12 = parents; D24 = education; D30 = adversity & character; D60 = overall karma & fine detail. A body holding good dignity across many vargas is reliably strong; Vargottama (same sign in D1 and D9) is a major strength:\n" +
         divText,
     );
-  const dashaText = byType.vimshottari_dasha ? formatDasha(byType.vimshottari_dasha) : null;
+  const dashaText = byType.vimshottari_dasha
+    ? formatDasha(byType.vimshottari_dasha)
+    : null;
   if (dashaText)
     sections.push(
       "VIMSHOTTARI DASHA (planetary period timeline) \u2014 use for any timing / 'when' question:\n" +
         dashaText,
     );
   else if (byType.vimshottari_dasha)
-    sections.push("VIMSHOTTARI DASHA \u2014 raw data:\n" + capJson(byType.vimshottari_dasha, 6000));
+    sections.push(
+      "VIMSHOTTARI DASHA \u2014 raw data:\n" +
+        capJson(byType.vimshottari_dasha, 6000),
+    );
   const doshaText = doshaList.length ? formatDoshas(doshaList) : null;
   if (doshaText) sections.push("DOSHAS (Mangal / Kaal Sarp):\n" + doshaText);
-  else if (doshaList.length) sections.push("DOSHAS \u2014 raw data:\n" + capJson(doshaList, 6000));
+  else if (doshaList.length)
+    sections.push("DOSHAS \u2014 raw data:\n" + capJson(doshaList, 6000));
   // ASHTAKAVARGA — every stored row shares chart_type "ashtakavarga": one
   // Sarvashtakavarga (total bindus per sign, the key house-strength metric)
   // plus up to 7 planetary Bhinnashtakavarga tables. Read the RAW prastara grid
@@ -1873,7 +2343,10 @@ Deno.serve(async (req: Request) => {
     const s = formatAvHouses(avPrastaraHouses(av, "ashtakavarga"));
     if (s)
       avLines.push(
-        "Bhinnashtakavarga " + name + " (this planet's own bindus per sign, 0-8):\n" + s,
+        "Bhinnashtakavarga " +
+          name +
+          " (this planet's own bindus per sign, 0-8):\n" +
+          s,
       );
   }
   if (avLines.length) sections.push("ASHTAKAVARGA:\n" + avLines.join("\n"));
@@ -1882,7 +2355,10 @@ Deno.serve(async (req: Request) => {
       "NUMEROLOGY (Vedic number reading \u2014 supporting layer):\n" +
         capJson(byType.numerology, 100000),
     );
-  if (loShu) sections.push("LO SHU GRID & KUA (supporting layer):\n" + capJson(loShu, 100000));
+  if (loShu)
+    sections.push(
+      "LO SHU GRID & KUA (supporting layer):\n" + capJson(loShu, 100000),
+    );
   // ---------- Current sky (Gochara / live transits) ----------
   // Planets + Moon are read from the shared transit_* tables, kept fresh by the
   // transit-compute and transit-planets-refresh cron jobs. The Ascendant rising
@@ -1896,7 +2372,9 @@ Deno.serve(async (req: Request) => {
       const ascP = natalArr.find(ctxIsAsc);
       natalAscSign = ascP ? ctxRasiId(ascP) : null;
       const moonP = natalArr.find(
-        (p) => !ctxIsAsc(p) && normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "moon",
+        (p) =>
+          !ctxIsAsc(p) &&
+          normPlanetKey(String(ctxPick(p, "name", "planet") ?? "")) === "moon",
       );
       natalMoonSign = moonP ? ctxRasiId(moonP) : null;
     }
@@ -1909,7 +2387,9 @@ Deno.serve(async (req: Request) => {
 
     const { data: moonRows } = await svc
       .from("transit_moon_hourly")
-      .select("slot_hour, slot_ts, moon_sign, moon_deg, moon_nakshatra, moon_pada");
+      .select(
+        "slot_hour, slot_ts, moon_sign, moon_deg, moon_nakshatra, moon_pada",
+      );
 
     let moon: MoonRow | null = null;
     if (Array.isArray(moonRows) && moonRows.length) {
@@ -1963,7 +2443,9 @@ Deno.serve(async (req: Request) => {
     // Sidereal / Lahiri, whole-sign from the natal Moon sign. Uses the same
     // transit Saturn row already loaded above, so ZERO extra provider spend.
     try {
-      const saturn = ((transitPlanets ?? []) as TransitPlanetRow[]).find((p) => p?.planet === 6);
+      const saturn = ((transitPlanets ?? []) as TransitPlanetRow[]).find(
+        (p) => p?.planet === 6,
+      );
       if (natalMoonSign != null && saturn && saturn.sign != null) {
         const M = natalMoonSign;
         const rising = (M + 11) % 12;
@@ -1986,7 +2468,8 @@ Deno.serve(async (req: Request) => {
         const retroTag = saturn.retrograde ? " (retrograde)" : "";
         let block: string;
         if (inSadeSati && phase) {
-          const nextInSade = saturn.next_sign != null && sadeSet.has(saturn.next_sign);
+          const nextInSade =
+            saturn.next_sign != null && sadeSet.has(saturn.next_sign);
           const nextClause =
             saturn.next_ingress_ts && saturn.next_sign != null
               ? " Saturn next changes sign on " +
@@ -2055,10 +2538,21 @@ Deno.serve(async (req: Request) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const roster = (peopleRows ?? []) as any[];
     if (roster.length) {
-      const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+      const titleCase = (s: string) =>
+        s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
       const COMPAT_RELS = new Set(["wife", "husband", "partner"]);
       const RELATION_WORDS: Record<string, string[]> = {
-        wife: ["wife", "spouse", "partner", "wifey", "पत्नी", "पत्नि", "बीवी", "बायको", "जीवनसाथी"],
+        wife: [
+          "wife",
+          "spouse",
+          "partner",
+          "wifey",
+          "पत्नी",
+          "पत्नि",
+          "बीवी",
+          "बायको",
+          "जीवनसाथी",
+        ],
         husband: ["husband", "spouse", "partner", "पति", "नवरा", "जीवनसाथी"],
         partner: [
           "partner",
@@ -2071,15 +2565,34 @@ Deno.serve(async (req: Request) => {
           "साथी",
         ],
         father: ["father", "dad", "papa", "पिता", "पापा", "वडील", "बाबा"],
-        mother: ["mother", "mom", "mum", "mummy", "माता", "माँ", "मां", "आई", "अम्मा"],
+        mother: [
+          "mother",
+          "mom",
+          "mum",
+          "mummy",
+          "माता",
+          "माँ",
+          "मां",
+          "आई",
+          "अम्मा",
+        ],
         brother: ["brother", "bro", "भाई", "भाऊ", "दादा"],
         sister: ["sister", "sis", "बहन", "बहिण", "ताई", "दीदी"],
         son: ["son", "बेटा", "मुलगा", "पुत्र"],
         daughter: ["daughter", "बेटी", "मुलगी", "पुत्री"],
-        grandmother: ["grandmother", "grandma", "granny", "दादी", "नानी", "आजी"],
+        grandmother: [
+          "grandmother",
+          "grandma",
+          "granny",
+          "दादी",
+          "नानी",
+          "आजी",
+        ],
         grandfather: ["grandfather", "grandpa", "दादा", "नाना", "आजोबा"],
       };
-      const subjectId = body.subject_related_chart_id ? String(body.subject_related_chart_id) : "";
+      const subjectId = body.subject_related_chart_id
+        ? String(body.subject_related_chart_id)
+        : "";
 
       // Reusable matcher: returns the saved-person ids referenced in a piece of
       // text, by exact/partial name (name-word >= 3 chars) or relation word
@@ -2087,7 +2600,9 @@ Deno.serve(async (req: Request) => {
       // fallback, for recent history to resolve pronoun-only follow-ups.
       const matchInText = (text: string): string[] => {
         const tl = String(text ?? "").toLowerCase();
-        const toks = new Set(tl.split(/[^a-z0-9\u0900-\u097f]+/i).filter(Boolean));
+        const toks = new Set(
+          tl.split(/[^a-z0-9\u0900-\u097f]+/i).filter(Boolean),
+        );
         const h = (w: string) => {
           const wl = w.toLowerCase();
           return /^[a-z0-9]+$/i.test(wl) ? toks.has(wl) : tl.includes(wl);
@@ -2120,7 +2635,8 @@ Deno.serve(async (req: Request) => {
       // Explicit signals in the CURRENT message always win, so a natural topic
       // switch ("now tell me about my son") re-focuses immediately.
       let matched: string[] = [];
-      if (subjectId && roster.some((p) => p.id === subjectId)) matched.push(subjectId);
+      if (subjectId && roster.some((p) => p.id === subjectId))
+        matched.push(subjectId);
       for (const id of matchInText(message)) {
         if (!matched.includes(id)) matched.push(id);
       }
@@ -2142,7 +2658,9 @@ Deno.serve(async (req: Request) => {
             .order("created_at", { ascending: false })
             .limit(12);
           for (const row of priorRows ?? []) {
-            const hits = matchInText(String((row as { content?: string }).content ?? ""));
+            const hits = matchInText(
+              String((row as { content?: string }).content ?? ""),
+            );
             if (hits.length) {
               matched = hits;
               break;
@@ -2429,8 +2947,10 @@ Deno.serve(async (req: Request) => {
       return err(404, "conversation_not_found");
     }
     conversationId = conv.id;
-    memorySummary = (conv as { memory_summary?: string | null }).memory_summary ?? null;
-    summarizedCount = (conv as { summarized_count?: number | null }).summarized_count ?? 0;
+    memorySummary =
+      (conv as { memory_summary?: string | null }).memory_summary ?? null;
+    summarizedCount =
+      (conv as { summarized_count?: number | null }).summarized_count ?? 0;
   } else {
     const title = message.length > 48 ? message.slice(0, 48) + "..." : message;
     const { data: created, error: convErr } = await svc
@@ -2479,7 +2999,10 @@ Deno.serve(async (req: Request) => {
       .select("memory_enabled, preferences")
       .eq("user_id", userId)
       .maybeSingle();
-    if (prof && typeof (prof as { memory_enabled?: boolean }).memory_enabled === "boolean") {
+    if (
+      prof &&
+      typeof (prof as { memory_enabled?: boolean }).memory_enabled === "boolean"
+    ) {
       memoryEnabled = (prof as { memory_enabled: boolean }).memory_enabled;
     }
     const rawPrefs = (prof as { preferences?: unknown } | null)?.preferences;
@@ -2640,7 +3163,9 @@ Deno.serve(async (req: Request) => {
       ]
     : [];
 
-  const preferenceText = memoryEnabled ? buildPreferenceInstruction(userPreferences) : "";
+  const preferenceText = memoryEnabled
+    ? buildPreferenceInstruction(userPreferences)
+    : "";
   const preferencesBlock = preferenceText
     ? [
         {
@@ -2656,7 +3181,8 @@ Deno.serve(async (req: Request) => {
     .map((r) => {
       const bits: string[] = [];
       if (r.summary && r.summary.trim()) bits.push(r.summary.trim());
-      if (r.data && Object.keys(r.data).length > 0) bits.push(JSON.stringify(r.data));
+      if (r.data && Object.keys(r.data).length > 0)
+        bits.push(JSON.stringify(r.data));
       return bits.length ? `- [${r.topic}] ${bits.join(" | ")}` : "";
     })
     .filter(Boolean)
@@ -2682,7 +3208,8 @@ Deno.serve(async (req: Request) => {
             ? r.event_date.slice(0, 7)
             : r.event_date;
       const bits: string[] = [];
-      if (r.description && r.description.trim()) bits.push(r.description.trim());
+      if (r.description && r.description.trim())
+        bits.push(r.description.trim());
       if (r.valence) bits.push("felt " + r.valence);
       const ac = (r.astro_context ?? {}) as Record<string, unknown>;
       const dasha = ac.dasha as
@@ -2693,14 +3220,17 @@ Deno.serve(async (req: Request) => {
           }
         | undefined;
       if (dasha) {
-        const lords = [dasha.maha?.name, dasha.antar?.name, dasha.pratyantar?.name]
+        const lords = [
+          dasha.maha?.name,
+          dasha.antar?.name,
+          dasha.pratyantar?.name,
+        ]
           .filter(Boolean)
           .join("-");
         if (lords) bits.push("dasha " + lords);
       }
       const ss = ac.sade_sati as
-        | { active?: boolean; phase?: string | null }
-        | undefined;
+        { active?: boolean; phase?: string | null } | undefined;
       if (ss && ss.active) {
         bits.push("Sade Sati" + (ss.phase ? " (" + ss.phase + ")" : ""));
       }
@@ -2724,9 +3254,12 @@ Deno.serve(async (req: Request) => {
     if (!emotionalState) return "";
     const s = emotionalState;
     const parts: string[] = [];
-    if (typeof s.mood === "string" && s.mood.trim()) parts.push(`Recent mood: ${s.mood.trim()}.`);
+    if (typeof s.mood === "string" && s.mood.trim())
+      parts.push(`Recent mood: ${s.mood.trim()}.`);
     if (Array.isArray(s.sensitivities) && s.sensitivities.length) {
-      parts.push(`Be sensitive about: ${s.sensitivities.map(String).join(", ")}.`);
+      parts.push(
+        `Be sensitive about: ${s.sensitivities.map(String).join(", ")}.`,
+      );
     }
     if (Array.isArray(s.guidance) && s.guidance.length) {
       parts.push(`Tone guidance: ${s.guidance.map(String).join("; ")}.`);
@@ -2783,6 +3316,59 @@ Deno.serve(async (req: Request) => {
       ]
     : [];
 
+  // ---------- CI-5.3: Knowledge base retrieval (RAG) ----------
+  // Embed the user's question and pull the most semantically-relevant curated
+  // astrology passages (our seed corpus + astrologer/source texts ingested via
+  // knowledge-ingest) from knowledge_corpus, then hand them to the model as
+  // cited classical reference material. Best-effort: any failure omits it.
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  let knowledgeText = "";
+  let knowledgeCount = 0;
+  if (OPENAI_API_KEY) {
+    try {
+      const qEmb = await embedQuery(OPENAI_API_KEY, message);
+      if (qEmb) {
+        const { data: kRows } = await svc.rpc("match_knowledge", {
+          query_embedding: qEmb,
+          match_count: 6,
+          filter_category: null,
+          similarity_threshold: 0.35,
+        });
+        const parts: string[] = [];
+        for (const r of (kRows ?? []) as Array<Record<string, unknown>>) {
+          const title = String(r.title ?? "").trim();
+          const content = String(r.content ?? "").trim();
+          if (!content) continue;
+          const cite =
+            (r.source && String(r.source).trim()) ||
+            (r.source_file && String(r.source_file).trim()) ||
+            "curated knowledge";
+          const cat = String(r.category ?? "general");
+          parts.push(`- [${cat}] ${title} (source: ${cite})\n${content}`);
+        }
+        knowledgeText = parts.join("\n\n");
+        knowledgeCount = parts.length;
+      }
+    } catch (_e) {
+      /* best-effort: knowledge retrieval is optional context */
+    }
+  }
+  const knowledgeBlock = knowledgeText
+    ? [
+        {
+          role: "system",
+          content:
+            "REFERENCE KNOWLEDGE retrieved from AstroSaathi's curated astrology library and trusted astrologer/source texts, relevant to this question. Treat these as authoritative classical references that should ground and enrich your interpretation; prefer them over generic knowledge, but stay fully consistent with THIS person's actual chart facts above. Weave the insight in naturally - do NOT cite file names, quote them verbatim, or say you looked anything up:\n" +
+            knowledgeText,
+        },
+      ]
+    : [];
+
+  // CI-5.3: backend-only visibility of how many knowledge passages were
+  // injected this turn. Shows up in the Edge Function logs ONLY; it is never
+  // streamed to the client, so the frontend UI never sees it.
+  console.log(`[astrologer-chat] knowledge_used=${knowledgeCount}`);
+
   const messages = [
     { role: "system", content: systemPrompt },
     ...preferencesBlock,
@@ -2792,6 +3378,7 @@ Deno.serve(async (req: Request) => {
     ...lifeEventsBlock,
     ...emotionalBlock,
     ...learningBlock,
+    ...knowledgeBlock,
     ...history,
     { role: "user", content: message },
   ];
@@ -2813,7 +3400,11 @@ Deno.serve(async (req: Request) => {
     const stream = new ReadableStream({
       async start(controller) {
         const sse = (event: string, data: unknown) => {
-          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+          controller.enqueue(
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
+          );
         };
 
         // Tell the client the conversation id up front so it can thread
@@ -2886,7 +3477,9 @@ Deno.serve(async (req: Request) => {
                 }
                 try {
                   const parsed = JSON.parse(payload);
-                  const delta = String(parsed?.choices?.[0]?.delta?.content ?? "");
+                  const delta = String(
+                    parsed?.choices?.[0]?.delta?.content ?? "",
+                  );
                   if (delta) {
                     full += delta;
                     sse("delta", { text: delta });
@@ -3075,8 +3668,13 @@ Deno.serve(async (req: Request) => {
         );
         if (fixRes.ok) {
           const fixJson = await fixRes.json();
-          const fixed = String(fixJson?.choices?.[0]?.message?.content ?? "").trim();
-          if (fixed && verifyReplyPlacements(fixed, placementTruth).length === 0) {
+          const fixed = String(
+            fixJson?.choices?.[0]?.message?.content ?? "",
+          ).trim();
+          if (
+            fixed &&
+            verifyReplyPlacements(fixed, placementTruth).length === 0
+          ) {
             reply = fixed;
           } else {
             reply =
@@ -3155,5 +3753,6 @@ Deno.serve(async (req: Request) => {
     conversation_id: conversationId,
     reply,
     model: MODEL,
+    knowledge_used: knowledgeCount,
   });
 });

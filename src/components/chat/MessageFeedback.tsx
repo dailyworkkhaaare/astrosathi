@@ -59,10 +59,14 @@ function summarize(content: string): string {
 
 // 44px tap target via padding, ~16-18px visual footprint via a matching
 // negative margin — keeps the row's visible height tight while the touch
-// target stays accessible.
-const triggerBase =
-  "tap-press inline-flex h-11 -my-[14px] items-center gap-1 rounded-full px-1.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+// target stays accessible. Icon-only state is a fixed 44x44 square (so its
+// glyph lands in exactly the same slot as the copy/thumbs buttons, keeping
+// gaps between all five triggers visually equal); it only grows to fit an
+// inline micro-label once a follow-up has been answered.
 const triggerIdle = "text-muted-foreground/55 hover:bg-muted/60 hover:text-foreground";
+const triggerIconOnly = "tap-press grid h-11 w-11 -my-[14px] place-items-center rounded-full";
+const triggerWithLabel =
+  "tap-press inline-flex h-11 -my-[14px] items-center gap-1 rounded-full px-1.5";
 
 function RowIconButton({
   label,
@@ -138,7 +142,8 @@ function FollowUpControl<TValue extends string>({
           aria-label={triggerLabel}
           aria-expanded={open}
           className={cn(
-            triggerBase,
+            "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            selected ? triggerWithLabel : triggerIconOnly,
             selected ? (isNegative ? "text-destructive-strong" : "text-accent") : triggerIdle,
           )}
         >

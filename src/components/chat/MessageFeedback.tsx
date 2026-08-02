@@ -57,16 +57,18 @@ function summarize(content: string): string {
   return trimmed.length > 140 ? trimmed.slice(0, 140) : trimmed;
 }
 
-// 44px tap target via padding, ~16-18px visual footprint via a matching
-// negative margin — keeps the row's visible height tight while the touch
-// target stays accessible. Icon-only state is a fixed 44x44 square (so its
+// A 36px tap target via padding, ~16px visual footprint via a matching
+// negative margin — tight, ChatGPT/Claude-mobile-style icon row rather than
+// the app's usual 44px primary tap targets (36px still clears the WCAG 2.2
+// AA minimum target size of 24px; this row is a quiet secondary affordance,
+// not a primary action). Icon-only state is a fixed 36x36 square (so its
 // glyph lands in exactly the same slot as the copy/thumbs buttons, keeping
 // gaps between all five triggers visually equal); it only grows to fit an
 // inline micro-label once a follow-up has been answered.
 const triggerIdle = "text-muted-foreground/55 hover:bg-muted/60 hover:text-foreground";
-const triggerIconOnly = "tap-press grid h-11 w-11 -my-[14px] place-items-center rounded-full";
+const triggerIconOnly = "tap-press grid h-9 w-9 -my-[10px] place-items-center rounded-full";
 const triggerWithLabel =
-  "tap-press inline-flex h-11 -my-[14px] items-center gap-1 rounded-full px-1.5";
+  "tap-press inline-flex h-9 -my-[10px] items-center gap-1 rounded-full px-1";
 
 function RowIconButton({
   label,
@@ -90,7 +92,8 @@ function RowIconButton({
       aria-label={label}
       aria-pressed={active}
       className={cn(
-        "tap-press grid h-11 w-11 -my-[14px] place-items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        triggerIconOnly,
+        "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? activeTone === "destructive"
             ? "text-destructive-strong"
@@ -282,7 +285,7 @@ export function MessageActionRow({
   };
 
   return (
-    <div className="mt-1.5 flex items-center gap-1 opacity-40 transition-opacity duration-[140ms] md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+    <div className="mt-1 flex items-center gap-0.5 opacity-40 transition-opacity duration-[140ms] md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
       <RowIconButton label={copied ? t("chat.copied") : t("chat.copy")} onClick={onCopy}>
         {copied ? <Check size={16} className="text-accent" /> : <Copy size={16} />}
       </RowIconButton>

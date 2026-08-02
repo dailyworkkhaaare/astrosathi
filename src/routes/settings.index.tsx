@@ -5,6 +5,7 @@ import {
   Bell,
   Brain,
   CalendarClock,
+  CalendarDays,
   ChevronRight,
   FileText,
   LogOut,
@@ -13,6 +14,7 @@ import {
   Sparkles,
   Trash2,
   UserCircle,
+  Users,
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
@@ -167,10 +169,13 @@ function SettingsPage() {
           onClick={() => navigate({ to: "/onboarding/birth" })}
           className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
-          <span>
-            {t("settings.profile.editBirth")}
-            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-              {t("settings.profile.birthHint")}
+          <span className="inline-flex items-center gap-2">
+            <CalendarDays size={14} aria-hidden="true" className="text-muted-foreground" />
+            <span>
+              {t("settings.profile.editBirth")}
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                {t("settings.profile.birthHint")}
+              </span>
             </span>
           </span>
           <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
@@ -181,10 +186,13 @@ function SettingsPage() {
           onClick={() => navigate({ to: "/people" })}
           className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
-          <span>
-            {t("settings.profile.people")}
-            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-              {t("settings.profile.peopleHint")}
+          <span className="inline-flex items-center gap-2">
+            <Users size={14} aria-hidden="true" className="text-muted-foreground" />
+            <span>
+              {t("settings.profile.people")}
+              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                {t("settings.profile.peopleHint")}
+              </span>
             </span>
           </span>
           <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />

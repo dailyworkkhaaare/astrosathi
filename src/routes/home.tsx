@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Bell,
   CalendarClock,
   ChevronRight,
   Clock,
@@ -35,7 +36,7 @@ import {
   type NormalizedPlanet,
   type VargaTable,
 } from "@/lib/charts";
-import { useChart, usePlanets } from "@/lib/queries";
+import { useChart, usePlanets, useUnreadNudgeCount } from "@/lib/queries";
 import { NumerologySection } from "@/components/NumerologySection";
 import { DoshasSection } from "@/components/DoshasSection";
 import { AshtakavargaSection } from "@/components/AshtakavargaSection";
@@ -138,6 +139,7 @@ function HomePage() {
   const tab: TabKey = tabParam ?? "charts";
   const setTab = (k: TabKey) => void navigate({ search: { tab: k }, replace: true });
   const isProfileIncomplete = profileLoaded && (!profile || !profile.dob);
+  const unreadNudges = useUnreadNudgeCount();
 
   return (
     <section className="space-y-6">
@@ -157,6 +159,27 @@ function HomePage() {
           {t("life.entryLabel")}
         </span>
         <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
+      </Link>
+
+      <Link
+        to="/nudges"
+        className="tap-press motion-fade-up flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="inline-flex items-center gap-2">
+          <Bell size={15} aria-hidden="true" className="text-muted-foreground" />
+          {t("nudges.entryLabel")}
+        </span>
+        <span className="inline-flex items-center gap-2">
+          {unreadNudges > 0 && (
+            <span
+              className="inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground"
+              aria-label={String(unreadNudges)}
+            >
+              {unreadNudges > 99 ? "99+" : unreadNudges}
+            </span>
+          )}
+          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
+        </span>
       </Link>
 
       {isProfileIncomplete && <IncompleteProfileHeroCard />}

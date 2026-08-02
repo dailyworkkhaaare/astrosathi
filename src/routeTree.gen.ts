@@ -15,6 +15,7 @@ import { Route as ChatRouteImport } from './routes/chat'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as LanguageRouteImport } from './routes/language'
 import { Route as LifeRouteImport } from './routes/life'
+import { Route as NudgesRouteImport } from './routes/nudges'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -28,6 +29,7 @@ import { Route as PeopleIdRouteImport } from './routes/people.$id'
 import { Route as PeopleNewRouteImport } from './routes/people.new'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsMemoryRouteImport } from './routes/settings.memory'
+import { Route as SettingsProactiveRouteImport } from './routes/settings.proactive'
 import { Route as TodayIndexRouteImport } from './routes/today.index'
 import { Route as TodayHoroscopeRouteImport } from './routes/today.horoscope'
 import { Route as TodayMarketsRouteImport } from './routes/today.markets'
@@ -64,6 +66,11 @@ const LanguageRoute = LanguageRouteImport.update({
 const LifeRoute = LifeRouteImport.update({
   id: '/life',
   path: '/life',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NudgesRoute = NudgesRouteImport.update({
+  id: '/nudges',
+  path: '/nudges',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -131,6 +138,11 @@ const SettingsMemoryRoute = SettingsMemoryRouteImport.update({
   path: '/memory',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsProactiveRoute = SettingsProactiveRouteImport.update({
+  id: '/proactive',
+  path: '/proactive',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const TodayIndexRoute = TodayIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -174,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/language': typeof LanguageRoute
   '/life': typeof LifeRoute
+  '/nudges': typeof NudgesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -185,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/people/$id': typeof PeopleIdRouteWithChildren
   '/people/new': typeof PeopleNewRoute
   '/settings/memory': typeof SettingsMemoryRoute
+  '/settings/proactive': typeof SettingsProactiveRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
@@ -202,6 +216,7 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute
   '/language': typeof LanguageRoute
   '/life': typeof LifeRoute
+  '/nudges': typeof NudgesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/terms': typeof TermsRoute
@@ -210,6 +225,7 @@ export interface FileRoutesByTo {
   '/onboarding/consent': typeof OnboardingConsentRoute
   '/people/new': typeof PeopleNewRoute
   '/settings/memory': typeof SettingsMemoryRoute
+  '/settings/proactive': typeof SettingsProactiveRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
@@ -228,6 +244,7 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/language': typeof LanguageRoute
   '/life': typeof LifeRoute
+  '/nudges': typeof NudgesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -239,6 +256,7 @@ export interface FileRoutesById {
   '/people/$id': typeof PeopleIdRouteWithChildren
   '/people/new': typeof PeopleNewRoute
   '/settings/memory': typeof SettingsMemoryRoute
+  '/settings/proactive': typeof SettingsProactiveRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
@@ -258,6 +276,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/language'
     | '/life'
+    | '/nudges'
     | '/privacy'
     | '/reset-password'
     | '/settings'
@@ -269,6 +288,7 @@ export interface FileRouteTypes {
     | '/people/$id'
     | '/people/new'
     | '/settings/memory'
+    | '/settings/proactive'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
@@ -286,6 +306,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/language'
     | '/life'
+    | '/nudges'
     | '/privacy'
     | '/reset-password'
     | '/terms'
@@ -294,6 +315,7 @@ export interface FileRouteTypes {
     | '/onboarding/consent'
     | '/people/new'
     | '/settings/memory'
+    | '/settings/proactive'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
@@ -311,6 +333,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/language'
     | '/life'
+    | '/nudges'
     | '/privacy'
     | '/reset-password'
     | '/settings'
@@ -322,6 +345,7 @@ export interface FileRouteTypes {
     | '/people/$id'
     | '/people/new'
     | '/settings/memory'
+    | '/settings/proactive'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
@@ -340,6 +364,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   LanguageRoute: typeof LanguageRoute
   LifeRoute: typeof LifeRoute
+  NudgesRoute: typeof NudgesRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -394,6 +419,13 @@ declare module '@tanstack/react-router' {
       path: '/life'
       fullPath: '/life'
       preLoaderRoute: typeof LifeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nudges': {
+      id: '/nudges'
+      path: '/nudges'
+      fullPath: '/nudges'
+      preLoaderRoute: typeof NudgesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -487,6 +519,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsMemoryRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/proactive': {
+      id: '/settings/proactive'
+      path: '/proactive'
+      fullPath: '/settings/proactive'
+      preLoaderRoute: typeof SettingsProactiveRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/today/': {
       id: '/today/'
       path: '/'
@@ -551,11 +590,13 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface SettingsRouteChildren {
   SettingsMemoryRoute: typeof SettingsMemoryRoute
+  SettingsProactiveRoute: typeof SettingsProactiveRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsMemoryRoute: SettingsMemoryRoute,
+  SettingsProactiveRoute: SettingsProactiveRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
@@ -602,6 +643,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   LanguageRoute: LanguageRoute,
   LifeRoute: LifeRoute,
+  NudgesRoute: NudgesRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRouteWithChildren,

@@ -39,6 +39,15 @@ import {
   type LifeEvent,
   type LifeEventInput,
 } from "@/lib/life-events";
+import {
+  actOnNudge,
+  dismissNudge,
+  getProactiveSettings,
+  listSentNudges,
+  saveProactiveSettings,
+  type ProactiveNudge,
+  type ProactiveSettings,
+} from "@/lib/proactive";
 
 // ---------------------------------------------------------------- constants
 
@@ -1437,6 +1446,83 @@ export function useRestampLifeEvent() {
     mutationFn: (id: string) => stampLifeEvent(id, true),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...LIFE_EVENTS_ROOT, userId] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------- proactive nudges
+
+const PROACTIVE_NUDGES_ROOT = ["proactive-nudges"] as const;
+const PROACTIVE_SETTINGS_ROOT = ["proactive-settings"] as const;
+
+export function useSentNudges(): UseQueryResult<ProactiveNudge[]> {
+  const userId = useCurrentUserId();
+  return useQuery<ProactiveNudge[]>({
+    queryKey: [...PROACTIVE_NUDGES_ROOT, userId],
+    enabled: userId !== null,
+    staleTime: 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: listSentNudges,
+  });
+}
+
+// Wraps useSentNudges with a client-only selector; never runs a second query.
+export function useUnreadNudgeCount(): number {
+  const userId = useCurrentUserId();
+  const query = useQuery<ProactiveNudge[], Error, number>({
+    queryKey: [...PROACTIVE_NUDGES_ROOT, userId],
+    enabled: userId !== null,
+    staleTime: 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: listSentNudges,
+    select: (data) => data.length,
+  });
+  return query.data ?? 0;
+}
+
+export function useActOnNudge() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return useMutation({
+    mutationFn: (id: string) => actOnNudge(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...PROACTIVE_NUDGES_ROOT, userId] });
+    },
+  });
+}
+
+export function useDismissNudge() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return useMutation({
+    mutationFn: (id: string) => dismissNudge(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...PROACTIVE_NUDGES_ROOT, userId] });
+    },
+  });
+}
+
+export function useProactiveSettings(): UseQueryResult<ProactiveSettings> {
+  const userId = useCurrentUserId();
+  return useQuery<ProactiveSettings>({
+    queryKey: [...PROACTIVE_SETTINGS_ROOT, userId],
+    enabled: userId !== null,
+    staleTime: 5 * 60 * 1000,
+    gcTime: CHART_GC_MS,
+    ...QUERY_RETRY_CONFIG,
+    queryFn: getProactiveSettings,
+  });
+}
+
+export function useSaveProactiveSettings() {
+  const queryClient = useQueryClient();
+  const userId = useCurrentUserId();
+  return useMutation({
+    mutationFn: (patch: Partial<ProactiveSettings>) => saveProactiveSettings(patch),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...PROACTIVE_SETTINGS_ROOT, userId] });
     },
   });
 }

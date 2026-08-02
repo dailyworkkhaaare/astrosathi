@@ -450,7 +450,9 @@
       "people": "People",
       "peopleHint": "Saved charts for family, friends & partners.",
       "memory": "Memory & Privacy",
-      "memoryHint": "See, edit or delete what AstroSaathi remembers about you."
+      "memoryHint": "See, edit or delete what AstroSaathi remembers about you.",
+      "proactive": "Nudges",
+      "proactiveHint": "Set how often you hear from AstroSaathi, and about what."
     },
     "prefs": {
       "title": "Preferences",
@@ -586,6 +588,34 @@
         "exported": "Your data has been downloaded.",
         "deletedAll": "All memories deleted.",
         "deletedAllPartial": "Memories deleted. Some legacy data couldn't be cleared."
+      }
+    },
+    "proactive": {
+      "title": "Proactive nudges",
+      "back": "Back",
+      "enabled": "Proactive nudges",
+      "enabledHint": "Let AstroSaathi surface gentle notes when your daśā, transits, or life-event context shift.",
+      "frequency": "How often",
+      "frequencyHint": "Maximum notes per week. AstroSaathi stays within this cap even during busy sky periods.",
+      "frequencyOff": "Off",
+      "frequencyPerWeek": "{{n}} per week",
+      "quietHours": "Quiet hours",
+      "quietStart": "Start",
+      "quietEnd": "End",
+      "quietOff": "Off",
+      "quietHint": "Nudges pause during this window each day.",
+      "quietFormat": "{{h}}:00",
+      "mutedKinds": "What to include",
+      "mutedKindsHint": "Turn off any kind you don't want to hear about.",
+      "kinds": {
+        "dasha_change": "Daśā changes",
+        "sade_sati_phase": "Sade Sati phases",
+        "transit_alert": "Transits",
+        "life_event_followup": "Life-event reminders"
+      },
+      "toasts": {
+        "saved": "Saved",
+        "error": "Couldn't save. Please try again."
       }
     }
   },
@@ -1364,5 +1394,46 @@
     },
     "entryLabel": "Life Timeline",
     "entryHint": "Your milestones, mapped against your daśā and transits."
+  },
+  "nudges": {
+    "title": "Nudges",
+    "subtitle": "Gentle notes from your chart, when the sky changes",
+    "entryLabel": "Nudges",
+    "entryHint": "Timely notes when your daśā or transits shift.",
+    "kinds": {
+      "dasha_change": "Daśā change",
+      "sade_sati_phase": "Sade Sati",
+      "transit_alert": "Transit",
+      "life_event_followup": "Life event",
+      "daily_theme": "Daily theme",
+      "remedy_reminder": "Remedy",
+      "other": "Note"
+    },
+    "priority": {
+      "high": "Important",
+      "normal": "Note",
+      "low": "Quiet"
+    },
+    "act": "Explore",
+    "dismiss": "Dismiss",
+    "empty": {
+      "title": "All quiet under the sky",
+      "body": "You'll see gentle notes here when your daśā shifts or a major transit is worth a moment."
+    },
+    "loading": "Reading the sky…",
+    "loadError": "Couldn't load nudges. Please try again.",
+    "retry": "Retry",
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{{n}}m ago",
+      "hoursAgo": "{{n}}h ago",
+      "daysAgo": "{{n}}d ago",
+      "monthsAgo": "{{n}}mo ago"
+    },
+    "toasts": {
+      "acted": "Marked as explored",
+      "dismissed": "Dismissed",
+      "error": "Something went wrong. Please try again."
+    }
   }
 }

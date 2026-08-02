@@ -5,6 +5,7 @@ import { ArrowLeft, Plus, RefreshCw, Trash2, X } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/settings/primitives";
 import {
   useCreateLifeEvent,
@@ -107,6 +108,31 @@ const VALENCE_TOKEN: Record<Valence, string> = {
   mixed: "bg-primary",
   negative: "bg-destructive",
 };
+
+// Calm, muted per-graha tones — copied from DashaTimeline.tsx so the life
+// ribbon reads as the same instrument as the Home daśā timeline. Deliberately
+// avoids accent/primary (reserved for the "now" marker + event markers here)
+// and any red-adjacent chart tone.
+const MAHA_TONE_BY_PLANET_ID: Record<number, { bg: string; ring: string }> = {
+  0: { bg: "bg-muted-foreground/28", ring: "ring-muted-foreground/50" },
+  1: { bg: "bg-foreground/14", ring: "ring-foreground/32" },
+  2: { bg: "bg-foreground/14", ring: "ring-foreground/32" },
+  3: { bg: "bg-chart-4/25", ring: "ring-chart-4/50" },
+  4: { bg: "bg-secondary-foreground/20", ring: "ring-secondary-foreground/42" },
+  5: { bg: "bg-chart-4/25", ring: "ring-chart-4/50" },
+  6: { bg: "bg-muted-foreground/28", ring: "ring-muted-foreground/50" },
+  101: { bg: "bg-chart-2/25", ring: "ring-chart-2/50" },
+  102: { bg: "bg-chart-2/25", ring: "ring-chart-2/50" },
+};
+const DEFAULT_MAHA_TONE = { bg: "bg-muted", ring: "ring-border" };
+function mahaToneFor(id: number) {
+  return MAHA_TONE_BY_PLANET_ID[id] ?? DEFAULT_MAHA_TONE;
+}
+
+function fmtRibbonYear(ms: number): string {
+  const d = new Date(ms);
+  return Number.isNaN(d.getTime()) ? "" : String(d.getUTCFullYear());
+}
 
 function LifePage() {
   useRequireOnboarding();
@@ -281,6 +307,10 @@ function DashaRibbon({
   const totalMs = rangeEndMs - rangeStartMs;
   if (!Number.isFinite(totalMs) || totalMs <= 0) return null;
 
+  const nowMs = Date.now();
+  const showNow = nowMs >= rangeStartMs && nowMs <= rangeEndMs;
+  const nowPct = showNow ? ((nowMs - rangeStartMs) / totalMs) * 100 : null;
+
   const markers = events
     .map((ev) => {
       const ms = Date.parse(`${ev.event_date}T12:00:00Z`);
@@ -293,37 +323,101 @@ function DashaRibbon({
     .filter((m): m is { id: string; leftPct: number; tone: string; title: string } => m !== null);
 
   return (
-    <div className="motion-fade-up overflow-x-auto rounded-xl border border-border bg-card p-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-      <div className="relative min-w-[640px]">
-        <div className="flex overflow-hidden rounded-lg border border-border/60">
-          {cycle.map((p) => {
-            const spanMs = Date.parse(p.end) - Date.parse(p.start);
-            const widthPct = (spanMs / totalMs) * 100;
-            return (
+    <div
+      className="motion-fade-up rounded-2xl border border-border bg-card/60 p-4 sm:p-5"
+      style={{ boxShadow: "var(--shadow-soft)" }}
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {t("life.context.dasha")}
+        </h2>
+        <span className="text-[10px] tabular-nums text-muted-foreground">
+          {fmtRibbonYear(rangeStartMs)}–{fmtRibbonYear(rangeEndMs)}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative min-w-[640px]">
+          {showNow && nowPct !== null && (
+            <div
+              className="pointer-events-none absolute top-0 z-10 -translate-x-1/2"
+              style={{ left: `${nowPct}%` }}
+            >
+              <span className="whitespace-nowrap rounded-full bg-foreground px-1.5 py-0.5 text-[9px] font-semibold text-background shadow-sm">
+                {t("sections.dasha.youAreHere")}
+              </span>
+            </div>
+          )}
+
+          <div className="relative mt-6">
+            {showNow && nowPct !== null && (
               <div
-                key={`${p.id}-${p.start}`}
-                style={{ width: `${widthPct}%` }}
-                className="shrink-0 border-r border-border/60 bg-muted/40 px-1.5 py-2 text-center last:border-r-0"
-              >
-                <span className="block truncate text-[10px] font-medium text-muted-foreground">
-                  {p.name}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="relative h-5">
-          {markers.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              title={m.title}
-              aria-label={m.title}
-              onClick={() => onMarkerClick(m.id)}
-              style={{ left: `${m.leftPct}%` }}
-              className={`tap-press absolute top-0 -translate-x-1/2 rounded-full ${m.tone} h-3.5 w-3.5 border-2 border-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
-            />
-          ))}
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 z-10 w-px bg-foreground/40"
+                style={{ left: `${nowPct}%` }}
+              />
+            )}
+
+            <div className="relative h-6">
+              {markers.map((m) => (
+                <div
+                  key={m.id}
+                  className="absolute top-0 -translate-x-1/2"
+                  style={{ left: `${m.leftPct}%` }}
+                >
+                  <div
+                    aria-hidden="true"
+                    className="mx-auto h-3 w-px bg-border"
+                    style={{ marginTop: "6px" }}
+                  />
+                  <button
+                    type="button"
+                    title={m.title}
+                    aria-label={m.title}
+                    onClick={() => onMarkerClick(m.id)}
+                    className={cn(
+                      "tap-press absolute -top-1 left-1/2 -translate-x-1/2 rounded-full border-2 border-card shadow-sm transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      m.tone,
+                      "h-3.5 w-3.5",
+                    )}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="flex h-11 overflow-hidden rounded-full ring-1 ring-border/60"
+              aria-label={t("life.context.dasha")}
+            >
+              {cycle.map((p) => {
+                const spanMs = Date.parse(p.end) - Date.parse(p.start);
+                const widthPct = (spanMs / totalMs) * 100;
+                const tone = mahaToneFor(p.id);
+                return (
+                  <div
+                    key={`${p.id}-${p.start}`}
+                    style={{ flexBasis: `${widthPct}%` }}
+                    title={p.name}
+                    className={cn(
+                      "flex shrink-0 grow-0 items-center justify-center overflow-hidden border-r border-background/40 px-1 text-center transition-colors last:border-r-0 hover:brightness-95",
+                      tone.bg,
+                    )}
+                  >
+                    {widthPct > 6 && (
+                      <span className="truncate text-[10px] font-medium text-foreground">
+                        {p.name}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-1.5 flex justify-between text-[10px] tabular-nums text-muted-foreground">
+              <span>{fmtRibbonYear(rangeStartMs)}</span>
+              <span>{fmtRibbonYear(rangeEndMs)}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -74,6 +74,15 @@
 
 :root {
   --radius: 0.75rem;
+  /* Rendered (content-only) height of AppShell's fixed mobile bottom tab
+     bar — ul padding (pt-1.5 + pb-1.5 = 12px) + tallest tab link (icon +
+     label, ~58px) + border-top (1px), rounded up for headroom. Does NOT
+     include safe-area-inset-bottom: the tab bar applies that to itself
+     once (AppShell.tsx MobileTabBar), so any full-bleed page reserving
+     space for it (e.g. /chat) adds env(safe-area-inset-bottom) separately
+     rather than baking it in here, to avoid double-counting it. Keep this
+     in sync if MobileTabBar's padding/min-height ever changes. */
+  --mobile-tabbar-h: 4.5rem;
   /* AstroSaathi light — warm parchment, deep indigo ink, gold accent */
   --background: oklch(0.985 0.012 85);
   --foreground: oklch(0.22 0.05 275);

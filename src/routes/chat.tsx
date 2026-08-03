@@ -461,6 +461,19 @@ function ChatPage() {
   // below — measuring a specific bubble's position/height needs the real
   // element, not just React state.
   const messageElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Identify the user/assistant bubble that make up the *current* turn, so
+  // the post-stream settle effect can measure exactly those two elements
+  // without re-deriving them from `messages` content on every token. Set
+  // when the user bubble is appended (handleSend/handleRegenerate) and when
+  // the assistant placeholder is created (sendToBackend's ensurePlaceholder)
+  // respectively; cleared only on new chat / conversation switch.
+  const lastTurnUserIdRef = useRef<string | null>(null);
+  const lastTurnAssistantIdRef = useRef<string | null>(null);
+  // Which turn's post-stream settle position has already been chosen, keyed
+  // by assistant message id — guards the settle effect below to run at most
+  // once per turn instead of re-fighting itself on every later re-render
+  // (e.g. hydrateLastAssistantMessage's dbId patch-in after the turn ends).
+  const settledTurnIdRef = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Tracks the freshest known conversation id for provenance hydration after
   // a stream completes, since `conversationId` state lags behind onMeta/the
@@ -667,6 +680,9 @@ function ChatPage() {
     setAnchoredMessageId(null);
     setTurnSpacerPx(0);
     messageElRefs.current.clear();
+    lastTurnUserIdRef.current = null;
+    lastTurnAssistantIdRef.current = null;
+    settledTurnIdRef.current = null;
     const { data } = await supabase
       .from("chat_messages")
       .select("id, role, content, created_at, metadata")
@@ -809,11 +825,24 @@ function ChatPage() {
   const PIN_REENTER_PX = 32; // must come back this close to silently re-lock
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [anchoredMessageId, setAnchoredMessageId] = useState<string | null>(null);
+  // Set for one frame around every programmatic `scrollTop` write below that
+  // isn't the user-initiated jump-to-bottom (spacer-collapse correction,
+  // end-of-turn settle snap). The native `scroll` event those writes trigger
+  // fires asynchronously, so without this the hysteresis tracker just below
+  // could read an in-between value off a write that's already exact — cheap
+  // insurance against a mis-flip, not a fix for an observed drift.
+  const suppressScrollTrackingRef = useRef(false);
+  const suppressScrollTracking = () => {
+    suppressScrollTrackingRef.current = true;
+    requestAnimationFrame(() => {
+      suppressScrollTrackingRef.current = false;
+    });
+  };
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     const onScroll = () => {
-      if (anchoredMessageId) return;
+      if (anchoredMessageId || suppressScrollTrackingRef.current) return;
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
       setPinnedToBottom((prev) => (prev ? distance < PIN_EXIT_PX : distance < PIN_REENTER_PX));
     };
@@ -821,6 +850,61 @@ function ChatPage() {
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
   }, [messages.length, sending, anchoredMessageId]);
+
+  // ---- Mobile keyboard docking ----
+  // `visualViewport.height` shrinks (and `offsetTop` grows) when the
+  // on-screen keyboard opens; `window.innerHeight` (the layout viewport)
+  // does not. The gap between them is exactly how much of the bottom of the
+  // screen the keyboard occludes right now — written to a CSS var so the
+  // chat root (below) can reserve that space for the composer instead of
+  // its normal mobile-tab-bar reserve (see the `max()` in the root
+  // className: the tab bar is physically underneath the keyboard once it's
+  // open, so reserving both stacked would leave a dead gap above it).
+  // rAF-throttled since visualViewport fires resize/scroll repeatedly
+  // during the keyboard's open/close animation. No-ops (and resets to 0) on
+  // desktop, where there's no on-screen keyboard to occlude anything.
+  const [keyboardInsetPx, setKeyboardInsetPx] = useState(0);
+  useEffect(() => {
+    if (!isMobile || typeof window === "undefined" || !window.visualViewport) {
+      setKeyboardInsetPx(0);
+      return;
+    }
+    const vv = window.visualViewport;
+    let raf: number | null = null;
+    const measure = () => {
+      raf = null;
+      const occlusion = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardInsetPx(occlusion);
+    };
+    const onChange = () => {
+      if (raf !== null) return;
+      raf = requestAnimationFrame(measure);
+    };
+    vv.addEventListener("resize", onChange);
+    vv.addEventListener("scroll", onChange);
+    measure();
+    return () => {
+      vv.removeEventListener("resize", onChange);
+      vv.removeEventListener("scroll", onChange);
+      if (raf !== null) cancelAnimationFrame(raf);
+    };
+  }, [isMobile]);
+
+  // The keyboard opening/closing changes how much height the flex chain
+  // above has available, which changes `listRef`'s `clientHeight` — Prompts
+  // 2–4's spacer-collapse and post-stream settle already read that live, so
+  // they don't need touching. But a pinned reader's `scrollTop` doesn't
+  // move on its own when `clientHeight` shrinks, which both visibly lifts
+  // them off "the bottom" and (via the hysteresis tracker above) risks
+  // reading as a manual scroll-up and silently unpinning them. Re-snap in
+  // the same layout pass, suppressing that tracker exactly like Prompt 3's
+  // other programmatic corrections.
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el || !pinnedToBottom) return;
+    suppressScrollTracking();
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+  }, [keyboardInsetPx, pinnedToBottom]);
 
   // ---- "Anchor question to top" on send (ChatGPT/Claude-style) ----
   // When a new message is sent, the question settles near the TOP of the
@@ -838,6 +922,11 @@ function ChatPage() {
   const [pendingAnchorId, setPendingAnchorId] = useState<string | null>(null);
   const [turnSpacerPx, setTurnSpacerPx] = useState(0);
   const pendingScrollRef = useRef<{ top: number } | null>(null);
+  const pendingCollapseRef = useRef<{
+    prevScrollTop: number;
+    prevScrollHeight: number;
+    wasPinned: boolean;
+  } | null>(null);
 
   // Step 1: right after the new user bubble commits, measure it and the
   // reserved space it needs, then hand off to step 2 (below) once that
@@ -890,8 +979,8 @@ function ChatPage() {
   // takes over for the remainder — long replies still stream into view. Also
   // releases once the turn finishes (`sending` goes false) even if it never
   // overflowed, so ordinary scroll-tracking resumes for whatever the user
-  // does next; the reserved empty space itself is left in place (per design:
-  // short replies keep their blank space below rather than collapsing it).
+  // does next. The reserved empty space itself is handled separately below
+  // (Step 4) once the reply has actually finished streaming in.
   useEffect(() => {
     if (!anchoredMessageId) return;
     if (!sending) {
@@ -920,6 +1009,125 @@ function ChatPage() {
       if (raf !== null) cancelAnimationFrame(raf);
     };
   }, [anchoredMessageId, streamingId, sending]);
+
+  // Step 4: once the turn has fully settled — no longer sending, and the
+  // stream has handed off its assistant id back to null — collapse any
+  // leftover reserved space instead of leaving it as a permanent dead zone
+  // under a short reply. Waits a couple of frames first so the final
+  // assistant markdown has actually committed its layout height before we
+  // measure/collapse. Never fires while still streaming or still anchored
+  // mid-send (guarded by the `sending`/`streamingId` checks), so it can't
+  // fight the overflow handoff in Step 3, which already zeroes the spacer
+  // itself when a long reply outgrows the reserve.
+  useEffect(() => {
+    if (sending || streamingId || turnSpacerPx === 0) return;
+    const el = listRef.current;
+    if (!el) return;
+    let raf1: number | null = null;
+    let raf2: number | null = null;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        pendingCollapseRef.current = {
+          prevScrollTop: el.scrollTop,
+          prevScrollHeight: el.scrollHeight,
+          wasPinned: pinnedToBottom,
+        };
+        setTurnSpacerPx(0);
+      });
+    });
+    return () => {
+      if (raf1 !== null) cancelAnimationFrame(raf1);
+      if (raf2 !== null) cancelAnimationFrame(raf2);
+    };
+  }, [sending, streamingId, turnSpacerPx, pinnedToBottom]);
+
+  // Step 5: the spacer div has now shrunk (it's what changed `turnSpacerPx`
+  // to 0 in Step 4) — correct `scrollTop` in the same layout pass so the
+  // collapse doesn't yank the visible messages. Pinned readers land exactly
+  // at the true bottom; anyone scrolled up keeps looking at the same content
+  // by shrinking scrollTop by however much scrollHeight just shrank.
+  useLayoutEffect(() => {
+    const pending = pendingCollapseRef.current;
+    if (!pending) return;
+    pendingCollapseRef.current = null;
+    const el = listRef.current;
+    if (!el) return;
+    suppressScrollTracking();
+    if (pending.wasPinned) {
+      el.scrollTop = el.scrollHeight - el.clientHeight;
+      return;
+    }
+    const shrink = pending.prevScrollHeight - el.scrollHeight;
+    el.scrollTop = Math.max(0, pending.prevScrollTop - shrink);
+  }, [turnSpacerPx]);
+
+  // Step 6: "show answer start" — once a turn has fully settled (not
+  // sending, not streaming, spacer already collapsed) and the reader is
+  // still pinned, choose where the view actually rests instead of always
+  // hard-snapping to the bottom. Bottom-snapping is what left the user's
+  // own question parked on the bottom edge with the start of the answer
+  // scrolled out of view for anything longer than a couple of lines.
+  //
+  // Rule 1 (handled by the `pinnedToBottom` guard below): if the user
+  // scrolled up to read history, this never runs — only Step 5's shrink
+  // compensation above is allowed to touch scrollTop for them.
+  // Rule 2: if the whole turn (question + answer + padding) fits in the
+  // viewport, land with the question near the top so the full exchange is
+  // visible. In practice this is already what Step 5's non-pinned branch
+  // preserves for anchored turns that never overflowed (see its comment) —
+  // this rule mainly matters here for turns that never went through the
+  // anchor at all (regenerate).
+  // Rule 3: if the turn doesn't fit, land with the START of the answer near
+  // the top rather than the question — the question can be scrolled back to.
+  // Rule 4: exception to rule 3 — if landing on the answer's start would
+  // yank the view upward by more than a full viewport, the reader was
+  // clearly following the tail of a long stream; keep them at the bottom
+  // instead of wrenching them backward.
+  //
+  // Runs at most once per turn (`settledTurnIdRef`), so a later unrelated
+  // re-render for the same turn (hydrateLastAssistantMessage patching in
+  // `dbId`/provenance once the feedback footer can appear) can't re-fire
+  // this and fight the position a second time.
+  useLayoutEffect(() => {
+    if (sending || streamingId || turnSpacerPx > 0) return;
+    if (!pinnedToBottom) return; // rule 1
+    const assistantId = lastTurnAssistantIdRef.current;
+    if (!assistantId || settledTurnIdRef.current === assistantId) return;
+    const el = listRef.current;
+    const assistantEl = messageElRefs.current.get(assistantId);
+    if (!el || !assistantEl) return;
+    settledTurnIdRef.current = assistantId;
+
+    const SETTLE_PADDING = 16; // matches ANCHOR_TOP_PADDING
+    const containerRect = el.getBoundingClientRect();
+    const topOf = (node: HTMLDivElement) =>
+      node.getBoundingClientRect().top - containerRect.top + el.scrollTop;
+    const bottomTarget = Math.max(0, el.scrollHeight - el.clientHeight);
+    const assistantTop = topOf(assistantEl);
+
+    const userId = lastTurnUserIdRef.current;
+    const userEl = userId ? messageElRefs.current.get(userId) : null;
+
+    let target: number;
+    if (userEl) {
+      const userTop = topOf(userEl);
+      const turnHeight = assistantTop + assistantEl.offsetHeight - userTop;
+      if (turnHeight + SETTLE_PADDING * 2 <= el.clientHeight) {
+        target = Math.max(0, userTop - SETTLE_PADDING); // rule 2
+      } else {
+        const answerStartTarget = Math.max(0, assistantTop - SETTLE_PADDING);
+        const jumpBack = el.scrollTop - answerStartTarget;
+        target = jumpBack > el.clientHeight ? bottomTarget : answerStartTarget; // rules 3/4
+      }
+    } else {
+      target = Math.max(0, assistantTop - SETTLE_PADDING);
+    }
+    target = Math.min(target, bottomTarget);
+
+    if (Math.abs(target - el.scrollTop) < 0.5) return;
+    suppressScrollTracking();
+    el.scrollTop = target;
+  }, [sending, streamingId, turnSpacerPx, pinnedToBottom]);
 
   // While pinned AND a reply is actively streaming in, continuously ease the
   // scroll position toward the bottom every frame instead of ever
@@ -977,21 +1185,37 @@ function ChatPage() {
 
   // Everything else that can move the bottom of the list while pinned but
   // isn't a per-frame stream — a new user bubble appended, the typing
-  // indicator showing/hiding, an error row, the final commit right as
-  // streaming ends — gets one native smooth scroll, not a persistent loop.
-  // Skipped while the effect above owns the frame (`streamingId` set) or
-  // while anchored, so nothing fights over the scroll position.
+  // indicator showing/hiding, an error row, the feedback footer mounting the
+  // instant streaming ends, the final commit itself — gets one instant
+  // correction, not a persistent loop and not an animated one. This used to
+  // scroll with `behavior: "smooth"`, which is exactly what produced the
+  // post-stream jerk: the moment `anchoredMessageId` clears it could fire
+  // before Step 4/5 above have collapsed `turnSpacerPx`, animating toward a
+  // target that still includes the (about-to-be-removed) reserved space,
+  // then getting yanked back when the spacer actually collapses a couple of
+  // frames later. Gating on `turnSpacerPx === 0` means this never runs until
+  // that collapse (and its own scrollTop correction) is already done, so by
+  // the time this effect's target is computed it's already correct — this
+  // is purely a fallback snap for cases the spacer flow doesn't cover (e.g.
+  // regenerate, which never anchors). Smooth stays reserved for the
+  // user-initiated jump-to-bottom button below.
+  // Skipped while the effect above owns the frame (`streamingId` set), while
+  // anchored, while the spacer hasn't settled yet, or once Step 6 has
+  // already chosen a resting position for the current turn — otherwise this
+  // would immediately override Step 6's "show answer start" placement back
+  // to the hard bottom the moment any later re-render touches `messages`
+  // (e.g. hydrateLastAssistantMessage patching in `dbId`).
   useEffect(() => {
-    if (streamingId || anchoredMessageId) return;
+    if (streamingId || anchoredMessageId || turnSpacerPx > 0) return;
+    if (lastTurnAssistantIdRef.current && settledTurnIdRef.current === lastTurnAssistantIdRef.current)
+      return;
     const el = listRef.current;
     if (!el || !pinnedToBottom) return;
     const target = el.scrollHeight - el.clientHeight;
     if (target - el.scrollTop < 0.5) return;
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-    el.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
-  }, [messages, sending, streamingId, pinnedToBottom, anchoredMessageId]);
+    suppressScrollTracking();
+    el.scrollTop = target;
+  }, [messages, sending, streamingId, pinnedToBottom, anchoredMessageId, turnSpacerPx]);
 
   const scrollToBottom = () => {
     const el = listRef.current;
@@ -1028,6 +1252,7 @@ function ChatPage() {
         if (placeholderInserted) return;
         placeholderInserted = true;
         activeStreamIdRef.current = assistantId;
+        lastTurnAssistantIdRef.current = assistantId;
         setMessages((m) => [...m, { id: assistantId, role: "assistant", content: "" }]);
         setStreamingId(assistantId);
         setStreamPhase("writing");
@@ -1258,6 +1483,7 @@ function ChatPage() {
       setTurnSpacerPx(0);
       setPinnedToBottom(false);
       const userMsgId = newId();
+      lastTurnUserIdRef.current = userMsgId;
       setMessages((m) => [...m, { id: userMsgId, role: "user", content: text }]);
       setInput("");
       setPendingAnchorId(userMsgId);
@@ -1267,6 +1493,22 @@ function ChatPage() {
     },
     [sending, sendToBackend, pendingSubjectChartId, readAloud],
   );
+
+  // Light-touch nudge when the composer gains focus on mobile: if the
+  // reader is pinned to the bottom and no turn is in flight, snap the list
+  // to the true bottom so the keyboard opening doesn't leave them looking
+  // at a stale scroll position above the composer. Bails during a turn
+  // (`sending`/`streamingId`) so it can never compete with the
+  // anchor-on-send scroll or Prompt 4's post-stream settle, and does
+  // nothing at all when scrolled up reading history (`pinnedToBottom`
+  // false) or on desktop, where there's no keyboard to react to.
+  const handleComposerFocus = useCallback(() => {
+    if (!isMobile || sending || streamingId || !pinnedToBottom) return;
+    const el = listRef.current;
+    if (!el) return;
+    suppressScrollTracking();
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+  }, [isMobile, sending, streamingId, pinnedToBottom]);
 
   const handleRetry = useCallback(() => {
     if (!lastFailed || sending) return;
@@ -1285,6 +1527,7 @@ function ChatPage() {
     }
     if (lastUserIdx === -1) return;
     const text = messages[lastUserIdx].content;
+    lastTurnUserIdRef.current = messages[lastUserIdx].id;
     setMessages((m) => m.slice(0, lastUserIdx + 1));
     void sendToBackend(text);
   }, [messages, sending, sendToBackend]);
@@ -1302,6 +1545,9 @@ function ChatPage() {
     setAnchoredMessageId(null);
     setTurnSpacerPx(0);
     messageElRefs.current.clear();
+    lastTurnUserIdRef.current = null;
+    lastTurnAssistantIdRef.current = null;
+    settledTurnIdRef.current = null;
     if (isMobile) setSidebarOpen(false);
     textareaRef.current?.focus();
   }, [isMobile]);
@@ -1365,8 +1611,30 @@ function ChatPage() {
 
   const hasMessages = messages.length > 0 || sending;
 
+  // Mobile chrome stack, top to bottom: TopBar (own safe-area-top padding)
+  // -> message list (flex-1 min-h-0, the only scroller) -> Composer (own
+  // padding + disclaimer) -> AppShell's fixed MobileTabBar -> iOS home
+  // indicator. AppShell renders MobileTabBar as `position: fixed`, i.e. an
+  // overlay outside this component's DOM entirely — so this root is the
+  // single owner of the space reserved for it: `--mobile-tabbar-h` (content
+  // height) + `env(safe-area-inset-bottom)` (added here, once — the tab bar
+  // applies that same env() to itself separately, so it is never
+  // double-counted). The Composer's own bottom padding below is just its
+  // internal breathing room above the reserved boundary, not more inset.
+  //
+  // `max(--keyboard-inset-px, ...)` on top of that: when the on-screen
+  // keyboard is open, `--keyboard-inset-px` (set above) is the real
+  // occluded height and is reliably taller than the tab bar's own reserve,
+  // so `max()` picks it and the composer docks just above the keyboard —
+  // the tab bar is physically underneath the keyboard at that point, so it
+  // doesn't need (and must not get) a second stacked reserve on top. When
+  // the keyboard is closed, `--keyboard-inset-px` is 0 and this is exactly
+  // Prompt 5's tab-bar-only reserve again.
   return (
-    <div className="flex h-[100dvh] md:h-screen w-full overflow-hidden bg-background text-foreground pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div
+      className="flex h-[100dvh] md:h-screen w-full overflow-hidden bg-background text-foreground pb-[max(var(--keyboard-inset-px,0px),calc(var(--mobile-tabbar-h)+env(safe-area-inset-bottom)))] md:pb-0"
+      style={{ "--keyboard-inset-px": `${keyboardInsetPx}px` } as React.CSSProperties}
+    >
       {/* Sidebar */}
       <Sidebar
         open={sidebarOpen}
@@ -1382,7 +1650,7 @@ function ChatPage() {
       />
 
       {/* Main column */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopBar
           onToggleSidebar={toggleSidebar}
           onNewChat={handleNewChat}
@@ -1391,70 +1659,127 @@ function ChatPage() {
           profileName={profileName}
         />
 
-        <div className="relative flex flex-1 flex-col overflow-hidden">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {!initialLoadDone ? (
             <div className="flex-1" aria-hidden="true" />
-          ) : hasMessages ? (
+          ) : (
             <>
-              <div className="relative flex-1 overflow-hidden">
-                <div
-                  ref={listRef}
-                  role="log"
-                  aria-live="off"
-                  aria-label={t("chat.title")}
-                  className="h-full overflow-y-auto overscroll-contain"
-                >
-                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 md:px-8 md:py-10 [overflow-anchor:none]">
-                    {messages.map((m) => (
-                      <MessageRow
-                        key={m.id}
-                        message={m}
-                        streaming={m.id === streamingId}
-                        onCopy={() => copy(m.content)}
-                        onEdit={undefined}
-                        conversationId={conversationId}
-                        feedback={m.dbId ? feedbackMap[m.dbId] : undefined}
-                        onFeedbackChange={updateFeedback}
-                        isSpeaking={readAloud.playingId === m.id}
-                        isSpeakLoading={readAloud.loadingId === m.id}
-                        onToggleSpeak={() => speakMessage(m.id, m.content)}
-                        registerRef={(el) => {
-                          if (el) messageElRefs.current.set(m.id, el);
-                          else messageElRefs.current.delete(m.id);
-                        }}
-                      />
-                    ))}
-                    {sending && !streamingId && (
-                      <TypingRow
-                        phase={
-                          streamPhase === "reconnecting"
-                            ? "reconnecting"
-                            : streamPhase === "thinking"
-                              ? "thinking"
-                              : "connecting"
-                        }
-                      />
-                    )}
-                    {error && <ErrorRow message={error} onRetry={handleRetry} />}
-                    <div ref={bottomRef} />
-                    {turnSpacerPx > 0 && (
-                      <div aria-hidden="true" style={{ minHeight: turnSpacerPx }} />
-                    )}
-                  </div>
-                </div>
-                <SrAnnouncer text={phaseAnnouncement} />
-                <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-                  {srFinal}
-                </div>
-                {!pinnedToBottom && (
-                  <button
-                    type="button"
-                    onClick={scrollToBottom}
-                    aria-label={t("chat.scrollToBottom", "Scroll to bottom")}
-                    className="tap-press motion-fade-up absolute bottom-3 left-1/2 z-30 grid h-11 w-11 -translate-x-1/2 place-items-center rounded-full border border-accent/40 bg-card/95 shadow-2xl backdrop-blur-xl transition-all hover:bg-card hover:border-accent/70 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              {/* One shared shell for both the empty hero and the active
+                  thread — only the content ABOVE the composer switches on
+                  `hasMessages`; the composer itself (below) is a single,
+                  never-remounted instance so the first send doesn't blur/
+                  refocus the textarea or reset any in-progress mic
+                  recording, and doesn't read as a hard page swap. */}
+              <div className="relative min-h-0 flex-1 overflow-hidden">
+                {hasMessages ? (
+                  <div
+                    ref={listRef}
+                    role="log"
+                    aria-live="off"
+                    aria-label={t("chat.title")}
+                    className="h-full overflow-y-auto overscroll-contain"
                   >
-                    <ArrowDown size={18} className="text-accent" aria-hidden="true" />
-                  </button>
+                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-3 pb-8 pt-3 md:gap-6 md:px-8 md:pb-10 md:pt-6 [overflow-anchor:none]">
+                      {messages.map((m, i) => (
+                        <MessageRow
+                          key={m.id}
+                          message={m}
+                          streaming={m.id === streamingId}
+                          groupedWithPrev={m.role === "assistant" && messages[i - 1]?.role === "user"}
+                          onCopy={() => copy(m.content)}
+                          onEdit={undefined}
+                          conversationId={conversationId}
+                          feedback={m.dbId ? feedbackMap[m.dbId] : undefined}
+                          onFeedbackChange={updateFeedback}
+                          isSpeaking={readAloud.playingId === m.id}
+                          isSpeakLoading={readAloud.loadingId === m.id}
+                          onToggleSpeak={() => speakMessage(m.id, m.content)}
+                          registerRef={(el) => {
+                            if (el) messageElRefs.current.set(m.id, el);
+                            else messageElRefs.current.delete(m.id);
+                          }}
+                        />
+                      ))}
+                      {sending && !streamingId && (
+                        <TypingRow
+                          groupedWithPrev={messages[messages.length - 1]?.role === "user"}
+                          phase={
+                            streamPhase === "reconnecting"
+                              ? "reconnecting"
+                              : streamPhase === "thinking"
+                                ? "thinking"
+                                : "connecting"
+                          }
+                        />
+                      )}
+                      {error && <ErrorRow message={error} onRetry={handleRetry} />}
+                      <div ref={bottomRef} />
+                      {turnSpacerPx > 0 && (
+                        <div aria-hidden="true" style={{ minHeight: turnSpacerPx }} />
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative flex h-full flex-col items-center justify-center overflow-y-auto px-4 py-10">
+                    {/* Ambient celestial wash */}
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        background:
+                          "radial-gradient(60% 45% at 50% 20%, color-mix(in oklab, var(--glow-gold) 10%, transparent), transparent 65%), radial-gradient(50% 40% at 20% 90%, color-mix(in oklab, var(--glow-violet) 10%, transparent), transparent 70%)",
+                      }}
+                    />
+                    <div className="motion-fade-up relative flex w-full max-w-2xl flex-col items-center gap-8">
+                      <div className="flex flex-col items-center gap-4 text-center">
+                        <div
+                          aria-hidden="true"
+                          className="relative grid h-16 w-16 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/30 shadow-[var(--shadow-glow-gold)]"
+                        >
+                          <BrandMark withWordmark={false} />
+                        </div>
+                        <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
+                          {t("chat.emptyGreeting")}
+                        </h1>
+                      </div>
+                      {suggestions.length > 0 && (
+                        <div
+                          role="group"
+                          aria-label={t("chat.suggestionsLabel")}
+                          className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
+                        >
+                          {suggestions.map((text, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => handleSuggestionClick(text)}
+                              className="tap-press flex min-h-[3.25rem] items-center justify-center rounded-2xl border border-border bg-card/60 px-5 py-3 text-center text-sm leading-snug text-foreground transition-all hover:border-accent/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              {text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {hasMessages && (
+                  <>
+                    <SrAnnouncer text={phaseAnnouncement} />
+                    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                      {srFinal}
+                    </div>
+                    {!pinnedToBottom && (
+                      <button
+                        type="button"
+                        onClick={scrollToBottom}
+                        aria-label={t("chat.scrollToBottom", "Scroll to bottom")}
+                        className="tap-press motion-fade-up absolute bottom-4 left-1/2 z-30 grid h-11 w-11 -translate-x-1/2 place-items-center rounded-full border border-accent/40 bg-card/95 shadow-2xl backdrop-blur-xl transition-all hover:bg-card hover:border-accent/70 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring md:bottom-5"
+                      >
+                        <ArrowDown size={18} className="text-accent" aria-hidden="true" />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
               <Composer
@@ -1467,67 +1792,10 @@ function ChatPage() {
                 textareaRef={textareaRef}
                 voiceInputEnabled={voiceSettings.inputEnabled}
                 sttLangCode={ttsLangCode}
+                onFocusComposer={handleComposerFocus}
               />
             </>
-          ) : (
-            <div className="relative flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10">
-              {/* Ambient celestial wash */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    "radial-gradient(60% 45% at 50% 20%, color-mix(in oklab, var(--glow-gold) 10%, transparent), transparent 65%), radial-gradient(50% 40% at 20% 90%, color-mix(in oklab, var(--glow-violet) 10%, transparent), transparent 70%)",
-                }}
-              />
-              <div className="motion-fade-up relative flex w-full max-w-2xl flex-col items-center gap-8">
-                <div className="flex flex-col items-center gap-4 text-center">
-                  <div
-                    aria-hidden="true"
-                    className="relative grid h-16 w-16 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/30 shadow-[var(--shadow-glow-gold)]"
-                  >
-                    <BrandMark withWordmark={false} />
-                  </div>
-                  <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
-                    {t("chat.emptyGreeting")}
-                  </h1>
-                </div>
-                {suggestions.length > 0 && (
-                  <div
-                    role="group"
-                    aria-label={t("chat.suggestionsLabel")}
-                    className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
-                  >
-                    {suggestions.map((text, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => handleSuggestionClick(text)}
-                        className="tap-press flex min-h-[3.25rem] items-center justify-center rounded-2xl border border-border bg-card/60 px-5 py-3 text-center text-sm leading-snug text-foreground transition-all hover:border-accent/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        {text}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="w-full">
-                  <Composer
-                    value={input}
-                    onChange={setInput}
-                    onSend={() => handleSend(input)}
-                    onStop={abortActiveStream}
-                    onKeyDown={onKeyDown}
-                    sending={sending}
-                    textareaRef={textareaRef}
-                    voiceInputEnabled={voiceSettings.inputEnabled}
-                    sttLangCode={ttsLangCode}
-                    inline
-                  />
-                </div>
-              </div>
-            </div>
           )}
-
         </div>
       </div>
     </div>
@@ -1705,6 +1973,14 @@ function Sidebar({
       className={`flex h-full w-80 shrink-0 flex-col border-r border-border/70 bg-card/70 backdrop-blur-xl transition-transform duration-300 ease-out ${
         isMobile ? "fixed inset-y-0 left-0 z-50 rounded-r-3xl shadow-2xl" : "relative"
       } ${open ? "translate-x-0" : "-translate-x-full"} ${!isMobile && !open ? "hidden" : ""}`}
+      style={
+        isMobile
+          ? {
+              paddingTop: "env(safe-area-inset-top)",
+              paddingBottom: "env(safe-area-inset-bottom)",
+            }
+          : undefined
+      }
     >
       {isMobile && (
         <div className="flex justify-end px-3 pt-3">
@@ -1712,7 +1988,7 @@ function Sidebar({
             type="button"
             onClick={onClose}
             aria-label={t("chat.closeSidebar")}
-            className="tap-press rounded-full p-2 text-foreground/70 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press grid min-h-11 min-w-11 place-items-center rounded-full text-foreground/70 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X size={18} aria-hidden="true" />
           </button>
@@ -1823,7 +2099,7 @@ function TopBar({
           onClick={onToggleSidebar}
           aria-label={sidebarOpen ? t("chat.closeSidebar") : t("chat.openSidebar")}
           title={sidebarOpen ? t("chat.closeSidebar") : t("chat.openSidebar")}
-          className="tap-press rounded-lg p-2 text-foreground/80 hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="tap-press grid min-h-11 min-w-11 place-items-center rounded-lg text-foreground/80 hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Menu size={18} aria-hidden="true" />
         </button>
@@ -1833,7 +2109,7 @@ function TopBar({
             onClick={onNewChat}
             aria-label={t("chat.newChat")}
             title={t("chat.newChat")}
-            className="tap-press inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm hover:border-accent/40 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm hover:border-accent/40 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <MessageSquarePlus size={15} className="text-accent" aria-hidden="true" />
             <span className="hidden sm:inline">{t("chat.newChat")}</span>
@@ -1991,6 +2267,7 @@ function StreamingMarkdown({ content, streaming }: { content: string; streaming:
 function MessageRow({
   message,
   streaming,
+  groupedWithPrev = false,
   onCopy,
   onEdit,
   conversationId,
@@ -2003,6 +2280,14 @@ function MessageRow({
 }: {
   message: ChatMessage;
   streaming: boolean;
+  // True for an assistant reply immediately following its own user
+  // question — pulls it a little closer to that question than the default
+  // inter-turn gap, so a question+answer pair reads as one grouped turn
+  // rather than being spaced identically to unrelated turns. Presentational
+  // only (negative margin on top of the list's own `gap`); every height
+  // measurement in Prompts 2–4 reads real layout via
+  // offsetHeight/getBoundingClientRect, so this can't desync them.
+  groupedWithPrev?: boolean;
   onCopy: () => void;
   onEdit?: () => void;
   conversationId: string | null;
@@ -2024,7 +2309,7 @@ function MessageRow({
   if (message.role === "user") {
     return (
       <div ref={registerRef} className="motion-fade-up group flex flex-col items-end gap-1.5">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-tr-sm bg-accent/10 px-4 py-3 text-base leading-relaxed text-foreground shadow-sm ring-1 ring-accent/25">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl rounded-tr-sm bg-accent/10 px-4 py-3 text-base leading-relaxed text-foreground shadow-sm ring-1 ring-accent/25 md:max-w-[70%]">
           {message.content}
         </div>
         <div className="flex gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
@@ -2041,8 +2326,21 @@ function MessageRow({
     );
   }
 
+  // While the placeholder is mounted but no delta has landed yet, reserve
+  // the same min-height as TypingRow's pill (see that component's comment)
+  // so the swap from "typing…" to this row doesn't change the list's total
+  // height. Only while genuinely empty — once real content arrives it grows
+  // past this floor immediately and the min-height stops doing anything.
+  const reserveTypingHeight = streaming && !message.content;
   return (
-    <div ref={registerRef} className="motion-fade-up group">
+    <div
+      ref={registerRef}
+      className={
+        "motion-fade-up group" +
+        (reserveTypingHeight ? " min-h-12" : "") +
+        (groupedWithPrev ? " -mt-2 md:-mt-2.5" : "")
+      }
+    >
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2">
           <span className="text-xs font-semibold text-foreground tracking-tight">
@@ -2057,7 +2355,7 @@ function MessageRow({
         </div>
         <div
           className={
-            "prose max-w-none text-foreground leading-relaxed " +
+            "prose max-w-none break-words text-foreground leading-relaxed " +
             "[&>*:first-child]:mt-0 " +
             "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 " +
             "[&_strong]:font-semibold [&_strong]:text-foreground [&_em]:italic [&_em]:text-foreground/90 " +
@@ -2183,7 +2481,7 @@ function Composer({
   textareaRef,
   voiceInputEnabled,
   sttLangCode,
-  inline = false,
+  onFocusComposer,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -2194,7 +2492,7 @@ function Composer({
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   voiceInputEnabled: boolean;
   sttLangCode: string;
-  inline?: boolean;
+  onFocusComposer?: () => void;
 }) {
   const { t } = useTranslation();
   const canSend = value.trim().length > 0 && !sending;
@@ -2246,13 +2544,7 @@ function Composer({
   const ss = String(elapsedSec % 60).padStart(2, "0");
 
   return (
-    <div
-      className={
-        inline
-          ? "w-full"
-          : "border-t border-transparent bg-gradient-to-t from-background via-background/95 to-background/0 px-4 pb-4 pt-4 md:px-8"
-      }
-    >
+    <div className="border-t border-transparent bg-gradient-to-t from-background via-background/95 to-background/0 px-3 pt-4 pb-3 md:px-8 md:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="mx-auto w-full max-w-3xl">
         {stt.busy && !stt.recording && (
           <div className="motion-fade-up mb-2 flex justify-start" role="status" aria-live="polite">
@@ -2313,6 +2605,7 @@ function Composer({
               value={value}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={onKeyDown}
+              onFocus={onFocusComposer}
               rows={1}
               disabled={sending}
               placeholder={t("chat.composerPlaceholder")}
@@ -2369,7 +2662,7 @@ function Composer({
             </button>
           )}
         </form>
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+        <p className="mt-1.5 text-center text-[10px] text-muted-foreground md:text-[11px]">
           {t("chat.disclaimerLong")}
         </p>
       </div>
@@ -2391,7 +2684,13 @@ async function copy(text: string) {
 
 // ---------- Extras: typing indicator, error row, conversation grouping ----------
 
-function TypingRow({ phase }: { phase: "connecting" | "thinking" | "reconnecting" }) {
+function TypingRow({
+  phase,
+  groupedWithPrev = false,
+}: {
+  phase: "connecting" | "thinking" | "reconnecting";
+  groupedWithPrev?: boolean;
+}) {
   const { t } = useTranslation();
   const label =
     phase === "reconnecting"
@@ -2400,7 +2699,16 @@ function TypingRow({ phase }: { phase: "connecting" | "thinking" | "reconnecting
         ? t("chat.phaseThinking")
         : t("chat.phaseConnecting");
   return (
-    <div className="motion-fade-up flex items-center">
+    // min-h matches the assistant row's empty-placeholder min-height below
+    // (name label + ~1 line) so swapping this pill for that row when the
+    // first delta arrives doesn't change the list's total height. This only
+    // ever appears right after the user's own bubble, so it always gets the
+    // same "grouped" pull-up as a grouped assistant reply (see MessageRow).
+    <div
+      className={
+        "motion-fade-up flex min-h-12 items-center" + (groupedWithPrev ? " -mt-2 md:-mt-2.5" : "")
+      }
+    >
       <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3.5 py-1.5 text-xs font-medium text-accent backdrop-blur">
         <span className="flex gap-1" aria-hidden="true">
           <span

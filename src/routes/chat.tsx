@@ -2135,11 +2135,12 @@ function Sidebar({
 
 function StickJumpButton() {
   const { t } = useTranslation();
-  const { escapedFromLock, scrollToBottom } = useStickToBottomContext();
-  // Show only once the USER has scrolled away from the bottom. Using
-  // escapedFromLock (not !isAtBottom) prevents the button flickering during
-  // streaming, when content can grow a frame ahead of the auto-follow.
-  if (!escapedFromLock) return null;
+  const { escapedFromLock, isAtBottom, scrollToBottom } = useStickToBottomContext();
+  // Hide whenever we're at the bottom (isAtBottom always resets, unlike
+  // escapedFromLock, which can stay true after a manual scroll back down).
+  // Keeping escapedFromLock in the guard prevents flicker during streaming,
+  // when content can grow a frame ahead of the auto-follow.
+  if (isAtBottom || !escapedFromLock) return null;
   return (
     <button
       type="button"

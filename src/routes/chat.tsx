@@ -420,6 +420,25 @@ function ChatPage() {
     });
   }, [isMobile]);
 
+  useEffect(() => {
+    if (!isMobile) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = { htmlOverflow: html.style.overflow, bodyOverflow: body.style.overflow, bodyPos: body.style.position, bodyW: body.style.width };
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.width = "100%";
+    (body.style as any).overscrollBehavior = "none";
+    return () => {
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.position = prev.bodyPos;
+      body.style.width = prev.bodyW;
+      (body.style as any).overscrollBehavior = "";
+    };
+  }, [isMobile]);
+
   // Messages
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // Rating/outcome/remedy selections keyed by persisted chat_messages.id.
@@ -474,6 +493,7 @@ function ChatPage() {
   // once per turn instead of re-fighting itself on every later re-render
   // (e.g. hydrateLastAssistantMessage's dbId patch-in after the turn ends).
   const settledTurnIdRef = useRef<string | null>(null);
+  const userScrolledDuringTurnRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Tracks the freshest known conversation id for provenance hydration after
   // a stream completes, since `conversationId` state lags behind onMeta/the
@@ -844,6 +864,9 @@ function ChatPage() {
     const onScroll = () => {
       if (anchoredMessageId || suppressScrollTrackingRef.current) return;
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (!suppressScrollTrackingRef.current && (sending || streamingId) && distance > PIN_EXIT_PX) {
+        userScrolledDuringTurnRef.current = true;
+      }
       setPinnedToBottom((prev) => (prev ? distance < PIN_EXIT_PX : distance < PIN_REENTER_PX));
     };
     el.addEventListener("scroll", onScroll, { passive: true });
@@ -875,6 +898,7 @@ function ChatPage() {
       raf = null;
       const occlusion = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       setKeyboardInsetPx(occlusion);
+      window.scrollTo(0, 0);
     };
     const onChange = () => {
       if (raf !== null) return;
@@ -971,7 +995,7 @@ function ChatPage() {
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-    container.scrollTo({ top: pending.top, behavior: reduce ? "auto" : "smooth" });
+    container.scrollTo({ top: pending.top, behavior: "auto" });
   }, [turnSpacerPx]);
 
   // Step 3: while anchored, watch for the reply outgrowing the reserved
@@ -1090,7 +1114,7 @@ function ChatPage() {
   // this and fight the position a second time.
   useLayoutEffect(() => {
     if (sending || streamingId || turnSpacerPx > 0) return;
-    if (!pinnedToBottom) return; // rule 1
+    if (userScrolledDuringTurnRef.current) return; // user took control this turn
     const assistantId = lastTurnAssistantIdRef.current;
     if (!assistantId || settledTurnIdRef.current === assistantId) return;
     const el = listRef.current;
@@ -1473,6 +1497,7 @@ function ChatPage() {
 
   const handleSend = useCallback(
     async (raw: string) => {
+      userScrolledDuringTurnRef.current = false;
       const text = raw.trim();
       if (!text || sending) return;
       // Cancel any read-aloud in progress — the user is moving on.
@@ -1632,7 +1657,7 @@ function ChatPage() {
   // Prompt 5's tab-bar-only reserve again.
   return (
     <div
-      className="flex h-[100dvh] md:h-screen w-full overflow-hidden bg-background text-foreground pb-[max(var(--keyboard-inset-px,0px),calc(var(--mobile-tabbar-h)+env(safe-area-inset-bottom)))] md:pb-0"
+      className="fixed inset-0 md:static flex h-[100dvh] md:h-screen w-full overflow-hidden bg-background text-foreground pb-[max(var(--keyboard-inset-px,0px),calc(var(--mobile-tabbar-h)+env(safe-area-inset-bottom)))] md:pb-0"
       style={{ "--keyboard-inset-px": `${keyboardInsetPx}px` } as React.CSSProperties}
     >
       {/* Sidebar */}

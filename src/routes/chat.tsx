@@ -40,6 +40,7 @@ import {
   useVoiceSettings,
 } from "@/lib/voice/useVoice";
 import { RecordingWaveform } from "@/components/voice/RecordingWaveform";
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,13 @@ type FeedbackMap = Record<string, FeedbackEntry>;
 function newId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
+
+// Scroll engine. "stick" = use-stick-to-bottom (new). "legacy" = custom system (fallback).
+// Force the fallback at runtime: localStorage.setItem("scrollEngine","legacy") then reload.
+const SCROLL_ENGINE: "stick" | "legacy" =
+  typeof window !== "undefined" && window.localStorage.getItem("scrollEngine") === "legacy"
+    ? "legacy"
+    : "stick";
 
 function SrAnnouncer({ text, assertive = false }: { text: string; assertive?: boolean }) {
   return (
@@ -1636,6 +1644,59 @@ function ChatPage() {
 
   const hasMessages = messages.length > 0 || sending;
 
+  // Shared message column rendered by whichever scroll engine is active.
+  // In stick mode the StickToBottom root is the scroller, so the log role
+  // lives here; in legacy mode the listRef div already carries it, so we
+  // skip it to avoid a nested duplicate role="log".
+  const listA11y =
+    SCROLL_ENGINE === "stick"
+      ? { role: "log" as const, "aria-live": "off" as const, "aria-label": t("chat.title") }
+      : {};
+  const messageColumn = (
+    <div
+      {...listA11y}
+      className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-3 pb-8 pt-3 md:gap-6 md:px-8 md:pb-10 md:pt-6 [overflow-anchor:none]"
+    >
+      {messages.map((m, i) => (
+        <MessageRow
+          key={m.id}
+          message={m}
+          streaming={m.id === streamingId}
+          groupedWithPrev={m.role === "assistant" && messages[i - 1]?.role === "user"}
+          onCopy={() => copy(m.content)}
+          onEdit={undefined}
+          conversationId={conversationId}
+          feedback={m.dbId ? feedbackMap[m.dbId] : undefined}
+          onFeedbackChange={updateFeedback}
+          isSpeaking={readAloud.playingId === m.id}
+          isSpeakLoading={readAloud.loadingId === m.id}
+          onToggleSpeak={() => speakMessage(m.id, m.content)}
+          registerRef={(el) => {
+            if (el) messageElRefs.current.set(m.id, el);
+            else messageElRefs.current.delete(m.id);
+          }}
+        />
+      ))}
+      {sending && !streamingId && (
+        <TypingRow
+          groupedWithPrev={messages[messages.length - 1]?.role === "user"}
+          phase={
+            streamPhase === "reconnecting"
+              ? "reconnecting"
+              : streamPhase === "thinking"
+                ? "thinking"
+                : "connecting"
+          }
+        />
+      )}
+      {error && <ErrorRow message={error} onRetry={handleRetry} />}
+      {SCROLL_ENGINE === "legacy" && <div ref={bottomRef} />}
+      {SCROLL_ENGINE === "legacy" && turnSpacerPx > 0 && (
+        <div aria-hidden="true" style={{ minHeight: turnSpacerPx }} />
+      )}
+    </div>
+  );
+
   // Mobile chrome stack, top to bottom: TopBar (own safe-area-top padding)
   // -> message list (flex-1 min-h-0, the only scroller) -> Composer (own
   // padding + disclaimer) -> AppShell's fixed MobileTabBar -> iOS home
@@ -1697,53 +1758,29 @@ function ChatPage() {
                   recording, and doesn't read as a hard page swap. */}
               <div className="relative min-h-0 flex-1 overflow-hidden">
                 {hasMessages ? (
-                  <div
-                    ref={listRef}
-                    role="log"
-                    aria-live="off"
-                    aria-label={t("chat.title")}
-                    className="h-full overflow-y-auto overscroll-contain"
-                  >
-                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-3 pb-8 pt-3 md:gap-6 md:px-8 md:pb-10 md:pt-6 [overflow-anchor:none]">
-                      {messages.map((m, i) => (
-                        <MessageRow
-                          key={m.id}
-                          message={m}
-                          streaming={m.id === streamingId}
-                          groupedWithPrev={m.role === "assistant" && messages[i - 1]?.role === "user"}
-                          onCopy={() => copy(m.content)}
-                          onEdit={undefined}
-                          conversationId={conversationId}
-                          feedback={m.dbId ? feedbackMap[m.dbId] : undefined}
-                          onFeedbackChange={updateFeedback}
-                          isSpeaking={readAloud.playingId === m.id}
-                          isSpeakLoading={readAloud.loadingId === m.id}
-                          onToggleSpeak={() => speakMessage(m.id, m.content)}
-                          registerRef={(el) => {
-                            if (el) messageElRefs.current.set(m.id, el);
-                            else messageElRefs.current.delete(m.id);
-                          }}
-                        />
-                      ))}
-                      {sending && !streamingId && (
-                        <TypingRow
-                          groupedWithPrev={messages[messages.length - 1]?.role === "user"}
-                          phase={
-                            streamPhase === "reconnecting"
-                              ? "reconnecting"
-                              : streamPhase === "thinking"
-                                ? "thinking"
-                                : "connecting"
-                          }
-                        />
-                      )}
-                      {error && <ErrorRow message={error} onRetry={handleRetry} />}
-                      <div ref={bottomRef} />
-                      {turnSpacerPx > 0 && (
-                        <div aria-hidden="true" style={{ minHeight: turnSpacerPx }} />
-                      )}
+                  SCROLL_ENGINE === "stick" ? (
+                    <StickToBottom
+                      className="relative h-full"
+                      initial="instant"
+                      resize="smooth"
+                      damping={0.8}
+                      stiffness={0.05}
+                      mass={1}
+                    >
+                      <StickToBottom.Content>{messageColumn}</StickToBottom.Content>
+                      <StickJumpButton />
+                    </StickToBottom>
+                  ) : (
+                    <div
+                      ref={listRef}
+                      role="log"
+                      aria-live="off"
+                      aria-label={t("chat.title")}
+                      className="h-full overflow-y-auto overscroll-contain"
+                    >
+                      {messageColumn}
                     </div>
-                  </div>
+                  )
                 ) : (
                   <div className="relative flex h-full flex-col items-center justify-center overflow-y-auto px-4 py-10">
                     {/* Ambient celestial wash */}
@@ -2095,6 +2132,25 @@ function Sidebar({
     );
   }
   return panel;
+}
+
+function StickJumpButton() {
+  const { t } = useTranslation();
+  const { escapedFromLock, scrollToBottom } = useStickToBottomContext();
+  // Show only once the USER has scrolled away from the bottom. Using
+  // escapedFromLock (not !isAtBottom) prevents the button flickering during
+  // streaming, when content can grow a frame ahead of the auto-follow.
+  if (!escapedFromLock) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => scrollToBottom()}
+      aria-label={t("chat.scrollToBottom", "Scroll to bottom")}
+      className="tap-press motion-fade-up absolute bottom-4 left-1/2 z-30 grid h-11 w-11 -translate-x-1/2 place-items-center rounded-full border border-accent/40 bg-card/95 shadow-2xl backdrop-blur-xl transition-all hover:bg-card hover:border-accent/70 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring md:bottom-5"
+    >
+      <ArrowDown size={18} className="text-accent" aria-hidden="true" />
+    </button>
+  );
 }
 
 // ---------- Top bar ----------

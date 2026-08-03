@@ -906,7 +906,6 @@ function ChatPage() {
       raf = null;
       const occlusion = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       setKeyboardInsetPx(occlusion);
-      window.scrollTo(0, 0);
     };
     const onChange = () => {
       if (raf !== null) return;
@@ -1718,7 +1717,7 @@ function ChatPage() {
   // Prompt 5's tab-bar-only reserve again.
   return (
     <div
-      className="fixed inset-0 md:static flex h-[100dvh] md:h-screen w-full overflow-hidden bg-background text-foreground pb-[max(var(--keyboard-inset-px,0px),calc(var(--mobile-tabbar-h)+env(safe-area-inset-bottom)))] md:pb-0"
+      className="flex h-[100dvh] md:h-screen w-full overflow-hidden bg-background text-foreground pb-[max(var(--keyboard-inset-px,0px),calc(var(--mobile-tabbar-h)+env(safe-area-inset-bottom)))] md:pb-0"
       style={{ "--keyboard-inset-px": `${keyboardInsetPx}px` } as React.CSSProperties}
     >
       {/* Sidebar */}
@@ -1831,7 +1830,7 @@ function ChatPage() {
                     <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                       {srFinal}
                     </div>
-                    {!pinnedToBottom && (
+                    {SCROLL_ENGINE === "legacy" && !pinnedToBottom && (
                       <button
                         type="button"
                         onClick={scrollToBottom}

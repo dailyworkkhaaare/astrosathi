@@ -24,6 +24,7 @@ import { ChartFrame } from "@/components/chart/ChartFrame";
 
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import {
+  CHART_STYLES,
   SIGN_LORD,
   VARGA_KEYS,
   type ChartStyle,
@@ -44,6 +45,7 @@ import { AshtakavargaSection } from "@/components/AshtakavargaSection";
 import { LoShuSection } from "@/components/LoShuSection";
 import { DashaSection } from "@/components/DashaSection";
 import { RemediesSection } from "@/components/RemediesSection";
+import { CosmosOverview, type CosmosOverviewTab } from "@/components/CosmosOverview";
 
 // Format a degree-within-sign (0..30) as Vedic degrees-minutes, e.g. 20.64 -> "20°38′".
 function formatDeg(deg: number | null): string | null {
@@ -84,6 +86,7 @@ const NORTH_CHART_HOUSE_REGIONS: { house: number; points: string }[] = [
 ];
 
 const TAB_KEYS = [
+  "overview",
   "charts",
   "details",
   "doshas",
@@ -137,7 +140,7 @@ function HomePage() {
   const name = profile?.name?.split(" ")[0] ?? "AstroSaathi";
   const navigate = useNavigate({ from: Route.fullPath });
   const { tab: tabParam } = Route.useSearch();
-  const tab: TabKey = tabParam ?? "charts";
+  const tab: TabKey = tabParam ?? "overview";
   const setTab = (k: TabKey) => void navigate({ search: { tab: k }, replace: true });
   const isProfileIncomplete = profileLoaded && (!profile || !profile.dob);
   const unreadNudges = useUnreadNudgeCount();
@@ -193,6 +196,9 @@ function HomePage() {
       <Tabs current={tab} onChange={setTab} />
 
       <div key={tab} className="motion-fade-up">
+        {tab === "overview" && (
+          <CosmosOverview onSelectTab={setTab as (tab: CosmosOverviewTab) => void} />
+        )}
         {tab === "charts" && <ChartsTab />}
         {tab === "details" && <DashaSection />}
         {tab === "doshas" && <DoshasSection />}
@@ -237,6 +243,7 @@ const TAB_CONFIG: {
   key: TabKey;
   icon: React.ComponentType<{ size?: number; className?: string }>;
 }[] = [
+  { key: "overview", icon: Sparkles },
   { key: "charts", icon: Compass },
   { key: "details", icon: Clock },
   { key: "doshas", icon: ShieldAlert },
@@ -299,7 +306,9 @@ function ChartsTab() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [varga, setVarga] = useState<VargaKey>("D1");
-  const [style] = useState<ChartStyle>("north");
+  const [style, setStyle] = useState<ChartStyle>("north");
+  const [selectedHouse, setSelectedHouse] = useState<number | null>(null);
+  const [selectedPlanet, setSelectedPlanet] = useState<PlanetKey | null>(null);
   // Debounce the (varga, style) pair to avoid hammering the query cache when
   // the user quickly flips between options. The debounced values drive the
   // useChart hook so a new request only starts after the selection settles.
@@ -398,12 +407,17 @@ function ChartsTab() {
 
   // Handles a click on the chart overlay's fixed house region (see
   // NORTH_CHART_HOUSE_REGIONS above for why the box position is a fixed
-  // house number, not the rotating rasi digit printed inside it).
+  // house number, not the rotating rasi digit printed inside it). Selection
+  // is display-only: it never changes provider output or sends an Ask prompt.
   const handleChartHouseClick = (houseNumber: number) => {
-    const h = displayHouses.find((house) => house.house === houseNumber);
-    if (!h) return;
-    void navigate({ to: "/chat", search: { seed: buildHouseSeed(t, debounced.varga, h) } });
+    setSelectedHouse(houseNumber);
   };
+
+  const handlePlanetAsk = (planet: DisplayPlanet) =>
+    void navigate({
+      to: "/chat",
+      search: { seed: buildPlanetSeed(t, debounced.varga, planet) },
+    });
 
   // Divisional tables are parsed from the chart SVG, so they also depend on the
   // chart query; D1 tables only need the planets query.
@@ -423,6 +437,8 @@ function ChartsTab() {
 
   return (
     <div className="space-y-6">
+      <VargaExplorer current={varga} onSelect={setVarga} />
+
       <Card>
         <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -432,18 +448,18 @@ function ChartsTab() {
             <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
           </div>
           <div className="w-full min-w-0 sm:w-auto">
-            <label htmlFor="varga-select" className="sr-only">
-              {t("home.varga.pickerLabel")}
+            <label htmlFor="chart-style-select" className="sr-only">
+              {t("home.chartStyle.pickerLabel")}
             </label>
             <select
-              id="varga-select"
-              value={varga}
-              onChange={(e) => setVarga(e.target.value as VargaKey)}
+              id="chart-style-select"
+              value={style}
+              onChange={(e) => setStyle(e.target.value as ChartStyle)}
               className="h-11 w-full max-w-full truncate rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
             >
-              {VARGA_KEYS.map((k) => (
-                <option key={k} value={k}>
-                  {t(`home.varga.${k.toLowerCase()}`)}
+              {CHART_STYLES.map((chartStyle) => (
+                <option key={chartStyle} value={chartStyle}>
+                  {t(`home.chartStyle.${chartStyle}`)}
                 </option>
               ))}
             </select>
@@ -495,7 +511,10 @@ function ChartsTab() {
                     <polygon
                       key={r.house}
                       points={r.points}
-                      className="pointer-events-auto cursor-pointer fill-transparent transition-colors hover:fill-accent/10"
+                      className={
+                        "pointer-events-auto cursor-pointer transition-colors hover:fill-accent/10 " +
+                        (selectedHouse === r.house ? "fill-primary/15" : "fill-transparent")
+                      }
                       onClick={() => handleChartHouseClick(r.house)}
                     />
                   ))}
@@ -505,6 +524,23 @@ function ChartsTab() {
           )}
         </div>
       </Card>
+
+      <ChartSelectionLayer
+        houses={displayHouses}
+        loading={tablesLoading}
+        errorKey={tablesErrorKey}
+        errorCode={tablesErrorCode}
+        onRetry={onRetryTables}
+        selectedHouse={selectedHouse}
+        onSelectHouse={setSelectedHouse}
+        varga={debounced.varga}
+        onAsk={(house) =>
+          void navigate({
+            to: "/chat",
+            search: { seed: buildHouseSeed(t, debounced.varga, house) },
+          })
+        }
+      />
 
       <ExpandableSection
         title={
@@ -608,6 +644,26 @@ function ChartsTab() {
                       </div>
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedPlanet((current) => (current === p.key ? null : p.key))
+                    }
+                    aria-pressed={selectedPlanet === p.key}
+                    className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full border border-border bg-card px-3 text-xs font-semibold text-primary transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {t("home.chartInspector.inspect")}
+                  </button>
+                  {selectedPlanet === p.key && (
+                    <button
+                      type="button"
+                      onClick={() => handlePlanetAsk(p)}
+                      className="tap-press mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.08] px-3.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Sparkles size={14} aria-hidden="true" />
+                      {t("home.chartInspector.askPlacementInline")}
+                    </button>
+                  )}
                 </li>
               );
             })}
@@ -703,6 +759,90 @@ function ChartsTab() {
   );
 }
 
+function VargaExplorer({
+  current,
+  onSelect,
+}: {
+  current: VargaKey;
+  onSelect: (varga: VargaKey) => void;
+}) {
+  const { t } = useTranslation();
+  const quickChoices: VargaKey[] = ["D1", "D9", "D10"];
+  const currentLabel = t(`home.varga.${current.toLowerCase()}`);
+
+  return (
+    <section
+      aria-labelledby="varga-explorer-heading"
+      className="rounded-[1.5rem] border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {t("home.vargaExplorer.eyebrow")}
+          </p>
+          <h2
+            id="varga-explorer-heading"
+            className="mt-1 text-xl font-semibold tracking-tight text-foreground"
+          >
+            {t("home.vargaExplorer.title")}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {t("home.vargaExplorer.description")}
+          </p>
+        </div>
+        <div className="w-full shrink-0 sm:w-72">
+          <label
+            htmlFor="varga-select"
+            className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            {t("home.varga.pickerLabel")}
+          </label>
+          <select
+            id="varga-select"
+            value={current}
+            onChange={(event) => onSelect(event.target.value as VargaKey)}
+            className="mt-1.5 h-11 w-full max-w-full truncate rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {VARGA_KEYS.map((key) => (
+              <option key={key} value={key}>
+                {t(`home.varga.${key.toLowerCase()}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+        <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          {t("home.vargaExplorer.quickChoices")}
+        </span>
+        {quickChoices.map((key) => {
+          const selected = current === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onSelect(key)}
+              className={
+                "tap-press inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                (selected
+                  ? "border-primary/50 bg-primary/10 text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground")
+              }
+            >
+              {t(`home.varga.${key.toLowerCase()}`)}
+            </button>
+          );
+        })}
+        <p className="basis-full pt-2 text-xs leading-relaxed text-muted-foreground">
+          {t("home.vargaExplorer.current", { chart: currentLabel })}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 type DisplayPlanet = {
   key: PlanetKey;
   signKey: SignKey | null;
@@ -727,6 +867,138 @@ type DisplayHouse = {
   planetKeys: PlanetKey[];
 };
 
+function ChartSelectionLayer({
+  houses,
+  loading,
+  errorKey,
+  errorCode,
+  onRetry,
+  selectedHouse,
+  onSelectHouse,
+  varga,
+  onAsk,
+}: {
+  houses: DisplayHouse[];
+  loading: boolean;
+  errorKey: string | null;
+  errorCode: string | null;
+  onRetry: () => void;
+  selectedHouse: number | null;
+  onSelectHouse: (house: number | null) => void;
+  varga: VargaKey;
+  onAsk: (house: DisplayHouse) => void;
+}) {
+  const { t } = useTranslation();
+  const selected = houses.find((house) => house.house === selectedHouse) ?? null;
+  const sign = selected?.signKey ? t(`signs.${selected.signKey}`) : selected?.signName || "—";
+  const lord = selected?.lordKey
+    ? t(`home.planets.${selected.lordKey}`)
+    : selected?.lordName || "—";
+
+  return (
+    <section
+      aria-labelledby="chart-selection-heading"
+      className="rounded-[1.5rem] border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {t("home.chartSelection.eyebrow")}
+          </p>
+          <h2 id="chart-selection-heading" className="mt-1 text-lg font-semibold text-foreground">
+            {t("home.chartSelection.title")}
+          </h2>
+        </div>
+        {selected && (
+          <button
+            type="button"
+            onClick={() => onSelectHouse(null)}
+            className="tap-press inline-flex min-h-11 items-center rounded-full border border-border bg-background px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("home.chartSelection.clear")}
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="mt-4" aria-busy="true">
+          <InlineSpinner />
+        </div>
+      ) : errorKey ? (
+        <div className="mt-4">
+          <ErrorInline messageKey={errorKey} code={errorCode} onRetry={onRetry} />
+        </div>
+      ) : houses.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">{t("home.noPlanetData")}</p>
+      ) : (
+        <>
+          {selected ? (
+            <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.06] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+                {t("home.chartSelection.selected")}
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-foreground">
+                {t("home.houseLabel", { n: selected.house })} · {sign}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("home.colLord")}: {lord}
+                {selected.planetKeys.length > 0
+                  ? ` · ${selected.planetKeys.map((key) => t(`home.planets.${key}`)).join(", ")}`
+                  : ""}
+              </p>
+              <button
+                type="button"
+                onClick={() => onAsk(selected)}
+                className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {t("home.chartInspector.askHouse", {
+                  varga: t(`home.varga.${varga.toLowerCase()}`),
+                })}
+              </button>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              {t("home.chartSelection.hint")}
+            </p>
+          )}
+
+          <div className="mt-5 border-t border-border pt-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("home.chartSelection.accessibleList")}
+            </h3>
+            <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {houses.map((house) => {
+                const houseSign = house.signKey
+                  ? t(`signs.${house.signKey}`)
+                  : house.signName || "—";
+                const isSelected = house.house === selectedHouse;
+                return (
+                  <li key={house.house}>
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => onSelectHouse(house.house)}
+                      className={
+                        "tap-press flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        (isSelected
+                          ? "border-primary/50 bg-primary/10 text-foreground"
+                          : "border-border bg-background text-foreground hover:bg-muted")
+                      }
+                    >
+                      <span>{t("home.houseLabel", { n: house.house })}</span>
+                      <span className="text-xs text-muted-foreground">{houseSign}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 // Builds the "ask about this house" chat seed — same house/sign/lord/planet
 // data already shown on the card, just phrased as a question. Reuses the
 // existing /chat?seed= bridge (see chat.tsx) unmodified.
@@ -748,6 +1020,22 @@ function buildHouseSeed(
     });
   }
   return t("home.houseAskSeed", { house: h.house, varga: vargaLabel, sign, lord });
+}
+
+function buildPlanetSeed(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  varga: VargaKey,
+  planet: DisplayPlanet,
+): string {
+  const planetName = t(`home.planets.${planet.key}`);
+  const sign = planet.signKey ? t(`signs.${planet.signKey}`) : planet.signName || "—";
+  return t("home.planetAskSeed", {
+    planet: planetName,
+    varga: t(`home.varga.${varga.toLowerCase()}`),
+    sign,
+    house: planet.house ?? "—",
+    nakshatra: planet.nakshatraName || "—",
+  });
 }
 
 const SIGN_ORDER: SignKey[] = [

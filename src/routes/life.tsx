@@ -1,10 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, Plus, RefreshCw, Trash2, X } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
+import { JourneyAskDialog, type JourneyAskSource } from "@/components/journey/JourneyAskDialog";
+import { ErrorState } from "@/components/states/ErrorState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/settings/primitives";
 import {
@@ -69,6 +72,11 @@ function formatEventDate(dateStr: string, precision: DatePrecision, locale: stri
     return d.toLocaleDateString(locale, { month: "long", year: "numeric" });
   }
   return d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+}
+
+function formatEventDateForAsk(event: LifeEvent, locale: string, approximate: string): string {
+  const date = formatEventDate(event.event_date, event.date_precision, locale);
+  return event.date_precision === "approx" ? `${date} · ${approximate}` : date;
 }
 
 function eventYear(dateStr: string): number {
@@ -175,6 +183,7 @@ function LifePage() {
 
   const [formTarget, setFormTarget] = useState<LifeEvent | "new" | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LifeEvent | null>(null);
+  const [askSource, setAskSource] = useState<JourneyAskSource | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -215,7 +224,7 @@ function LifePage() {
     <section className="mx-auto max-w-2xl space-y-6">
       <div className="motion-fade-up flex items-center gap-2">
         <Link
-          to="/settings"
+          to="/journey"
           aria-label={t("common.back")}
           className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -251,7 +260,16 @@ function LifePage() {
         {t("life.addEvent")}
       </Button>
 
-      {events.length === 0 && !eventsQuery.isLoading ? (
+      {eventsQuery.isLoading ? (
+        <LoadingState scope="panel" label={t("life.loading")} description={t("life.loadingBody")} />
+      ) : eventsQuery.isError ? (
+        <ErrorState
+          scope="panel"
+          title={t("life.loadError")}
+          description={t("life.loadErrorBody")}
+          onRetry={() => void eventsQuery.refetch()}
+        />
+      ) : events.length === 0 ? (
         <div className="motion-fade-up rounded-2xl border border-border bg-card p-6 text-center">
           <p className="text-base font-semibold text-foreground">{t("life.empty.title")}</p>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
@@ -259,33 +277,68 @@ function LifePage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {grouped.map(([year, yearEvents]) => (
-            <div key={year} className="space-y-2.5">
-              <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                {year}
-              </h2>
-              <div className="space-y-2.5">
-                {yearEvents.map((ev) => (
-                  <EventCard
-                    key={ev.id}
-                    event={ev}
-                    locale={i18n.language}
-                    highlighted={highlightId === ev.id}
-                    stamping={stampingIds.has(ev.id)}
-                    cardRef={(el) => {
-                      if (el) cardRefs.current.set(ev.id, el);
-                      else cardRefs.current.delete(ev.id);
-                    }}
-                    onEdit={() => setFormTarget(ev)}
-                    onDelete={() => setDeleteTarget(ev)}
-                    onRefreshAstrology={() => onRefreshAstrology(ev.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <section aria-label={t("life.timelineAria")} className="relative">
+          <div
+            aria-hidden="true"
+            className="absolute bottom-5 left-[13px] top-5 w-px bg-border sm:left-[15px]"
+          />
+          <div className="relative space-y-8">
+            {grouped.map(([year, yearEvents]) => (
+              <section key={year} aria-labelledby={`life-year-${year}`} className="relative">
+                <div className="mb-3 flex items-center gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="relative z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-accent/35 bg-background"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-accent" />
+                  </span>
+                  <h2
+                    id={`life-year-${year}`}
+                    className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+                  >
+                    {year}
+                  </h2>
+                </div>
+                <ol className="space-y-3">
+                  {yearEvents.map((ev) => (
+                    <li key={ev.id} className="relative pl-10 sm:pl-12">
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-[9px] top-6 z-10 h-2.5 w-2.5 rounded-full border-2 border-background bg-primary ring-1 ring-primary/30 sm:left-[11px]"
+                      />
+                      <EventCard
+                        event={ev}
+                        locale={i18n.language}
+                        highlighted={highlightId === ev.id}
+                        stamping={stampingIds.has(ev.id)}
+                        cardRef={(el) => {
+                          if (el) cardRefs.current.set(ev.id, el);
+                          else cardRefs.current.delete(ev.id);
+                        }}
+                        onEdit={() => setFormTarget(ev)}
+                        onDelete={() => setDeleteTarget(ev)}
+                        onAsk={() => {
+                          const date = formatEventDateForAsk(
+                            ev,
+                            i18n.language,
+                            t("life.approxTag"),
+                          );
+                          setAskSource({
+                            kind: "event",
+                            title: ev.title,
+                            date,
+                            draft: t("journey.askContext.eventDraft", { title: ev.title, date }),
+                          });
+                        }}
+                        onRefreshAstrology={() => onRefreshAstrology(ev.id)}
+                      />
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ))}
+          </div>
+        </section>
       )}
 
       {formTarget && (
@@ -316,6 +369,8 @@ function LifePage() {
           }}
         />
       )}
+
+      <JourneyAskDialog source={askSource} onClose={() => setAskSource(null)} />
     </section>
   );
 }
@@ -474,6 +529,7 @@ function EventCard({
   cardRef,
   onEdit,
   onDelete,
+  onAsk,
   onRefreshAstrology,
 }: {
   event: LifeEvent;
@@ -483,6 +539,7 @@ function EventCard({
   cardRef: (el: HTMLDivElement | null) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onAsk: () => void;
   onRefreshAstrology: () => void;
 }) {
   const { t } = useTranslation();
@@ -497,7 +554,11 @@ function EventCard({
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="min-w-0 flex-1 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <p className="truncate text-base font-semibold text-foreground">{event.title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {formatEventDate(event.event_date, event.date_precision, locale)}
@@ -535,6 +596,14 @@ function EventCard({
       {event.description && (
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{event.description}</p>
       )}
+
+      <button
+        type="button"
+        onClick={onAsk}
+        className="tap-press mt-3 inline-flex min-h-9 items-center rounded-lg px-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {t("journey.askContext.eventAction")}
+      </button>
 
       {hasContext && contextLine ? (
         <p className="mt-2.5 text-xs italic text-accent">{contextLine}</p>
@@ -622,17 +691,31 @@ function LifeEventFormDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="life-event-form-title"
+      aria-describedby="life-event-form-note"
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 sm:items-center"
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-lg"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[1.75rem] border border-border bg-card p-5 shadow-[var(--shadow-elevated)] sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h3 id="life-event-form-title" className="text-base font-semibold text-foreground">
-            {isNew ? t("life.addEvent") : t("life.editEvent")}
-          </h3>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-accent/12 text-accent ring-1 ring-accent/25">
+              <CalendarDays size={19} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                {t("life.form.eyebrow")}
+              </p>
+              <h3
+                id="life-event-form-title"
+                className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground"
+              >
+                {isNew ? t("life.addEvent") : t("life.editEvent")}
+              </h3>
+            </div>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -643,109 +726,163 @@ function LifeEventFormDialog({
           </button>
         </div>
 
-        <form className="space-y-4" onSubmit={onSubmit} noValidate>
-          <div>
-            <label htmlFor="life-title" className="mb-1 block text-sm font-medium text-foreground">
-              {t("life.fields.title")}
-            </label>
-            <input
-              id="life-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            {errors.title && <p className="mt-1 text-xs text-accent">{errors.title}</p>}
-          </div>
+        <p id="life-event-form-note" className="mb-6 text-sm leading-relaxed text-muted-foreground">
+          {t("life.form.intro")}
+        </p>
 
-          <div>
-            <label
-              htmlFor="life-description"
-              className="mb-1 block text-sm font-medium text-foreground"
-            >
-              {t("life.fields.description")}
-            </label>
-            <textarea
-              id="life-description"
-              value={description ?? ""}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="life-category" className="mb-1 block text-sm font-medium text-foreground">
-              {t("life.fields.category")}
-            </label>
-            <select
-              id="life-category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as LifeEventCategory)}
-              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {t(`life.categories.${c}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="life-date" className="mb-1 block text-sm font-medium text-foreground">
-              {t("life.fields.date")}
-            </label>
-            <input
-              id="life-date"
-              type="date"
-              value={eventDate}
-              max={todayStr()}
-              onChange={(e) => setEventDate(e.target.value)}
-              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            {errors.date && <p className="mt-1 text-xs text-accent">{errors.date}</p>}
-          </div>
-
-          <div>
-            <span className="mb-1 block text-sm font-medium text-foreground">
-              {t("life.fields.precision")}
-            </span>
-            <div
-              role="radiogroup"
-              aria-label={t("life.fields.precision")}
-              className="flex flex-wrap gap-1.5"
-            >
-              {PRECISIONS.map((p) => {
-                const selected = p === precision;
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    onClick={() => setPrecision(p)}
-                    className={`min-h-[36px] rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                      selected
-                        ? "border-primary/60 bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t(`life.precisions.${p}`)}
-                  </button>
-                );
-              })}
+        <form className="space-y-6" onSubmit={onSubmit} noValidate>
+          <section aria-labelledby="life-event-details-title" className="space-y-4">
+            <div>
+              <h4 id="life-event-details-title" className="text-sm font-semibold text-foreground">
+                {t("life.form.details")}
+              </h4>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {t("life.form.detailsHint")}
+              </p>
             </div>
-          </div>
+            <div>
+              <label
+                htmlFor="life-title"
+                className="mb-1 block text-sm font-medium text-foreground"
+              >
+                {t("life.fields.title")}
+              </label>
+              <input
+                id="life-title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                aria-invalid={!!errors.title}
+                aria-describedby={errors.title ? "life-title-error" : undefined}
+                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              {errors.title && (
+                <p id="life-title-error" className="mt-1 text-xs text-accent">
+                  {errors.title}
+                </p>
+              )}
+            </div>
 
-          <div>
-            <span className="mb-1 block text-sm font-medium text-foreground">
-              {t("life.fields.valence")}
-            </span>
+            <div>
+              <label
+                htmlFor="life-description"
+                className="mb-1 block text-sm font-medium text-foreground"
+              >
+                {t("life.fields.description")}
+              </label>
+              <textarea
+                id="life-description"
+                value={description ?? ""}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+          </section>
+
+          <section aria-labelledby="life-event-timing-title" className="space-y-4">
+            <div>
+              <h4 id="life-event-timing-title" className="text-sm font-semibold text-foreground">
+                {t("life.form.timing")}
+              </h4>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {t("life.form.timingHint")}
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="life-category"
+                  className="mb-1 block text-sm font-medium text-foreground"
+                >
+                  {t("life.fields.category")}
+                </label>
+                <select
+                  id="life-category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as LifeEventCategory)}
+                  className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {t(`life.categories.${c}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="life-date"
+                  className="mb-1 block text-sm font-medium text-foreground"
+                >
+                  {t("life.fields.date")}
+                </label>
+                <input
+                  id="life-date"
+                  type="date"
+                  value={eventDate}
+                  max={todayStr()}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  aria-invalid={!!errors.date}
+                  aria-describedby={errors.date ? "life-date-error" : undefined}
+                  className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                {errors.date && (
+                  <p id="life-date-error" className="mt-1 text-xs text-accent">
+                    {errors.date}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <span className="mb-2 block text-sm font-medium text-foreground">
+                {t("life.fields.precision")}
+              </span>
+              <div
+                role="radiogroup"
+                aria-label={t("life.fields.precision")}
+                className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+              >
+                {PRECISIONS.map((p) => {
+                  const selected = p === precision;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setPrecision(p)}
+                      className={`min-h-11 rounded-xl border px-3 text-left text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        selected
+                          ? "border-primary/60 bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t(`life.precisions.${p}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <section aria-labelledby="life-event-experience-title" className="space-y-3">
+            <div>
+              <h4
+                id="life-event-experience-title"
+                className="text-sm font-semibold text-foreground"
+              >
+                {t("life.form.experience")}
+              </h4>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                {t("life.form.experienceHint")}
+              </p>
+            </div>
             <div
               role="radiogroup"
               aria-label={t("life.fields.valence")}
-              className="flex flex-wrap gap-1.5"
+              className="grid grid-cols-2 gap-2 sm:grid-cols-4"
             >
               {VALENCES.map((v) => {
                 const selected = v === valence;
@@ -756,12 +893,12 @@ function LifeEventFormDialog({
                     role="radio"
                     aria-checked={selected}
                     onClick={() => setValence(selected ? null : v)}
-                    className={`min-h-[36px] rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    className={`min-h-11 rounded-xl border px-3 text-left text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       selected
                         ? v === "negative"
                           ? "border-accent/60 bg-accent/10 text-accent"
                           : "border-primary/60 bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     {t(`life.valences.${v}`)}
@@ -769,9 +906,13 @@ function LifeEventFormDialog({
                 );
               })}
             </div>
+          </section>
+
+          <div className="rounded-2xl border border-accent/20 bg-accent/[0.06] px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+            {t("life.form.contextNote")}
           </div>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 border-t border-border pt-4">
             <Button
               type="button"
               variant="ghost"
@@ -781,7 +922,7 @@ function LifeEventFormDialog({
               {t("life.cancel")}
             </Button>
             <Button type="submit" variant="primary" disabled={submitting} className="flex-1">
-              {t("life.save")}
+              {submitting ? t("life.saving") : t("life.save")}
             </Button>
           </div>
         </form>

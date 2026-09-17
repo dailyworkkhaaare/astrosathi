@@ -1,13 +1,7 @@
 import { ChevronDown, Gauge, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { useBarometer, type BarometerAsset, type BarometerBias } from "@/lib/queries";
 
 // Semicircular gauge geometry (matches the validated mock). Angles run from
@@ -32,7 +26,7 @@ const TRACK_PATH = arcPath(180, 0);
 
 function biasColorClass(bias: BarometerBias): string {
   if (bias === "bullish") return "text-accent";
-  if (bias === "bearish") return "text-destructive-strong";
+  if (bias === "bearish") return "text-foreground";
   return "text-muted-foreground";
 }
 
@@ -51,13 +45,16 @@ export function BarometerSection() {
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
             <Gauge size={15} className="text-accent" aria-hidden="true" />
           </span>
-          <CardTitle className="text-base font-semibold leading-tight">
-            {t("sections.barometer.title")}
-          </CardTitle>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+              {t("sections.market.experimentalLabel")}
+            </p>
+            <h2 id="barometer-heading" className="mt-0.5 text-lg font-semibold leading-tight">
+              {t("sections.barometer.title")}
+            </h2>
+          </div>
         </div>
-        <CardDescription className="text-xs">
-          {t("sections.barometer.subtitle")}
-        </CardDescription>
+        <CardDescription className="text-xs">{t("sections.barometer.subtitle")}</CardDescription>
       </CardHeader>
 
       <CardContent className="pt-4">
@@ -67,13 +64,9 @@ export function BarometerSection() {
             <div className="h-24 animate-pulse rounded-xl bg-muted" />
           </div>
         ) : isError ? (
-          <p className="text-sm text-muted-foreground">
-            {t("sections.barometer.loadError")}
-          </p>
+          <p className="text-sm text-muted-foreground">{t("sections.barometer.loadError")}</p>
         ) : isEmpty ? (
-          <p className="text-sm text-muted-foreground">
-            {t("sections.barometer.empty")}
-          </p>
+          <p className="text-sm text-muted-foreground">{t("sections.barometer.empty")}</p>
         ) : (
           <div className="grid grid-cols-2 gap-2">
             {assets.map((asset) => (
@@ -99,13 +92,7 @@ export function BarometerSection() {
   );
 }
 
-function AssetGauge({
-  asset,
-  t,
-}: {
-  asset: BarometerAsset;
-  t: (key: string) => string;
-}) {
+function AssetGauge({ asset, t }: { asset: BarometerAsset; t: (key: string) => string }) {
   const clamped = Math.max(0, Math.min(1, asset.fusedProbability));
   const valuePath = arcPath(180, 180 - clamped * 180);
   const pct = Math.round(clamped * 100);
@@ -154,20 +141,13 @@ function AssetGauge({
   );
 }
 
-function BiasChip({
-  bias,
-  t,
-}: {
-  bias: BarometerBias;
-  t: (key: string) => string;
-}) {
-  const Icon =
-    bias === "bullish" ? TrendingUp : bias === "bearish" ? TrendingDown : Minus;
+function BiasChip({ bias, t }: { bias: BarometerBias; t: (key: string) => string }) {
+  const Icon = bias === "bullish" ? TrendingUp : bias === "bearish" ? TrendingDown : Minus;
   const classes =
     bias === "bullish"
       ? "border-accent/30 bg-accent/10 text-accent"
       : bias === "bearish"
-        ? "border-destructive/30 bg-destructive/10 text-destructive-strong"
+        ? "border-border bg-card text-foreground"
         : "border-border bg-muted/50 text-muted-foreground";
 
   return (

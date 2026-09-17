@@ -105,10 +105,14 @@ export function RemediesSection() {
       className="rounded-2xl border border-border bg-card p-5"
     >
       <header>
+        <p className="as-micro mb-2 text-primary">{t("sections.remedies.optionalPractice")}</p>
         <h2 id="remedies-heading" className="text-lg font-semibold text-foreground">
           {t("sections.remedies.title")}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">{t("sections.remedies.subtitle")}</p>
+        <p className="mt-3 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+          {t("sections.remedies.practiceBoundary")}
+        </p>
       </header>
 
       {loading && <RemediesSkeleton />}
@@ -211,7 +215,12 @@ function RemedyCard({ ranked, locale }: { ranked: RankedRemedy; locale: string }
   return (
     <article className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="text-sm leading-6 text-foreground">{headline}</p>
+        <div>
+          <p className="as-micro mb-1 text-muted-foreground">
+            {t("sections.remedies.practiceFor")}
+          </p>
+          <p className="text-sm leading-6 text-foreground">{headline}</p>
+        </div>
         {condition.activeNow && (
           <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-accent">
             {t("sections.remedies.activeNow")}
@@ -336,10 +345,11 @@ function RemedyBundleBody({
 function GemstoneRudrakshaBlock({ remedy }: { remedy: PlanetRemedies }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+    <div className="rounded-lg border border-primary/25 bg-primary/[0.05] p-3">
       <div className="flex items-start gap-2">
-        <Gem size={14} className="mt-0.5 shrink-0 text-destructive-strong" aria-hidden="true" />
+        <Gem size={14} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
         <div className="flex flex-col gap-1">
+          <p className="as-micro text-primary">{t("sections.remedies.gemstoneCaveatTitle")}</p>
           <p className="text-xs leading-relaxed text-muted-foreground">
             {remedy.gemstone.name} ({remedy.gemstone.sanskritName}) ·{" "}
             {t("sections.remedies.rudrakshaMukhi", { count: remedy.rudraksha.mukhi })}

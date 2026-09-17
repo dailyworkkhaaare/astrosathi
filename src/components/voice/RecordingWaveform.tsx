@@ -1,6 +1,6 @@
 // Live audio waveform for the chat composer's mic recording state. Reads the
 // live MediaStream via a Web Audio AnalyserNode, samples byte-frequency data
-// each animation frame, and paints amber vertical bars into a canvas.
+// each animation frame, and paints an amber constellation into a canvas.
 //
 // Feature-detects Web Audio; on unsupported browsers or a missing stream it
 // falls back to a calm placeholder row of bars so the composer never breaks.
@@ -91,32 +91,50 @@ export function RecordingWaveform({ stream, className, barWidth = 3, barGap = 2 
       ctx2d.clearRect(0, 0, cssW, cssH);
       ctx2d.fillStyle = accent;
 
+      const paintConstellation = (levels: number[]) => {
+        const points = levels.map((level, i) => ({
+          level,
+          x: i * step + barWidth / 2,
+          y: midY + Math.sin(i * 0.72) * cssH * (0.08 + level * 0.34),
+        }));
+        ctx2d.strokeStyle = accent;
+        ctx2d.lineWidth = 0.8;
+        ctx2d.globalAlpha = 0.28;
+        ctx2d.beginPath();
+        points.forEach((point, i) => {
+          if (i === 0) ctx2d.moveTo(point.x, point.y);
+          else ctx2d.lineTo(point.x, point.y);
+        });
+        ctx2d.stroke();
+        for (const point of points) {
+          ctx2d.globalAlpha = 0.4 + point.level * 0.6;
+          ctx2d.beginPath();
+          ctx2d.arc(point.x, point.y, 1.2 + point.level * 1.4, 0, Math.PI * 2);
+          ctx2d.fill();
+        }
+        ctx2d.globalAlpha = 1;
+      };
+
       if (analyser && data) {
         analyser.getByteFrequencyData(data);
         // Sample `bars` evenly across the spectrum, biasing to the voice band.
         const usableBins = Math.floor(data.length * 0.55);
+        const levels: number[] = [];
         for (let i = 0; i < bars; i++) {
           const bin = Math.floor((i / bars) * usableBins);
           const v = data[bin] / 255; // 0..1
-          const eased = Math.pow(v, 0.8);
-          const h = Math.max(2, eased * cssH * 0.92);
-          const x = i * step;
-          ctx2d.globalAlpha = 0.55 + eased * 0.45;
-          ctx2d.fillRect(x, midY - h / 2, barWidth, h);
+          levels.push(Math.pow(v, 0.8));
         }
-        ctx2d.globalAlpha = 1;
+        paintConstellation(levels);
       } else {
-        // Placeholder ripple when there's no audio stream (Web Audio missing,
-        // permission still pending, etc.) — a gentle animated baseline so the
-        // area doesn't look broken.
+        // Placeholder constellation when Web Audio is unavailable or permission
+        // is still pending, so the semantic listening state remains visible.
         const t = performance.now() / 400;
+        const levels: number[] = [];
         for (let i = 0; i < bars; i++) {
-          const wave = 0.35 + 0.35 * Math.sin(t + i * 0.35);
-          const h = Math.max(2, wave * cssH * 0.5);
-          ctx2d.globalAlpha = 0.35;
-          ctx2d.fillRect(i * step, midY - h / 2, barWidth, h);
+          levels.push(0.25 + 0.2 * (0.5 + 0.5 * Math.sin(t + i * 0.35)));
         }
-        ctx2d.globalAlpha = 1;
+        paintConstellation(levels);
       }
     };
     raf = requestAnimationFrame(draw);

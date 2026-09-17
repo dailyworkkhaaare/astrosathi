@@ -10,7 +10,7 @@ export function BrandMark({
   return (
     <div className="flex items-center gap-2">
       <img
-        src="/pwa-512x512.png"
+        src="/pwa-192x192.png"
         alt=""
         aria-hidden="true"
         className={`shrink-0 rounded-lg object-contain ${className}`}

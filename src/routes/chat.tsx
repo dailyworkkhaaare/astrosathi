@@ -17,6 +17,7 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  CircleAlert,
   Copy,
   Loader2,
   Menu,
@@ -25,6 +26,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  RefreshCw,
   Search,
   Sparkles,
   Square,
@@ -61,6 +63,7 @@ import {
   PLANET_KEY_BY_CODE,
 } from "@/lib/todayTransits";
 import { getFeedbackForMessages } from "@/lib/feedback";
+import { isJourneyAskToken, takeJourneyAskDraft } from "@/lib/journey-ask";
 import {
   MessageActionRow,
   type FeedbackEntry,
@@ -245,7 +248,7 @@ async function streamAstrologerReply(
 const MAX_SEED_LENGTH = 500;
 const MAX_SUBJECT_ID_LENGTH = 100;
 
-type ChatSearch = { seed?: string; subjectRelatedChartId?: string };
+type ChatSearch = { seed?: string; subjectRelatedChartId?: string; journeyDraft?: string };
 
 export const Route = createFileRoute("/chat")({
   validateSearch: (search: Record<string, unknown>): ChatSearch => {
@@ -260,6 +263,11 @@ export const Route = createFileRoute("/chat")({
       const trimmed = rawSubject.trim();
       if (trimmed && trimmed.length <= MAX_SUBJECT_ID_LENGTH)
         result.subjectRelatedChartId = trimmed;
+    }
+    const rawJourneyDraft = search.journeyDraft;
+    if (typeof rawJourneyDraft === "string") {
+      const trimmed = rawJourneyDraft.trim();
+      if (isJourneyAskToken(trimmed)) result.journeyDraft = trimmed;
     }
     return result;
   },
@@ -348,7 +356,7 @@ function buildSuggestedPrompts(
 function ChatPage() {
   useRequireOnboarding();
   const { t, i18n } = useTranslation();
-  const { seed, subjectRelatedChartId } = Route.useSearch();
+  const { seed, subjectRelatedChartId, journeyDraft } = Route.useSearch();
   const { settings: voiceSettings } = useVoiceSettings();
   const readAloud = useReadAloud({
     onError: () => toast.error(t("voice.playError")),
@@ -463,6 +471,7 @@ function ChatPage() {
   // saved person (e.g. arriving via "Ask AstroSaathi about {name}"); cleared
   // as soon as that message is sent, same lifecycle as the `seed` param below.
   const [pendingSubjectChartId, setPendingSubjectChartId] = useState<string | null>(null);
+  const [journeyDraftSource, setJourneyDraftSource] = useState<string | null>(null);
   // Id of the assistant message currently being streamed (for the live caret).
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [streamPhase, setStreamPhase] = useState<
@@ -704,6 +713,7 @@ function ChatPage() {
     setError(null);
     setLastFailed(null);
     setPendingSubjectChartId(null);
+    setJourneyDraftSource(null);
     setPendingAnchorId(null);
     setAnchoredMessageId(null);
     setTurnSpacerPx(0);
@@ -777,7 +787,7 @@ function ChatPage() {
   // was active in the last 15 minutes. After a longer gap the user is most
   // likely here to ask something new, so land on the empty composer instead
   // of resuming a stale conversation — still browsable from the sidebar.
-  // Skipped entirely when a `?seed=` or `?subjectRelatedChartId=` is present
+  // Skipped entirely when an explicit new-draft handoff is present
   // (e.g. tapping a house on Home, or "Ask AstroSaathi about {name}"): that's
   // an explicit signal to ask something new, so resuming an old conversation
   // would both land on the wrong thread and silently drop the seed/subject
@@ -792,7 +802,7 @@ function ChatPage() {
       const mostRecent = list[0];
       const lastActiveMs = mostRecent ? new Date(mostRecent.updated_at).getTime() : NaN;
       const isRecent = Number.isFinite(lastActiveMs) && Date.now() - lastActiveMs < RESUME_WINDOW_MS;
-      if (mostRecent && isRecent && !seed && !subjectRelatedChartId) {
+      if (mostRecent && isRecent && !seed && !subjectRelatedChartId && !journeyDraft) {
         await loadConversation(mostRecent.id);
       }
       if (!cancelled) setInitialLoadDone(true);
@@ -800,7 +810,7 @@ function ChatPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; `seed`/`subjectRelatedChartId` are read once by design, not re-triggered on later changes (e.g. once cleared by the pre-fill effect below).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; explicit handoff params are read once by design, not re-triggered after the pre-fill effect clears them.
   }, [loadConversation, refetchConversations]);
 
   // Autofocus the composer once we land on a genuinely empty conversation —
@@ -817,15 +827,28 @@ function ChatPage() {
   // today" bridge from Home) and/or capture a `?subjectRelatedChartId=` to
   // scope the first message to a saved person (e.g. "Ask AstroSaathi about
   // {name}" on their detail page) — never auto-sent, the user still presses
-  // send. Only applies to a genuinely empty conversation, and the params are
-  // stripped right after so a refresh or reload doesn't re-inject them.
+  // send. Journey drafts use an opaque session token, so private reflection
+  // text never enters the URL. Only applies to a genuinely empty conversation,
+  // and the params are stripped right after so a refresh cannot re-inject them.
   useEffect(() => {
-    if (!initialLoadDone || (!seed && !subjectRelatedChartId) || messages.length > 0) return;
+    if (
+      !initialLoadDone ||
+      (!seed && !subjectRelatedChartId && !journeyDraft) ||
+      messages.length > 0
+    )
+      return;
     if (seed) setInput(seed);
     if (subjectRelatedChartId) setPendingSubjectChartId(subjectRelatedChartId);
+    if (journeyDraft) {
+      const draft = takeJourneyAskDraft(journeyDraft);
+      if (draft) {
+        setInput(draft.draft);
+        setJourneyDraftSource(draft.sourceLabel);
+      }
+    }
     textareaRef.current?.focus();
     void navigate({ search: {}, replace: true });
-  }, [initialLoadDone, seed, subjectRelatedChartId, messages.length, navigate]);
+  }, [initialLoadDone, seed, subjectRelatedChartId, journeyDraft, messages.length, navigate]);
 
   // Auto-grow textarea
   useLayoutEffect(() => {
@@ -1519,6 +1542,7 @@ function ChatPage() {
       setMessages((m) => [...m, { id: userMsgId, role: "user", content: text }]);
       setInput("");
       setPendingAnchorId(userMsgId);
+      setJourneyDraftSource(null);
       const subjectRelatedChartId = pendingSubjectChartId ?? undefined;
       if (pendingSubjectChartId) setPendingSubjectChartId(null);
       await sendToBackend(text, subjectRelatedChartId);
@@ -1573,6 +1597,7 @@ function ChatPage() {
     setLastFailed(null);
     setPinnedToBottom(true);
     setPendingSubjectChartId(null);
+    setJourneyDraftSource(null);
     setPendingAnchorId(null);
     setAnchoredMessageId(null);
     setTurnSpacerPx(0);
@@ -1795,13 +1820,17 @@ function ChatPage() {
                       <div className="flex flex-col items-center gap-4 text-center">
                         <div
                           aria-hidden="true"
-                          className="relative grid h-16 w-16 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/30 shadow-[var(--shadow-glow-gold)]"
+                          className="relative grid h-16 w-16 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary shadow-[var(--shadow-glow-gold)]"
                         >
                           <BrandMark withWordmark={false} />
                         </div>
+                        <p className="as-micro text-primary">{t("chat.emptyEyebrow")}</p>
                         <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
                           {t("chat.emptyGreeting")}
                         </h1>
+                        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+                          {t("chat.emptyHint")}
+                        </p>
                       </div>
                       {suggestions.length > 0 && (
                         <div
@@ -1814,7 +1843,7 @@ function ChatPage() {
                               key={i}
                               type="button"
                               onClick={() => handleSuggestionClick(text)}
-                              className="tap-press flex min-h-[3.25rem] items-center justify-center rounded-2xl border border-border bg-card/60 px-5 py-3 text-center text-sm leading-snug text-foreground transition-all hover:border-accent/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="tap-press flex min-h-[3.25rem] items-center justify-center rounded-xl border border-border bg-card/60 px-5 py-3 text-center text-sm leading-snug text-foreground transition-all hover:border-primary/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               {text}
                             </button>
@@ -1853,6 +1882,7 @@ function ChatPage() {
                 textareaRef={textareaRef}
                 voiceInputEnabled={voiceSettings.inputEnabled}
                 sttLangCode={ttsLangCode}
+                journeyDraftSource={journeyDraftSource}
                 onFocusComposer={handleComposerFocus}
               />
             </>
@@ -1952,7 +1982,7 @@ function ConversationItem({
           className={
             "tap-press w-full truncate rounded-lg py-2 pl-3 pr-10 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
             (active
-              ? "bg-accent/10 text-accent font-medium"
+              ? "bg-accent/10 text-accent font-medium ring-1 ring-accent/20"
               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")
           }
           title={title}
@@ -2030,7 +2060,7 @@ function Sidebar({
 
   const panel = (
     <aside
-      aria-label="Chat history"
+      aria-label={t("chat.historyTitle")}
       className={`flex h-full w-80 shrink-0 flex-col border-r border-border/70 bg-card/70 backdrop-blur-xl transition-transform duration-300 ease-out ${
         isMobile ? "fixed inset-y-0 left-0 z-50 rounded-r-3xl shadow-2xl" : "relative"
       } ${open ? "translate-x-0" : "-translate-x-full"} ${!isMobile && !open ? "hidden" : ""}`}
@@ -2056,6 +2086,18 @@ function Sidebar({
         </div>
       )}
 
+      <div className="border-b border-border/60 px-4 pb-3 pt-2">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+            {t("chat.historyTitle")}
+          </h2>
+          <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+            {t("chat.historyCount", { count: conversations.length })}
+          </span>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">{t("chat.historySortHint")}</p>
+      </div>
+
       <div className="p-3">
         <Button
           variant="secondary"
@@ -2068,47 +2110,66 @@ function Sidebar({
       </div>
 
       <div className="px-3 pb-2">
-        <label className="relative block">
-          <span className="sr-only">{t("chat.searchPlaceholder")}</span>
+        <div className="relative block">
+          <label htmlFor="chat-history-search" className="sr-only">
+            {t("chat.searchPlaceholder")}
+          </label>
           <Search
             size={14}
             aria-hidden="true"
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <input
+            id="chat-history-search"
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("chat.searchPlaceholder")}
-            className="w-full rounded-full border border-border bg-background py-2 pl-8 pr-3 text-base text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
+            className="w-full rounded-full border border-border bg-background py-2 pl-8 pr-10 text-base text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
           />
-        </label>
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label={t("chat.clearSearch")}
+              className="tap-press absolute right-1 top-1/2 grid min-h-9 min-w-9 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          )}
+        </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 pb-3">
+      <nav aria-label={t("chat.historyTitle")} className="flex-1 overflow-y-auto px-2 pb-3">
         {filteredGroups.length === 0 && (
           <div className="px-3 py-4 text-xs text-muted-foreground">{t("chat.historyEmpty")}</div>
         )}
-        {filteredGroups.map((g) => (
-          <div key={g.label} className="mb-4">
-            <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {g.label}
-            </div>
-            <ul className="flex flex-col gap-0.5">
-              {g.items.map((it) => (
-                <ConversationItem
-                  key={it.id}
-                  id={it.id}
-                  title={it.title}
-                  active={activeId === it.id}
-                  onSelect={onSelect}
-                  onRename={onRename}
-                  onDelete={onDelete}
-                />
-              ))}
-            </ul>
-          </div>
-        ))}
+        {filteredGroups.map((g, index) => {
+          const groupId = `conversation-group-${index}`;
+          return (
+            <section key={g.label} aria-labelledby={groupId} className="mb-4">
+              <h3
+                id={groupId}
+                className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+              >
+                {g.label}
+              </h3>
+              <ul aria-label={g.label} className="flex flex-col gap-0.5">
+                {g.items.map((it) => (
+                  <ConversationItem
+                    key={it.id}
+                    id={it.id}
+                    title={it.title}
+                    active={activeId === it.id}
+                    onSelect={onSelect}
+                    onRename={onRename}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </ul>
+            </section>
+          );
+        })}
       </nav>
     </aside>
   );
@@ -2345,6 +2406,59 @@ function StreamingMarkdown({ content, streaming }: { content: string; streaming:
   );
 }
 
+const EVIDENCE_LABEL_KEYS: Record<string, string> = {
+  "Vimśottarī daśā period": "chat.evidenceDasha",
+  "Current transits (gochara)": "chat.evidenceTransits",
+  "Nakshatra placement": "chat.evidenceNakshatra",
+};
+
+function EvidenceStrip({ provenance }: { provenance: Provenance }) {
+  const { t } = useTranslation();
+  const basis = Array.from(
+    new Set(
+      (Array.isArray(provenance.basis) ? provenance.basis : []).filter(
+        (item): item is string => typeof item === "string" && item.trim().length > 0,
+      ),
+    ),
+  );
+
+  if (!provenance.chart_loaded && basis.length === 0) {
+    return (
+      <div className="mt-3 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+        <p className="font-medium text-foreground">{t("chat.evidenceLabel")}</p>
+        <p className="mt-1 leading-relaxed">{t("chat.evidenceUnavailable")}</p>
+      </div>
+    );
+  }
+
+  if (basis.length === 0) return null;
+
+  const summaryLabel = t("chat.evidenceSourceCount", { count: basis.length });
+  return (
+    <details className="mt-3 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+      <summary
+        aria-label={`${t("chat.evidenceLabel")} · ${summaryLabel}`}
+        className="cursor-pointer list-none font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span>{t("chat.evidenceLabel")}</span>
+        <span aria-hidden="true" className="mx-1 text-muted-foreground">
+          ·
+        </span>
+        <span className="font-normal text-muted-foreground">{summaryLabel}</span>
+      </summary>
+      <ul className="mt-2 list-disc space-y-1 pl-4 leading-relaxed">
+        {basis.map((item) => {
+          const labelKey = EVIDENCE_LABEL_KEYS[item];
+          return <li key={item}>{labelKey ? t(labelKey) : item}</li>;
+        })}
+      </ul>
+      {!provenance.chart_loaded && (
+        <p className="mt-2 leading-relaxed">{t("chat.evidenceUnavailable")}</p>
+      )}
+    </details>
+  );
+}
+
 function MessageRow({
   message,
   streaming,
@@ -2390,6 +2504,9 @@ function MessageRow({
   if (message.role === "user") {
     return (
       <div ref={registerRef} className="motion-fade-up group flex flex-col items-end gap-1.5">
+        <span className="pr-1 text-[11px] font-medium tracking-wide text-muted-foreground">
+          {t("chat.you")}
+        </span>
         <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl rounded-tr-sm bg-accent/10 px-4 py-3 text-base leading-relaxed text-foreground shadow-sm ring-1 ring-accent/25 md:max-w-[70%]">
           {message.content}
         </div>
@@ -2423,40 +2540,52 @@ function MessageRow({
       }
     >
       <div className="min-w-0 flex-1">
-        <div className="mb-1.5 flex items-center gap-2">
-          <span className="text-xs font-semibold text-foreground tracking-tight">
-            {t("chat.assistantName")}
-          </span>
-          {streaming && (
-            <span className="flex items-center gap-1 text-[10px] text-accent font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse motion-reduce:animate-none" />
-              {t("chat.phaseWriting")}
+        <div className="rounded-2xl border border-border/60 bg-card/45 px-4 py-3.5 shadow-sm md:px-5 md:py-4">
+          <div className="mb-2.5 flex items-center gap-2.5">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+              <Sparkles size={14} aria-hidden="true" />
             </span>
-          )}
-        </div>
-        <div
-          className={
-            "prose max-w-none break-words text-foreground leading-relaxed " +
-            "[&>*:first-child]:mt-0 " +
-            "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 " +
-            "[&_strong]:font-semibold [&_strong]:text-foreground [&_em]:italic [&_em]:text-foreground/90 " +
-            "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] " +
-            "[&_h1]:text-xl [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1]:mt-6 [&_h1]:mb-3 " +
-            "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:mt-6 [&_h2]:mb-2.5 " +
-            "[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 " +
-            "[&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground/90 [&_h4]:mt-4 [&_h4]:mb-1.5 " +
-            "[&_p]:my-3 [&_p]:leading-relaxed " +
-            "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 " +
-            "[&_li]:my-1 [&_li]:leading-relaxed [&_li>ul]:my-1.5 [&_li>ol]:my-1.5 [&_ul_ul]:mt-1 " +
-            "[&_ul>li]:marker:text-accent/60 [&_ol>li]:marker:text-muted-foreground " +
-            "[&_li:has(input)]:list-none [&_li:has(input)]:-ml-5 [&_input[type=checkbox]]:mr-2 [&_input[type=checkbox]]:accent-accent " +
-            "[&_hr]:my-6 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-border/60 " +
-            "[&>h1]:max-w-[36rem] [&>h2]:max-w-[36rem] [&>h3]:max-w-[36rem] [&>h4]:max-w-[36rem] " +
-            "[&>p]:max-w-[36rem] [&>ul]:max-w-[36rem] [&>ol]:max-w-[36rem] [&>blockquote]:max-w-[36rem]" +
-            (streaming ? " as-streaming" : "")
-          }
-        >
-          <StreamingMarkdown content={message.content ?? ""} streaming={streaming} />
+            <div className="min-w-0">
+              <span className="block text-xs font-semibold tracking-tight text-foreground">
+                {t("chat.assistantName")}
+              </span>
+              <span className="block text-[10px] font-medium tracking-wide text-muted-foreground">
+                {t("chat.interpretationLabel")}
+              </span>
+            </div>
+            {streaming && (
+              <span className="ml-auto flex items-center gap-1 text-[10px] font-medium text-accent">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none" />
+                {t("chat.phaseWriting")}
+              </span>
+            )}
+          </div>
+          <div
+            className={
+              "prose max-w-none break-words text-foreground leading-relaxed " +
+              "[&>*:first-child]:mt-0 " +
+              "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 " +
+              "[&_strong]:font-semibold [&_strong]:text-foreground [&_em]:italic [&_em]:text-foreground/90 " +
+              "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] " +
+              "[&_h1]:text-xl [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1]:mt-6 [&_h1]:mb-3 " +
+              "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:mt-6 [&_h2]:mb-2.5 " +
+              "[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 " +
+              "[&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground/90 [&_h4]:mt-4 [&_h4]:mb-1.5 " +
+              "[&_p]:my-3 [&_p]:leading-relaxed " +
+              "[&_p:first-of-type]:text-[1.02rem] [&_p:first-of-type]:leading-relaxed " +
+              "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 " +
+              "[&_li]:my-1 [&_li]:leading-relaxed [&_li>ul]:my-1.5 [&_li>ol]:my-1.5 [&_ul_ul]:mt-1 " +
+              "[&_ul>li]:marker:text-accent/60 [&_ol>li]:marker:text-muted-foreground " +
+              "[&_li:has(input)]:list-none [&_li:has(input)]:-ml-5 [&_input[type=checkbox]]:mr-2 [&_input[type=checkbox]]:accent-accent " +
+              "[&_hr]:my-6 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-border/60 " +
+              "[&>h1]:max-w-[36rem] [&>h2]:max-w-[36rem] [&>h3]:max-w-[36rem] [&>h4]:max-w-[36rem] " +
+              "[&>p]:max-w-[36rem] [&>ul]:max-w-[36rem] [&>ol]:max-w-[36rem] [&>blockquote]:max-w-[36rem]" +
+              (streaming ? " as-streaming" : "")
+            }
+          >
+            <StreamingMarkdown content={message.content ?? ""} streaming={streaming} />
+          </div>
+          {!streaming && message.provenance && <EvidenceStrip provenance={message.provenance} />}
         </div>
         {!streaming && message.content && (
           <div className="mt-1 flex flex-wrap items-center gap-0.5">
@@ -2476,9 +2605,12 @@ function MessageRow({
               disabled={isSpeakLoading}
               aria-label={isSpeaking ? t("voice.stopReading") : t("voice.readAloud")}
               aria-pressed={isSpeaking}
+              aria-busy={isSpeakLoading}
+              data-state={isSpeakLoading ? "preparing" : isSpeaking ? "speaking" : "idle"}
               title={isSpeaking ? t("voice.stopReading") : t("voice.readAloud")}
               className={
-                "tap-press grid h-9 w-9 -my-[10px] place-items-center rounded-full transition-[opacity,color,background-color] duration-[140ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait " +
+                "tap-press -my-[10px] place-items-center rounded-full transition-[opacity,color,background-color] duration-[140ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait " +
+                (isSpeaking || isSpeakLoading ? "inline-flex gap-1 px-2" : "grid h-9 w-9 ") +
                 (isSpeaking || isSpeakLoading
                   ? "text-accent opacity-100"
                   : "text-muted-foreground/55 opacity-40 hover:bg-muted/60 hover:text-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100")
@@ -2490,6 +2622,11 @@ function MessageRow({
                 <Square size={14} className="fill-current" aria-hidden="true" />
               ) : (
                 <Volume2 size={16} aria-hidden="true" />
+              )}
+              {(isSpeaking || isSpeakLoading) && (
+                <span className="text-[10px] font-medium leading-none">
+                  {t(isSpeakLoading ? "voice.preparingAudio" : "voice.speaking")}
+                </span>
               )}
             </button>
           </div>
@@ -2562,6 +2699,7 @@ function Composer({
   textareaRef,
   voiceInputEnabled,
   sttLangCode,
+  journeyDraftSource,
   onFocusComposer,
 }: {
   value: string;
@@ -2573,10 +2711,13 @@ function Composer({
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   voiceInputEnabled: boolean;
   sttLangCode: string;
+  journeyDraftSource: string | null;
   onFocusComposer?: () => void;
 }) {
   const { t } = useTranslation();
   const canSend = value.trim().length > 0 && !sending;
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   // Cloud STT (Sarvam via edge fn). Segments record + transcribe under 30s
   // caps; onPartial fires with the full accumulated transcript so we can
   // just replace what the mic contributed (keeping any user-typed prefix).
@@ -2584,6 +2725,8 @@ function Composer({
   const onPartial = useCallback(
     (transcript: string) => {
       const prefix = prefixRef.current;
+      setLiveTranscript(transcript);
+      setVoiceError(null);
       const joined = prefix ? `${prefix.replace(/\s+$/, "")} ${transcript}` : transcript;
       onChange(joined);
       textareaRef.current?.focus();
@@ -2592,18 +2735,28 @@ function Composer({
   );
   const onError = useCallback(
     (message: string) => {
-      if (message === "mic_denied") toast.error(t("voice.micDenied"));
-      else toast.error(t("voice.sttError"));
+      const friendly = message === "mic_denied" ? t("voice.micDenied") : t("voice.sttError");
+      setVoiceError(friendly);
+      toast.error(friendly);
     },
     [t],
   );
   const stt = useSpeechRecognition({ langCode: sttLangCode, onPartial, onError });
   const showMic = stt.supported && voiceInputEnabled;
   const startMic = () => {
+    setVoiceError(null);
+    setLiveTranscript("");
     prefixRef.current = value;
     void stt.start();
   };
   const stopMic = () => stt.stop();
+  const cancelMic = () => {
+    stt.cancel();
+    setLiveTranscript("");
+    setVoiceError(null);
+    onChange(prefixRef.current);
+    textareaRef.current?.focus();
+  };
   const micDisabled = sending;
 
   // Elapsed timer for the recording bar. Ticks once per second while
@@ -2627,25 +2780,62 @@ function Composer({
   return (
     <div className="border-t border-transparent bg-gradient-to-t from-background via-background/95 to-background/0 px-3 pt-4 pb-3 md:px-8 md:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="mx-auto w-full max-w-3xl">
-        {stt.busy && !stt.recording && (
-          <div className="motion-fade-up mb-2 flex justify-start" role="status" aria-live="polite">
-            <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-xs font-medium text-accent shadow-sm backdrop-blur">
-              <span className="flex items-center gap-1" aria-hidden="true">
-                <span
-                  className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
-                  style={{ animationDelay: "0ms" }}
-                />
-                <span
-                  className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
-                  style={{ animationDelay: "150ms" }}
-                />
-                <span
-                  className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
-                  style={{ animationDelay: "300ms" }}
-                />
-              </span>
-              <span>{t("voice.transcribing")}</span>
+        {journeyDraftSource && !sending && (
+          <div className="motion-fade-up mb-2 flex items-start gap-2.5 rounded-2xl border border-primary/20 bg-primary/[0.06] px-3.5 py-2.5 text-xs leading-relaxed text-muted-foreground">
+            <Sparkles size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+            <div>
+              <p className="font-medium text-foreground">{t("chat.journeyDraftTitle")}</p>
+              <p>{t("chat.journeyDraftHint", { source: journeyDraftSource })}</p>
             </div>
+          </div>
+        )}
+        {stt.busy && !stt.recording && (
+          <div
+            className="motion-fade-up mb-2 flex items-center gap-2.5 rounded-2xl border border-accent/30 bg-accent/10 px-3.5 py-2.5 text-xs text-accent shadow-sm backdrop-blur"
+            role="status"
+            aria-live="polite"
+            data-state="thinking"
+          >
+            <Loader2
+              size={16}
+              className="shrink-0 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{t("voice.transcribing")}</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {liveTranscript || t("voice.transcriptPlaceholder")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={cancelMic}
+              aria-label={t("voice.cancelInput")}
+              title={t("voice.cancelInput")}
+              className="tap-press grid min-h-9 min-w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+        {voiceError && !stt.busy && !stt.recording && (
+          <div
+            className="motion-fade-up mb-2 flex items-center gap-2.5 rounded-2xl border border-feedback-danger/25 bg-feedback-danger/5 px-3.5 py-2.5 text-xs text-foreground"
+            role="alert"
+            data-state="error"
+          >
+            <CircleAlert size={16} className="shrink-0 text-feedback-danger" aria-hidden="true" />
+            <span className="min-w-0 flex-1 text-muted-foreground">{voiceError}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setVoiceError(null);
+                startMic();
+              }}
+              className="tap-press shrink-0 rounded-lg px-2 py-1 font-medium text-feedback-danger hover:bg-feedback-danger/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t("voice.retry")}
+            </button>
           </div>
         )}
         <form
@@ -2664,20 +2854,29 @@ function Composer({
             <div
               role="status"
               aria-live="polite"
-              aria-label={t("voice.recording")}
-              className="motion-fade-up flex min-h-[44px] flex-1 items-center gap-3 rounded-2xl bg-accent/5 px-3 py-1.5 ring-1 ring-accent/25"
+              aria-label={t("voice.listening")}
+              data-state="listening"
+              className="motion-fade-up flex min-h-[72px] min-w-0 flex-1 items-center gap-3 rounded-2xl bg-accent/5 px-3 py-2 ring-1 ring-accent/25"
             >
-              <span className="flex items-center gap-2 shrink-0">
-                <span
-                  aria-hidden="true"
-                  className="h-2 w-2 rounded-full bg-accent shadow-[0_0_6px_var(--glow-gold)] animate-pulse motion-reduce:animate-none"
-                />
-                <span className="font-mono text-xs tabular-nums text-accent">
-                  {mm}:{ss}
-                </span>
-              </span>
-              <div className="relative h-10 flex-1 min-w-0">
-                <RecordingWaveform stream={stt.stream} />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent shadow-[0_0_6px_var(--glow-gold)] motion-reduce:animate-none"
+                  />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+                    {t("voice.listening")}
+                  </span>
+                  <time className="ml-auto font-mono text-xs tabular-nums text-accent">
+                    {mm}:{ss}
+                  </time>
+                </div>
+                <p className="truncate text-xs text-muted-foreground">
+                  {liveTranscript || t("voice.listeningHint")}
+                </p>
+                <div className="relative h-5 min-w-0">
+                  <RecordingWaveform stream={stt.stream} />
+                </div>
               </div>
             </div>
           ) : (
@@ -2694,7 +2893,7 @@ function Composer({
               className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none md:text-sm"
             />
           )}
-          {showMic && !stt.recording && (
+          {showMic && !stt.recording && !stt.busy && (
             <button
               type="button"
               onClick={startMic}
@@ -2704,6 +2903,17 @@ function Composer({
               className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Mic size={16} aria-hidden="true" />
+            </button>
+          )}
+          {stt.recording && (
+            <button
+              type="button"
+              onClick={cancelMic}
+              aria-label={t("voice.cancelInput")}
+              title={t("voice.cancelInput")}
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X size={16} aria-hidden="true" />
             </button>
           )}
           {stt.recording ? (
@@ -2816,16 +3026,29 @@ function ErrorRow({ message, onRetry }: { message: string; onRetry: () => void }
   return (
     <div
       role="alert"
-      className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-foreground"
+      aria-live="assertive"
+      aria-atomic="true"
+      data-state="error"
+      className="motion-fade-up flex items-start gap-3 rounded-2xl border border-feedback-danger/25 bg-feedback-danger/5 px-4 py-3.5 text-sm text-foreground shadow-sm"
     >
-      <p>{message}</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-2 inline-flex min-h-[36px] items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+      <span
+        aria-hidden="true"
+        className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-feedback-danger/10 text-feedback-danger"
       >
-        {t("chat.retry")}
-      </button>
+        <CircleAlert size={16} strokeWidth={1.8} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-foreground">{t("chat.errorTitle")}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{message}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="tap-press mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-feedback-danger/30 bg-background px-3 py-1.5 text-xs font-medium text-feedback-danger transition-colors hover:bg-feedback-danger/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <RefreshCw size={14} aria-hidden="true" />
+          {t("chat.retry")}
+        </button>
+      </div>
     </div>
   );
 }

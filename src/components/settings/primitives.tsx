@@ -68,7 +68,7 @@ export function SegmentedGroup<T extends string>({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(opt.value)}
-            className={`flex-1 md:flex-initial rounded-full px-3 py-1.5 min-h-[40px] md:min-h-0 text-xs font-medium transition-colors duration-[var(--motion-micro)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-[var(--motion-micro)] min-h-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex-initial ${
               selected
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -84,10 +84,12 @@ export function SegmentedGroup<T extends string>({
 
 export function Toggle({
   id,
+  ariaLabel,
   checked,
   onChange,
 }: {
   id: string;
+  ariaLabel: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
@@ -96,9 +98,10 @@ export function Toggle({
       id={id}
       type="button"
       role="switch"
+      aria-label={ariaLabel}
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="grid place-items-center min-h-11 min-w-11 focus:outline-none"
+      className="grid min-h-11 min-w-11 place-items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span
         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-[var(--motion-micro)] focus-visible:ring-2 focus-visible:ring-ring ${
@@ -120,6 +123,7 @@ export function ConfirmDialog({
   body,
   cancelLabel,
   confirmLabel,
+  confirmTone = "default",
   onCancel,
   onConfirm,
 }: {
@@ -127,6 +131,7 @@ export function ConfirmDialog({
   body: string;
   cancelLabel: string;
   confirmLabel: string;
+  confirmTone?: "default" | "danger";
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -157,9 +162,13 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            variant={confirmTone === "danger" ? "destructive" : "ghost"}
             onClick={onConfirm}
-            className="flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+            className={
+              confirmTone === "danger"
+                ? "flex-1"
+                : "flex-1 bg-accent text-accent-foreground hover:bg-accent/90"
+            }
           >
             {confirmLabel}
           </Button>

@@ -133,7 +133,7 @@ function Body({ data }: { data: LoShuData }) {
             className="grid w-full max-w-xs grid-cols-3 gap-2 sm:gap-3"
           >
             {data.grid.flat().map((cell, i) => (
-              <GridCell key={i} cell={cell} />
+              <GridCell key={i} cell={cell} revealIndex={i} />
             ))}
           </div>
           {data.added_to_grid && data.added_to_grid.length > 0 && (
@@ -349,7 +349,10 @@ function KuaBody({ kua }: { kua: Extract<LoShuKua, { available: true }> }) {
           className="flex h-12 w-12 items-center justify-center rounded-full border text-glow-gold border-glow-gold/[40%] bg-glow-gold/10"
           aria-label={`Kua number ${kua.number}`}
         >
-          <span className="text-lg font-semibold leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
+          <span
+            className="text-lg font-semibold leading-none"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
             {kua.number}
           </span>
         </div>
@@ -481,15 +484,16 @@ function DirList({
 
 // ---------------------------------------------------------------- pieces
 
-function GridCell({ cell }: { cell: LoShuCell }) {
+function GridCell({ cell, revealIndex }: { cell: LoShuCell; revealIndex: number }) {
   const filled = cell.count > 0;
   return (
     <div
       role="gridcell"
       title={cell.meaning}
       aria-label={`${cell.number}: ${cell.meaning}${filled ? ` (x${cell.count})` : " — empty"}`}
+      style={{ animationDelay: `${revealIndex * 60}ms` }}
       className={
-        "group relative flex aspect-square w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 " +
+        "as-loshu-grid-cell group relative flex aspect-square w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 " +
         (filled ? "border-border bg-background" : "border-dashed border-border/60 bg-muted/20")
       }
     >
@@ -545,7 +549,10 @@ function RemedyCard({ remedy }: { remedy: LoShuMissingRemedy }) {
     <li className="rounded-xl border border-border bg-background p-4">
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-glow-violet border-glow-violet/[33%] bg-glow-violet/10">
-          <span className="text-lg font-semibold leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
+          <span
+            className="text-lg font-semibold leading-none"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
             {remedy.number}
           </span>
         </div>
@@ -586,7 +593,10 @@ function Chip({ label, value, tone }: { label: string; value: number; tone: "gol
       : "text-glow-violet border-glow-violet/[33%] bg-glow-violet/10";
   return (
     <span
-      className={"inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium " + pillTone}
+      className={
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium " +
+        pillTone
+      }
     >
       {label}: <span style={{ fontVariantNumeric: "tabular-nums" }}>{value}</span>
     </span>
@@ -622,7 +632,10 @@ function NumberList({
               "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border " + pillTone
             }
           >
-            <span className="text-lg font-semibold leading-none" style={{ fontVariantNumeric: "tabular-nums" }}>
+            <span
+              className="text-lg font-semibold leading-none"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
               {n}
             </span>
           </div>

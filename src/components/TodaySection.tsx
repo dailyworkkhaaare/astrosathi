@@ -52,7 +52,7 @@ export function TodaySection() {
   return (
     <section
       aria-labelledby="today-heading"
-      className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+      className="min-h-[10.5rem] rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
     >
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -89,15 +89,17 @@ export function TodaySection() {
         </div>
       )}
 
-      {isEmpty && (
-        <p className="mt-4 text-sm text-muted-foreground">{t("sections.today.empty")}</p>
-      )}
+      {isEmpty && <p className="mt-4 text-sm text-muted-foreground">{t("sections.today.empty")}</p>}
 
       {!loading && !hasError && !isEmpty && (
         <div className="mt-4 space-y-4">
           {moon && (
             <div className="flex items-start gap-3 rounded-xl border border-border bg-background p-4">
-              <Moon size={18} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <Moon
+                size={18}
+                className="mt-0.5 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t("sections.today.moonNowLabel")}
@@ -144,12 +146,7 @@ export function TodaySection() {
               {slowPlanetsOpen && (
                 <ul id="slow-planets-list" className="motion-fade-up mt-2 space-y-2">
                   {planets.map((p) => (
-                    <TodayPlanetRow
-                      key={p.planet}
-                      planet={p}
-                      ascSignIndex={ascSignIndex}
-                      t={t}
-                    />
+                    <TodayPlanetRow key={p.planet} planet={p} ascSignIndex={ascSignIndex} t={t} />
                   ))}
                 </ul>
               )}

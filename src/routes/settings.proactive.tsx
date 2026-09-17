@@ -23,11 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useProactiveSettings, useSaveProactiveSettings } from "@/lib/queries";
-import {
-  NUDGE_KINDS,
-  PROACTIVE_SETTINGS_DEFAULTS,
-  type ProactiveSettings,
-} from "@/lib/proactive";
+import { NUDGE_KINDS, PROACTIVE_SETTINGS_DEFAULTS, type ProactiveSettings } from "@/lib/proactive";
 
 export const Route = createFileRoute("/settings/proactive")({
   head: () => ({
@@ -120,6 +116,10 @@ function ProactiveSettingsPage() {
   };
 
   const disabled = !local.enabled;
+  const quietHoursActive = local.quiet_hours_start != null && local.quiet_hours_end != null;
+  const formatHour = (hour: number) =>
+    t("settings.proactive.quietFormat", { h: String(hour).padStart(2, "0") });
+  const mutedKindCount = NUDGE_KINDS.filter((kind) => local.muted_kinds.includes(kind)).length;
 
   return (
     <section className="mx-auto max-w-2xl space-y-6">
@@ -140,27 +140,58 @@ function ProactiveSettingsPage() {
       <Group title={t("settings.proactive.enabled")} delay={1}>
         <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
           <div className="min-w-0">
-            <label htmlFor="proactive-enabled" className="block text-sm font-medium text-foreground">
+            <label
+              htmlFor="proactive-enabled"
+              className="block text-sm font-medium text-foreground"
+            >
               {t("settings.proactive.enabled")}
             </label>
             <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
               {t("settings.proactive.enabledHint")}
             </p>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">
+              {t("settings.proactive.enabledDetail")}
+            </p>
           </div>
-          <Toggle
-            id="proactive-enabled"
-            checked={local.enabled}
-            onChange={onToggleEnabled}
-          />
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {local.enabled
+                ? t("settings.proactive.enabledStatusOn")
+                : t("settings.proactive.enabledStatusOff")}
+            </span>
+            <Toggle
+              id="proactive-enabled"
+              ariaLabel={t("settings.proactive.enabled")}
+              checked={local.enabled}
+              onChange={onToggleEnabled}
+            />
+          </div>
         </div>
       </Group>
 
-      <div className={cn("space-y-6 transition-opacity", disabled && "pointer-events-none opacity-50")}>
+      {saveMutation.isPending && (
+        <p role="status" aria-live="polite" className="px-1 text-xs text-muted-foreground">
+          {t("settings.proactive.saving")}
+        </p>
+      )}
+
+      <div
+        className={cn("space-y-6 transition-opacity", disabled && "pointer-events-none opacity-50")}
+      >
+        {disabled && (
+          <p className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+            {t("settings.proactive.controlsPaused")}
+          </p>
+        )}
+
         {/* Frequency cap */}
         <Group title={t("settings.proactive.frequency")} delay={2}>
           <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
             <p className="text-xs leading-snug text-muted-foreground">
               {t("settings.proactive.frequencyHint")}
+            </p>
+            <p className="text-xs leading-snug text-muted-foreground">
+              {t("settings.proactive.frequencyDetail")}
             </p>
             <Select value={String(local.max_per_week)} onValueChange={onChangeFrequency}>
               <SelectTrigger
@@ -180,6 +211,11 @@ function ProactiveSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs font-medium text-foreground">
+              {local.max_per_week === 0
+                ? t("settings.proactive.frequencyStatusOff")
+                : t("settings.proactive.frequencyStatus", { n: local.max_per_week })}
+            </p>
           </div>
         </Group>
 
@@ -188,6 +224,9 @@ function ProactiveSettingsPage() {
           <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
             <p className="text-xs leading-snug text-muted-foreground">
               {t("settings.proactive.quietHint")}
+            </p>
+            <p className="text-xs leading-snug text-muted-foreground">
+              {t("settings.proactive.quietDetail")}
             </p>
             <div className="grid grid-cols-2 gap-2">
               <QuietHourSelect
@@ -203,6 +242,14 @@ function ProactiveSettingsPage() {
                 onChange={(v) => onChangeQuiet("end", v)}
               />
             </div>
+            <p className="text-xs font-medium text-foreground">
+              {quietHoursActive
+                ? t("settings.proactive.quietStatusActive", {
+                    start: formatHour(local.quiet_hours_start!),
+                    end: formatHour(local.quiet_hours_end!),
+                  })
+                : t("settings.proactive.quietStatusOff")}
+            </p>
           </div>
         </Group>
 
@@ -211,6 +258,9 @@ function ProactiveSettingsPage() {
           <div className="flex flex-col gap-3 px-4 py-3">
             <p className="text-xs leading-snug text-muted-foreground">
               {t("settings.proactive.mutedKindsHint")}
+            </p>
+            <p className="text-xs leading-snug text-muted-foreground">
+              {t("settings.proactive.mutedKindsDetail")}
             </p>
             <div className="flex flex-wrap gap-2">
               {NUDGE_KINDS.map((kind) => {
@@ -245,6 +295,11 @@ function ProactiveSettingsPage() {
                 );
               })}
             </div>
+            <p className="text-xs font-medium text-foreground">
+              {mutedKindCount === 0
+                ? t("settings.proactive.mutedKindsStatusAll")
+                : t("settings.proactive.mutedKindsStatusMuted", { n: mutedKindCount })}
+            </p>
           </div>
         </Group>
       </div>

@@ -24,9 +24,17 @@ export function MarketOutlookSummaryCard() {
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
           <Coins size={15} aria-hidden="true" />
         </span>
-        <h2 id="market-summary-heading" className="text-base font-semibold text-foreground">
-          {t("sections.market.title")}
-        </h2>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
+            {t("sections.market.experimentalLabel")}
+          </p>
+          <h2
+            id="market-summary-heading"
+            className="mt-0.5 text-base font-semibold text-foreground"
+          >
+            {t("sections.market.title")}
+          </h2>
+        </div>
       </div>
 
       {loading ? (
@@ -57,13 +65,7 @@ export function MarketOutlookSummaryCard() {
   );
 }
 
-function LeanChip({
-  outlook,
-  t,
-}: {
-  outlook: MarketMetalOutlook;
-  t: (key: string) => string;
-}) {
+function LeanChip({ outlook, t }: { outlook: MarketMetalOutlook; t: (key: string) => string }) {
   const isUp = outlook.lean === "up";
   const isDown = outlook.lean === "down";
   const Icon = isUp ? TrendingUp : isDown ? TrendingDown : Minus;

@@ -129,8 +129,9 @@ export function NumerologySection() {
   return (
     <div className="space-y-6">
       <Card className="motion-fade-up motion-delay-1">
-        <Header note={d.systems_note} />
+        <Header note={d.systems_note} input={d.input} />
         <section aria-labelledby="core-numbers-heading" className="mt-5">
+          <p className="as-micro mb-2 text-primary">{t("numerology.birthDateDerived")}</p>
           <SectionHeading id="core-numbers-heading" text={t("numerology.coreTitle")} />
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {core.map((item) => (
@@ -147,6 +148,7 @@ export function NumerologySection() {
 
       <Card className="motion-fade-up motion-delay-2">
         <section aria-labelledby="name-numbers-heading">
+          <p className="as-micro mb-2 text-primary">{t("numerology.nameDerived")}</p>
           <SectionHeading id="name-numbers-heading" text={t("numerology.nameTitle")} />
           <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <NameSystemCard title={t("numerology.systems.pythagorean")} data={d.pythagorean} />
@@ -158,13 +160,7 @@ export function NumerologySection() {
   );
 }
 
-function Card({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div
       className={`rounded-2xl border border-border bg-card p-5 ${className}`}
@@ -175,13 +171,31 @@ function Card({
   );
 }
 
-function Header({ note }: { note?: string }) {
+function Header({ note, input }: { note?: string; input?: NumerologyData["input"] }) {
   const { t } = useTranslation();
   return (
     <div>
+      <p className="as-micro mb-2 text-primary">{t("numerology.lensLabel")}</p>
       <h2 className="text-base font-semibold text-foreground">{t("numerology.title")}</h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        {t("numerology.provenanceBoundary")}
+      </p>
+      {(input?.birth_date || input?.full_name) && (
+        <div className="mt-3 flex flex-wrap gap-2" aria-label={t("numerology.sourcesLabel")}>
+          {input.birth_date && <SourceTag>{t("numerology.birthDateSource")}</SourceTag>}
+          {input.full_name && <SourceTag>{t("numerology.savedNameSource")}</SourceTag>}
+        </div>
+      )}
       {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
     </div>
+  );
+}
+
+function SourceTag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground">
+      {children}
+    </span>
   );
 }
 

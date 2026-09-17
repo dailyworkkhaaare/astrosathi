@@ -28,11 +28,15 @@ export function AshtakavargaSection() {
         className="rounded-2xl border border-border bg-card p-5"
       >
         <header>
+          <p className="as-micro mb-2 text-primary">{t("sections.ashtakavarga.eyebrow")}</p>
           <h2 id="ashtakavarga-heading" className="text-lg font-semibold text-foreground">
             {t("sections.ashtakavarga.sarvashtakavargaTitle")}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {t("sections.ashtakavarga.sarvashtakavargaSubtitle")}
+          </p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            {t("sections.ashtakavarga.sarvashtakavargaScope")}
           </p>
         </header>
 
@@ -64,6 +68,10 @@ export function AshtakavargaSection() {
 
         {!loading && !hasError && houses.length > 0 && (
           <>
+            <BinduHeatmap houses={houses} kind="sarva" />
+            <p className="as-micro mt-6 text-muted-foreground">
+              {t("sections.ashtakavarga.exactHouseValues")}
+            </p>
             <div className="motion-fade-up mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {houses.map((h) => (
                 <HouseCard key={h.house.number} h={h} />
@@ -102,6 +110,7 @@ function BhinnashtakavargaSection() {
       className="rounded-2xl border border-border bg-card p-5"
     >
       <header>
+        <p className="as-micro mb-2 text-primary">{t("sections.ashtakavarga.planetLens")}</p>
         <h2 id="bhinnashtakavarga-heading" className="text-lg font-semibold text-foreground">
           {t("sections.ashtakavarga.bhinnashtakavargaTitle")}
         </h2>
@@ -163,6 +172,10 @@ function BhinnashtakavargaSection() {
 
       {!loading && !hasError && houses.length > 0 && (
         <>
+          <BinduHeatmap houses={houses} kind="bhinna" planetName={planetName} />
+          <p className="as-micro mt-6 text-muted-foreground">
+            {t("sections.ashtakavarga.exactHouseValues")}
+          </p>
           <div className="motion-fade-up mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {houses.map((h) => (
               <BhinnaHouseCard key={h.house.number} h={h} />
@@ -176,6 +189,65 @@ function BhinnashtakavargaSection() {
           </p>
         </>
       )}
+    </section>
+  );
+}
+
+function BinduHeatmap({
+  houses,
+  kind,
+  planetName,
+}: {
+  houses: AshtakavargaHouse[];
+  kind: "sarva" | "bhinna";
+  planetName?: string;
+}) {
+  const { t } = useTranslation();
+  const label =
+    kind === "sarva"
+      ? t("sections.ashtakavarga.sarvashtakavargaHeatmap")
+      : t("sections.ashtakavarga.bhinnashtakavargaHeatmap", { planet: planetName ?? "" });
+  const strongAt = kind === "sarva" ? 30 : 5;
+  const lowAt = kind === "sarva" ? 25 : 2;
+
+  return (
+    <section aria-label={label} className="motion-fade-up mt-5">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h3 className="text-sm font-medium text-foreground">{label}</h3>
+        <span className="text-xs text-muted-foreground">
+          {t("sections.ashtakavarga.bindusLabel")}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="list">
+        {houses.map((h) => {
+          const score = Number(h.score) || 0;
+          const intensity =
+            score >= strongAt
+              ? "border-primary/35 bg-primary/20"
+              : score <= lowAt
+                ? "border-border bg-muted/70"
+                : "border-primary/20 bg-primary/[0.08]";
+          const house = t("sections.ashtakavarga.houseNum", { n: h.house.number });
+          return (
+            <div
+              key={h.house.number}
+              role="listitem"
+              aria-label={t("sections.ashtakavarga.heatmapCellAria", {
+                house,
+                sign: h.rasi?.name ?? "—",
+                score,
+              })}
+              className={`rounded-lg border p-3 ${intensity}`}
+            >
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                {t("sections.ashtakavarga.houseShort", { n: h.house.number })}
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{score}</p>
+              <p className="mt-1 truncate text-xs text-muted-foreground">{h.rasi?.name ?? "—"}</p>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }

@@ -1,13 +1,13 @@
 // Feedback controls for assistant chat bubbles. Kept deliberately quiet: a
 // single row of tiny icon-only triggers that share the copy button's line,
-// each one 44px-tappable but visually ~16px. Outcome/remedy open a compact
+// each one 36px-tappable but visually ~16px. Outcome/remedy open a compact
 // popover instead of an inline band, so the reading experience never gets a
 // permanent "did this come true?" band under every message.
 
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { CalendarCheck, Check, Copy, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import { CalendarCheck, Check, Copy, Loader2, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -75,6 +75,7 @@ function RowIconButton({
   onClick,
   active,
   activeTone = "accent",
+  disabled = false,
   className,
   children,
 }: {
@@ -82,6 +83,7 @@ function RowIconButton({
   onClick: () => void;
   active?: boolean;
   activeTone?: "accent" | "destructive";
+  disabled?: boolean;
   className?: string;
   children: ReactNode;
 }) {
@@ -89,15 +91,17 @@ function RowIconButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       aria-pressed={active}
+      title={label}
       className={cn(
         triggerIconOnly,
-        "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60",
         active
           ? activeTone === "destructive"
-            ? "text-destructive-strong"
-            : "text-accent"
+            ? "bg-destructive/10 text-destructive-strong"
+            : "bg-accent/10 text-accent"
           : triggerIdle,
         className,
       )}
@@ -129,12 +133,19 @@ function FollowUpControl<TValue extends string>({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
   const selected = options.find((o) => o.value === value);
   const isNegative = selected ? negativeValues.includes(selected.value) : false;
 
   const handleSelect = async (v: TValue) => {
-    await onSelect(v);
-    window.setTimeout(() => setOpen(false), 250);
+    if (pending) return;
+    setPending(true);
+    try {
+      await onSelect(v);
+      window.setTimeout(() => setOpen(false), 250);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -144,13 +155,28 @@ function FollowUpControl<TValue extends string>({
           type="button"
           aria-label={triggerLabel}
           aria-expanded={open}
+          aria-busy={pending}
+          title={triggerLabel}
+          disabled={pending}
           className={cn(
-            "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70",
             selected ? triggerWithLabel : triggerIconOnly,
-            selected ? (isNegative ? "text-destructive-strong" : "text-accent") : triggerIdle,
+            selected
+              ? isNegative
+                ? "bg-destructive/10 text-destructive-strong"
+                : "bg-accent/10 text-accent"
+              : triggerIdle,
           )}
         >
-          {icon}
+          {pending ? (
+            <Loader2
+              size={16}
+              className="animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+          ) : (
+            icon
+          )}
           {selected && (
             <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-none">
               {t(selected.labelKey)}
@@ -173,9 +199,10 @@ function FollowUpControl<TValue extends string>({
                 key={opt.value}
                 type="button"
                 onClick={() => void handleSelect(opt.value)}
+                disabled={pending}
                 aria-pressed={isSelected}
                 className={cn(
-                  "tap-press min-h-9 rounded-full border px-2.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "tap-press min-h-9 rounded-full border px-2.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60",
                   isSelected
                     ? negative
                       ? "border-destructive/40 bg-destructive/10 text-destructive-strong"
@@ -285,7 +312,12 @@ export function MessageActionRow({
   };
 
   return (
-    <div className="mt-1 flex items-center gap-0.5 opacity-40 transition-opacity duration-[140ms] md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+    <div
+      role="group"
+      aria-label={t("feedback.actions")}
+      aria-busy={ratingBusy}
+      className="mt-1 flex items-center gap-0.5 opacity-40 transition-opacity duration-[140ms] md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100"
+    >
       <RowIconButton label={copied ? t("chat.copied") : t("chat.copy")} onClick={onCopy}>
         {copied ? <Check size={16} className="text-accent" /> : <Copy size={16} />}
       </RowIconButton>
@@ -295,6 +327,7 @@ export function MessageActionRow({
           <RowIconButton
             label={t("feedback.thumbsUp")}
             onClick={() => void handleRate("up")}
+            disabled={ratingBusy}
             active={feedback?.rating === "up"}
             className={bounce === "up" ? "motion-bounce-tap" : undefined}
           >
@@ -307,6 +340,7 @@ export function MessageActionRow({
           <RowIconButton
             label={t("feedback.thumbsDown")}
             onClick={() => void handleRate("down")}
+            disabled={ratingBusy}
             active={feedback?.rating === "down"}
             activeTone="destructive"
             className={bounce === "down" ? "motion-bounce-tap" : undefined}

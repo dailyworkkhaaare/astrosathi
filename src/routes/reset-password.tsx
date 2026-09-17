@@ -1,7 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { KeyRound, Orbit, ShieldCheck } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AuthTransitionPage } from "@/components/auth/AuthTransitionPage";
+import { StateFrame } from "@/components/states/StateFrame";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/reset-password")({
@@ -53,65 +57,106 @@ function ResetPasswordPage() {
   };
 
   return (
-    <section className="mx-auto max-w-md">
-      <h1 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">
-        {t("auth.reset.title")}
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground">{t("auth.reset.subtitle")}</p>
-
+    <AuthTransitionPage>
       {!ready && !done && (
-        <p className="mt-6 text-sm text-muted-foreground">{t("auth.callback.loading")}</p>
+        <StateFrame
+          scope="panel"
+          tone="loading"
+          role="status"
+          live="polite"
+          busy
+          title={t("auth.reset.verifyingTitle")}
+          description={t("auth.reset.verifyingBody")}
+          icon={
+            <>
+              <Orbit className="h-6 w-6" strokeWidth={1.6} />
+              <span className="as-state-orbit-dot absolute left-1/2 top-1/2 size-1.5 rounded-full bg-current shadow-[0_0_10px_currentColor]" />
+            </>
+          }
+          className="border-white/15 bg-background/95 shadow-2xl backdrop-blur-xl"
+        />
       )}
 
       {done ? (
-        <div className="mt-6 rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground">
-          {t("auth.reset.done")}
+        <div
+          role="status"
+          aria-live="polite"
+          className="motion-local-enter w-full rounded-[1.75rem] border border-white/15 bg-background/95 p-7 text-center text-foreground shadow-2xl backdrop-blur-xl sm:p-10"
+        >
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+            <ShieldCheck className="h-6 w-6" aria-hidden />
+          </div>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+            {t("auth.reset.eyebrow")}
+          </p>
+          <h1 className="font-display mt-3 text-3xl font-semibold text-foreground sm:text-4xl">
+            {t("auth.reset.doneTitle")}
+          </h1>
+          <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
+            {t("auth.reset.done")}
+          </p>
         </div>
       ) : ready ? (
-        <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
-          {error && (
-            <div
-              role="alert"
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-strong"
-            >
-              {error}
+        <section className="motion-local-enter w-full rounded-[1.75rem] border border-white/15 bg-background/95 p-6 text-foreground shadow-2xl backdrop-blur-xl sm:p-9">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+            <KeyRound className="h-5 w-5" aria-hidden />
+          </div>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+            {t("auth.reset.eyebrow")}
+          </p>
+          <h1 className="font-display mt-3 text-3xl font-semibold text-foreground sm:text-4xl">
+            {t("auth.reset.title")}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{t("auth.reset.subtitle")}</p>
+
+          <form className="mt-7 space-y-4" onSubmit={onSubmit} noValidate>
+            {error && (
+              <div
+                role="alert"
+                className="rounded-xl border border-destructive/40 bg-destructive/10 px-3.5 py-3 text-sm text-destructive-strong"
+              >
+                {error}
+              </div>
+            )}
+            <div>
+              <label htmlFor="new-password" className="block text-sm font-semibold text-foreground">
+                {t("auth.reset.newPassword")}
+              </label>
+              <input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1.5 h-12 w-full rounded-xl border border-input bg-background/80 px-3.5 text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
             </div>
-          )}
-          <div>
-            <label htmlFor="new-password" className="block text-sm font-medium text-foreground">
-              {t("auth.reset.newPassword")}
-            </label>
-            <input
-              id="new-password"
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+            <div>
+              <label
+                htmlFor="confirm-password"
+                className="block text-sm font-semibold text-foreground"
+              >
+                {t("auth.confirmPassword")}
+              </label>
+              <input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                className="mt-1.5 h-12 w-full rounded-xl border border-input bg-background/80 px-3.5 text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <Button type="submit" disabled={loading} className="h-12 w-full text-base">
+              {loading ? t("auth.loading") : t("auth.reset.cta")}
+            </Button>
+          </form>
+          <div className="mt-6 flex items-start gap-2 border-t border-border/70 pt-5 text-xs leading-5 text-muted-foreground">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
+            <span>{t("auth.reset.secureNote")}</span>
           </div>
-          <div>
-            <label htmlFor="confirm-password" className="block text-sm font-medium text-foreground">
-              {t("auth.confirmPassword")}
-            </label>
-            <input
-              id="confirm-password"
-              type="password"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-primary px-4 py-3 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-          >
-            {loading ? t("auth.loading") : t("auth.reset.cta")}
-          </button>
-        </form>
+        </section>
       ) : null}
-    </section>
+    </AuthTransitionPage>
   );
 }

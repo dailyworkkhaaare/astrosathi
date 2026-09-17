@@ -1,7 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { CircleAlert, Orbit } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AuthTransitionPage } from "@/components/auth/AuthTransitionPage";
+import { StateFrame } from "@/components/states/StateFrame";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getOnboardingState, routeForOnboardingState } from "@/lib/birth-profile";
 import { refreshAuthSession } from "@/lib/auth";
@@ -96,21 +100,41 @@ function AuthCallbackPage() {
   }, [navigate, t]);
 
   return (
-    <section className="mx-auto max-w-md py-16 text-center">
+    <AuthTransitionPage>
       {error ? (
-        <>
-          <p className="text-sm text-destructive-strong">{error}</p>
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/auth", replace: true })}
-            className="mt-4 text-sm font-medium text-primary hover:underline"
-          >
-            {t("auth.backToSignIn")}
-          </button>
-        </>
+        <StateFrame
+          scope="panel"
+          tone="error"
+          role="alert"
+          live="assertive"
+          title={t("auth.callback.errorTitle")}
+          description={t("auth.callback.errorBody", { error })}
+          icon={<CircleAlert className="h-6 w-6" strokeWidth={1.8} />}
+          action={
+            <Button type="button" onClick={() => navigate({ to: "/auth", replace: true })}>
+              {t("auth.backToSignIn")}
+            </Button>
+          }
+          className="border-white/15 bg-background/95 shadow-2xl backdrop-blur-xl"
+        />
       ) : (
-        <p className="text-sm text-muted-foreground">{t("auth.callback.loading")}</p>
+        <StateFrame
+          scope="panel"
+          tone="loading"
+          role="status"
+          live="polite"
+          busy
+          title={t("auth.callback.loadingTitle")}
+          description={t("auth.callback.loadingBody")}
+          icon={
+            <>
+              <Orbit className="h-6 w-6" strokeWidth={1.6} />
+              <span className="as-state-orbit-dot absolute left-1/2 top-1/2 size-1.5 rounded-full bg-current shadow-[0_0_10px_currentColor]" />
+            </>
+          }
+          className="border-white/15 bg-background/95 shadow-2xl backdrop-blur-xl"
+        />
       )}
-    </section>
+    </AuthTransitionPage>
   );
 }

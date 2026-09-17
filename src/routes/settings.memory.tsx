@@ -115,7 +115,11 @@ function relativeTime(iso: string, t: ReturnType<typeof useTranslation>["t"]): s
 
 function formatDate(iso: string, lang: string): string {
   try {
-    return new Date(iso).toLocaleDateString(lang, { year: "numeric", month: "short", day: "numeric" });
+    return new Date(iso).toLocaleDateString(lang, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   } catch {
     return iso;
   }
@@ -135,7 +139,11 @@ function MemorySettingsPage() {
   const [confirmResetPrefs, setConfirmResetPrefs] = useState(false);
 
   const loadAll = async () => {
-    const [p, tm, es] = await Promise.all([getMemoryProfile(), listTopicMemories(), getEmotionalState()]);
+    const [p, tm, es] = await Promise.all([
+      getMemoryProfile(),
+      listTopicMemories(),
+      getEmotionalState(),
+    ]);
     setProfile(p);
     setTopics(tm);
     setEmotional(es);
@@ -157,13 +165,15 @@ function MemorySettingsPage() {
   }, [topics]);
 
   const moodActive =
-    emotional && emotional.state && (!emotional.expires_at || new Date(emotional.expires_at).getTime() > Date.now());
+    emotional &&
+    emotional.state &&
+    (!emotional.expires_at || new Date(emotional.expires_at).getTime() > Date.now());
 
   const preferenceEntries = useMemo(() => {
     const prefs = profile?.preferences ?? {};
-    return PREFERENCE_KEYS.filter((k) => prefs[k] !== undefined && prefs[k] !== null && prefs[k] !== "").map(
-      (k) => ({ key: k, value: prefs[k] }),
-    );
+    return PREFERENCE_KEYS.filter(
+      (k) => prefs[k] !== undefined && prefs[k] !== null && prefs[k] !== "",
+    ).map((k) => ({ key: k, value: prefs[k] }));
   }, [profile]);
 
   const onToggleMemoryEnabled = async (checked: boolean) => {
@@ -303,27 +313,66 @@ function MemorySettingsPage() {
         </div>
       ) : (
         <>
+          <Group title={t("settings.memory.disclosureTitle")} delay={1}>
+            <div className="space-y-3 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+              <DisclosureItem
+                label={t("settings.memory.disclosure.conversationLabel")}
+                description={t("settings.memory.disclosure.conversationDescription")}
+              />
+              <DisclosureItem
+                label={t("settings.memory.disclosure.topicsLabel")}
+                description={t("settings.memory.disclosure.topicsDescription")}
+              />
+              <DisclosureItem
+                label={t("settings.memory.disclosure.preferencesLabel")}
+                description={t("settings.memory.disclosure.preferencesDescription")}
+              />
+              <DisclosureItem
+                label={t("settings.memory.disclosure.moodLabel")}
+                description={t("settings.memory.disclosure.moodDescription")}
+              />
+              <DisclosureItem
+                label={t("settings.memory.disclosure.profileLabel")}
+                description={t("settings.memory.disclosure.profileDescription")}
+              />
+            </div>
+          </Group>
+
           {/* 1. Master toggle */}
-          <Group title={t("settings.memory.masterTitle")} delay={1}>
+          <Group title={t("settings.memory.masterTitle")} delay={2}>
             <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
               <div className="min-w-0">
-                <label htmlFor="memory-enabled" className="block text-sm font-medium text-foreground">
+                <label
+                  htmlFor="memory-enabled"
+                  className="block text-sm font-medium text-foreground"
+                >
                   {t("settings.memory.masterLabel")}
                 </label>
                 <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
                   {t("settings.memory.masterHelp")}
                 </p>
+                <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                  {t("settings.memory.masterDetail")}
+                </p>
               </div>
-              <Toggle
-                id="memory-enabled"
-                checked={profile?.memory_enabled ?? false}
-                onChange={onToggleMemoryEnabled}
-              />
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {profile?.memory_enabled
+                    ? t("settings.memory.masterStatusOn")
+                    : t("settings.memory.masterStatusOff")}
+                </span>
+                <Toggle
+                  id="memory-enabled"
+                  ariaLabel={t("settings.memory.masterLabel")}
+                  checked={profile?.memory_enabled ?? false}
+                  onChange={onToggleMemoryEnabled}
+                />
+              </div>
             </div>
           </Group>
 
           {/* 2. Default retention */}
-          <Group title={t("settings.memory.retentionTitle")} delay={2}>
+          <Group title={t("settings.memory.retentionTitle")} delay={3}>
             <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
               <div>
                 <span className="text-sm font-medium text-foreground">
@@ -331,6 +380,9 @@ function MemorySettingsPage() {
                 </span>
                 <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
                   {t("settings.memory.retentionHelp")}
+                </p>
+                <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                  {t("settings.memory.retentionDetail")}
                 </p>
               </div>
               <SegmentedGroup<Retention>
@@ -350,22 +402,27 @@ function MemorySettingsPage() {
             <h2 className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {t("settings.memory.memoriesTitle")}
             </h2>
+            <p className="-mt-1 mb-2.5 px-1 text-xs leading-snug text-muted-foreground">
+              {t("settings.memory.memoriesHint")}
+            </p>
             {topics.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-5 text-center text-sm text-muted-foreground">
                 {t("settings.memory.emptyAll")}
               </div>
             ) : (
               <div className="space-y-3">
-                {MEMORY_TOPICS.filter((topic) => (grouped.get(topic)?.length ?? 0) > 0).map((topic) => (
-                  <TopicSection
-                    key={topic}
-                    topic={topic}
-                    items={grouped.get(topic) ?? []}
-                    lang={i18n.language}
-                    onChangeRetention={onChangeCardRetention}
-                    onRequestDelete={setConfirmDeleteId}
-                  />
-                ))}
+                {MEMORY_TOPICS.filter((topic) => (grouped.get(topic)?.length ?? 0) > 0).map(
+                  (topic) => (
+                    <TopicSection
+                      key={topic}
+                      topic={topic}
+                      items={grouped.get(topic) ?? []}
+                      lang={i18n.language}
+                      onChangeRetention={onChangeCardRetention}
+                      onRequestDelete={setConfirmDeleteId}
+                    />
+                  ),
+                )}
               </div>
             )}
           </div>
@@ -394,7 +451,9 @@ function MemorySettingsPage() {
                   ))}
                 </div>
               )}
-              <p className="mt-3 text-[11px] text-muted-foreground">{t("settings.memory.prefsCaption")}</p>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                {t("settings.memory.prefsCaption")}
+              </p>
               {preferenceEntries.length > 0 && (
                 <button
                   type="button"
@@ -415,6 +474,9 @@ function MemorySettingsPage() {
                   <h2 className="text-sm font-semibold text-foreground">
                     {t("settings.memory.moodTitle")}
                   </h2>
+                  <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                    {t("settings.memory.moodCaption")}
+                  </p>
                   {emotional.state.mood && (
                     <p className="mt-1 text-sm text-foreground">{emotional.state.mood}</p>
                   )}
@@ -434,7 +496,9 @@ function MemorySettingsPage() {
                   )}
                   {emotional.expires_at && (
                     <p className="mt-2 text-[11px] text-muted-foreground">
-                      {t("settings.memory.expiresIn", { date: formatDate(emotional.expires_at, i18n.language) })}
+                      {t("settings.memory.expiresIn", {
+                        date: formatDate(emotional.expires_at, i18n.language),
+                      })}
                     </p>
                   )}
                 </div>
@@ -451,6 +515,9 @@ function MemorySettingsPage() {
 
           {/* 6. Danger zone */}
           <Group title={t("settings.memory.dangerTitle")} delay={4}>
+            <p className="px-4 pt-3 text-xs leading-snug text-muted-foreground">
+              {t("settings.memory.dangerHint")}
+            </p>
             <button
               type="button"
               onClick={onExport}
@@ -567,7 +634,10 @@ function TopicSection({
         <ChevronDown
           size={16}
           aria-hidden="true"
-          className={cn("shrink-0 text-muted-foreground transition-transform", expanded && "rotate-180")}
+          className={cn(
+            "shrink-0 text-muted-foreground transition-transform",
+            expanded && "rotate-180",
+          )}
         />
       </button>
       {expanded && (
@@ -587,6 +657,14 @@ function TopicSection({
   );
 }
 
+function DisclosureItem({ label, description }: { label: string; description: string }) {
+  return (
+    <p>
+      <span className="font-medium text-foreground">{label}</span> {description}
+    </p>
+  );
+}
+
 function MemoryCard({
   memory,
   lang,
@@ -601,9 +679,7 @@ function MemoryCard({
   const { t } = useTranslation();
   const excluded = isExcludedFromAi(memory);
   const summary =
-    memory.summary && memory.summary.trim().length > 0
-      ? memory.summary
-      : compactData(memory.data);
+    memory.summary && memory.summary.trim().length > 0 ? memory.summary : compactData(memory.data);
 
   return (
     <div className="rounded-xl border border-border/60 bg-background p-3">
@@ -619,11 +695,16 @@ function MemoryCard({
                 {t("settings.memory.expires", { date: formatDate(memory.expires_at, lang) })}
               </span>
             )}
-            {excluded && (
-              <span className="inline-flex items-center rounded-full border border-muted-foreground/30 bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {t("settings.memory.excludedFromAi")}
-              </span>
-            )}
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                excluded
+                  ? "border-muted-foreground/30 bg-muted text-muted-foreground"
+                  : "border-accent/30 bg-accent/10 text-accent",
+              )}
+            >
+              {excluded ? t("settings.memory.excludedFromAi") : t("settings.memory.availableToAi")}
+            </span>
           </div>
         </div>
         <button
@@ -640,7 +721,10 @@ function MemoryCard({
           value={memory.retention}
           onValueChange={(v) => onChangeRetention(memory.id, v as Retention)}
         >
-          <SelectTrigger className="h-9 w-full text-xs sm:w-44" aria-label={t("settings.memory.retentionLabel")}>
+          <SelectTrigger
+            className="h-9 w-full text-xs sm:w-44"
+            aria-label={t("settings.memory.retentionLabel")}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

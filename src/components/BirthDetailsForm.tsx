@@ -31,11 +31,13 @@ export function BirthDetailsForm({
   onChange,
   errors,
   todayMax,
+  section = "all",
 }: {
   value: BirthDetailsValue;
   onChange: (patch: Partial<BirthDetailsValue>) => void;
   errors: BirthDetailsErrors;
   todayMax: string;
+  section?: "all" | "identity" | "birth";
 }) {
   const { t } = useTranslation();
   const [placeResults, setPlaceResults] = useState<PlaceHit[]>([]);
@@ -45,6 +47,11 @@ export function BirthDetailsForm({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (section === "identity") {
+      setPlaceResults([]);
+      setPlaceLoading(false);
+      return;
+    }
     const q = value.place.trim();
     if (q.length < 2) {
       setPlaceResults([]);
@@ -61,7 +68,7 @@ export function BirthDetailsForm({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [value.place]);
+  }, [section, value.place]);
 
   const genderOptions: { value: Gender; label: string }[] = [
     { value: "male", label: t("birth.genderMale") },
@@ -70,175 +77,201 @@ export function BirthDetailsForm({
 
   return (
     <>
-      <Field id="name" label={t("birth.name")} error={errors.name}>
-        <input
-          id="name"
-          type="text"
-          autoComplete="name"
-          value={value.name}
-          onChange={(e) => onChange({ name: e.target.value })}
-          className={inputCls}
-        />
-      </Field>
-
-      <Field
-        id="gender"
-        label={t("birth.gender")}
-        error={errors.gender}
-        help={t("birth.genderHelp", "Used for your Feng Shui Kua directions.")}
-      >
-        <div role="radiogroup" aria-label={t("birth.gender")} className="grid grid-cols-2 gap-2">
-          {genderOptions.map((opt) => {
-            const selected = value.gender === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => onChange({ gender: opt.value })}
-                className={`tap-press rounded-xl border px-4 py-3 min-h-11 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  selected
-                    ? "border-accent/60 bg-accent/10 text-accent font-semibold"
-                    : "border-border bg-card text-foreground hover:bg-card"
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          onClick={() => onChange({ gender: null })}
-          aria-pressed={value.gender === null}
-          className={`mt-2 text-xs underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm ${
-            value.gender === null ? "text-foreground font-medium" : "text-muted-foreground"
-          }`}
-        >
-          {t("birth.genderPreferNotToSay", "Prefer not to say")}
-        </button>
-      </Field>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field id="dob" label={t("birth.date")} error={errors.dob}>
-          <input
-            id="dob"
-            type="date"
-            max={todayMax}
-            value={value.dob}
-            onChange={(e) => onChange({ dob: e.target.value })}
-            className={inputCls}
-          />
-        </Field>
-
-        <Field id="time" label={t("birth.time")} error={errors.time}>
-          <input
-            id="time"
-            type="time"
-            value={value.time}
-            onChange={(e) => onChange({ time: e.target.value })}
-            disabled={value.timeUnknown}
-            aria-disabled={value.timeUnknown}
-            className={`${inputCls} disabled:cursor-not-allowed disabled:bg-muted/50 disabled:text-muted-foreground`}
-          />
-        </Field>
-      </div>
-
-      <div className="-mt-3">
-        <label className="flex cursor-pointer items-center gap-2.5 text-sm text-foreground">
-          <div className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+      {(section === "all" || section === "identity") && (
+        <>
+          <Field id="name" label={t("birth.name")} error={errors.name}>
             <input
-              type="checkbox"
-              checked={value.timeUnknown}
-              onChange={(e) => {
-                onChange({
-                  timeUnknown: e.target.checked,
-                  ...(e.target.checked ? { time: "" } : {}),
-                });
-              }}
-              className="peer h-5 w-5 shrink-0 appearance-none rounded-md border border-input bg-background/60 cursor-pointer transition-colors checked:border-primary checked:bg-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            <Check
-              size={12}
-              className="pointer-events-none absolute hidden text-primary-foreground peer-checked:block"
-              aria-hidden="true"
-            />
-          </div>
-          <span>{t("birth.timeUnknown")}</span>
-        </label>
-      </div>
-
-      <Field id="place" label={t("birth.place")} error={errors.place} help={t("birth.placeHelp")}>
-        <div className="relative">
-          <div className="relative flex items-center">
-            <Search
-              size={18}
-              className="pointer-events-none absolute left-3.5 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <input
-              id="place"
+              id="name"
               type="text"
-              autoComplete="off"
-              role="combobox"
-              aria-expanded={placeOpen && placeResults.length > 0}
-              aria-autocomplete="list"
-              value={value.place}
-              onChange={(e) => {
-                onChange({ place: e.target.value, placeCoords: null });
-                setPlaceOpen(true);
-              }}
-              onFocus={() => {
-                if (placeResults.length > 0) setPlaceOpen(true);
-              }}
-              onBlur={() => {
-                setTimeout(() => setPlaceOpen(false), 150);
-              }}
-              className={`${inputCls} pl-10`}
-              dir="ltr"
+              autoComplete="name"
+              value={value.name}
+              onChange={(e) => onChange({ name: e.target.value })}
+              className={inputCls}
             />
-          </div>
-          {placeOpen && (placeLoading || placeResults.length > 0) ? (
-            <ul
-              role="listbox"
-              className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-lg"
+          </Field>
+
+          <Field
+            id="gender"
+            label={t("birth.gender")}
+            error={errors.gender}
+            help={t("birth.genderHelp", "Used for your Feng Shui Kua directions.")}
+          >
+            <div
+              role="radiogroup"
+              aria-label={t("birth.gender")}
+              className="grid grid-cols-2 gap-2"
             >
-              {placeLoading && placeResults.length === 0 ? (
-                <li className="px-4 py-3 text-sm text-muted-foreground">…</li>
-              ) : (
-                placeResults.map((r) => (
-                  <li
-                    key={`${r.latitude},${r.longitude},${r.label}`}
-                    role="option"
-                    aria-selected={value.place === r.label}
-                    className="flex cursor-pointer items-center gap-2.5 px-4 py-3 text-sm min-h-11 hover:bg-muted/80 transition-colors"
-                    onMouseDown={(ev) => {
-                      ev.preventDefault();
-                      onChange({
-                        place: r.label,
-                        placeCoords: {
-                          latitude: r.latitude,
-                          longitude: r.longitude,
-                          timezone: r.timezone,
-                        },
-                      });
-                      setPlaceOpen(false);
-                    }}
+              {genderOptions.map((opt) => {
+                const selected = value.gender === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => onChange({ gender: opt.value })}
+                    className={`tap-press rounded-xl border px-4 py-3 min-h-11 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      selected
+                        ? "border-accent/60 bg-accent/10 text-accent font-semibold"
+                        : "border-border bg-card text-foreground hover:bg-card"
+                    }`}
                   >
-                    <MapPin
-                      size={16}
-                      className="shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">{r.label}</span>
-                  </li>
-                ))
-              )}
-            </ul>
-          ) : null}
-        </div>
-      </Field>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange({ gender: null })}
+              aria-pressed={value.gender === null}
+              className={`mt-2 text-xs underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm ${
+                value.gender === null ? "text-foreground font-medium" : "text-muted-foreground"
+              }`}
+            >
+              {t("birth.genderPreferNotToSay", "Prefer not to say")}
+            </button>
+          </Field>
+        </>
+      )}
+
+      {(section === "all" || section === "birth") && (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field id="dob" label={t("birth.date")} error={errors.dob}>
+              <input
+                id="dob"
+                type="date"
+                max={todayMax}
+                value={value.dob}
+                onChange={(e) => onChange({ dob: e.target.value })}
+                className={inputCls}
+              />
+            </Field>
+
+            <Field id="time" label={t("birth.time")} error={errors.time}>
+              <input
+                id="time"
+                type="time"
+                value={value.time}
+                onChange={(e) => onChange({ time: e.target.value })}
+                disabled={value.timeUnknown}
+                aria-disabled={value.timeUnknown}
+                className={`${inputCls} disabled:cursor-not-allowed disabled:bg-muted/50 disabled:text-muted-foreground`}
+              />
+            </Field>
+          </div>
+
+          <div className="-mt-3">
+            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-foreground">
+              <div className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={value.timeUnknown}
+                  onChange={(e) => {
+                    onChange({
+                      timeUnknown: e.target.checked,
+                      ...(e.target.checked ? { time: "" } : {}),
+                    });
+                  }}
+                  className="peer h-5 w-5 shrink-0 appearance-none rounded-md border border-input bg-background/60 cursor-pointer transition-colors checked:border-primary checked:bg-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <Check
+                  size={12}
+                  className="pointer-events-none absolute hidden text-primary-foreground peer-checked:block"
+                  aria-hidden="true"
+                />
+              </div>
+              <span>{t("birth.timeUnknown")}</span>
+            </label>
+          </div>
+
+          <Field
+            id="place"
+            label={t("birth.place")}
+            error={errors.place}
+            help={t("birth.placeHelp")}
+          >
+            <div className="relative">
+              <div className="relative flex items-center">
+                <Search
+                  size={18}
+                  className="pointer-events-none absolute left-3.5 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <input
+                  id="place"
+                  type="text"
+                  autoComplete="off"
+                  role="combobox"
+                  aria-expanded={placeOpen && placeResults.length > 0}
+                  aria-autocomplete="list"
+                  value={value.place}
+                  onChange={(e) => {
+                    onChange({ place: e.target.value, placeCoords: null });
+                    setPlaceOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (placeResults.length > 0) setPlaceOpen(true);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setPlaceOpen(false), 150);
+                  }}
+                  className={`${inputCls} pl-10`}
+                  dir="ltr"
+                />
+              </div>
+              {placeOpen && (placeLoading || placeResults.length > 0) ? (
+                <ul
+                  role="listbox"
+                  className="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-lg"
+                >
+                  {placeLoading && placeResults.length === 0 ? (
+                    <li className="px-4 py-3 text-sm text-muted-foreground">…</li>
+                  ) : (
+                    placeResults.map((r) => (
+                      <li
+                        key={`${r.latitude},${r.longitude},${r.label}`}
+                        role="option"
+                        aria-selected={value.place === r.label}
+                        className="flex cursor-pointer items-center gap-2.5 px-4 py-3 text-sm min-h-11 hover:bg-muted/80 transition-colors"
+                        onMouseDown={(ev) => {
+                          ev.preventDefault();
+                          onChange({
+                            place: r.label,
+                            placeCoords: {
+                              latitude: r.latitude,
+                              longitude: r.longitude,
+                              timezone: r.timezone,
+                            },
+                          });
+                          setPlaceOpen(false);
+                        }}
+                      >
+                        <MapPin
+                          size={16}
+                          className="shrink-0 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">{r.label}</span>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              ) : null}
+            </div>
+            {value.placeCoords ? (
+              <p
+                className="mt-2 flex items-center gap-2 text-xs text-muted-foreground"
+                aria-live="polite"
+              >
+                <MapPin size={14} className="shrink-0 text-accent" aria-hidden="true" />
+                {t("birth.timezoneResolved", { timezone: value.placeCoords.timezone })}
+              </p>
+            ) : null}
+          </Field>
+        </>
+      )}
     </>
   );
 }

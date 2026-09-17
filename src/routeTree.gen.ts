@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as JournalRouteImport } from './routes/journal'
+import { Route as JourneyRouteImport } from './routes/journey'
 import { Route as LanguageRouteImport } from './routes/language'
 import { Route as LifeRouteImport } from './routes/life'
 import { Route as NudgesRouteImport } from './routes/nudges'
@@ -30,6 +31,7 @@ import { Route as PeopleIdRouteImport } from './routes/people.$id'
 import { Route as PeopleNewRouteImport } from './routes/people.new'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsMemoryRouteImport } from './routes/settings.memory'
+import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
 import { Route as SettingsProactiveRouteImport } from './routes/settings.proactive'
 import { Route as SettingsVoiceRouteImport } from './routes/settings.voice'
 import { Route as TodayIndexRouteImport } from './routes/today.index'
@@ -63,6 +65,11 @@ const HomeRoute = HomeRouteImport.update({
 const JournalRoute = JournalRouteImport.update({
   id: '/journal',
   path: '/journal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JourneyRoute = JourneyRouteImport.update({
+  id: '/journey',
+  path: '/journey',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LanguageRoute = LanguageRouteImport.update({
@@ -145,6 +152,11 @@ const SettingsMemoryRoute = SettingsMemoryRouteImport.update({
   path: '/memory',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsPreferencesRoute = SettingsPreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsProactiveRoute = SettingsProactiveRouteImport.update({
   id: '/proactive',
   path: '/proactive',
@@ -197,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/home': typeof HomeRoute
   '/journal': typeof JournalRoute
+  '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
   '/life': typeof LifeRoute
   '/nudges': typeof NudgesRoute
@@ -211,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/people/$id': typeof PeopleIdRouteWithChildren
   '/people/new': typeof PeopleNewRoute
   '/settings/memory': typeof SettingsMemoryRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/proactive': typeof SettingsProactiveRoute
   '/settings/voice': typeof SettingsVoiceRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
@@ -229,6 +243,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/home': typeof HomeRoute
   '/journal': typeof JournalRoute
+  '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
   '/life': typeof LifeRoute
   '/nudges': typeof NudgesRoute
@@ -240,6 +255,7 @@ export interface FileRoutesByTo {
   '/onboarding/consent': typeof OnboardingConsentRoute
   '/people/new': typeof PeopleNewRoute
   '/settings/memory': typeof SettingsMemoryRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/proactive': typeof SettingsProactiveRoute
   '/settings/voice': typeof SettingsVoiceRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
@@ -259,6 +275,7 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/home': typeof HomeRoute
   '/journal': typeof JournalRoute
+  '/journey': typeof JourneyRoute
   '/language': typeof LanguageRoute
   '/life': typeof LifeRoute
   '/nudges': typeof NudgesRoute
@@ -273,6 +290,7 @@ export interface FileRoutesById {
   '/people/$id': typeof PeopleIdRouteWithChildren
   '/people/new': typeof PeopleNewRoute
   '/settings/memory': typeof SettingsMemoryRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/proactive': typeof SettingsProactiveRoute
   '/settings/voice': typeof SettingsVoiceRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
@@ -293,6 +311,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/home'
     | '/journal'
+    | '/journey'
     | '/language'
     | '/life'
     | '/nudges'
@@ -307,6 +326,7 @@ export interface FileRouteTypes {
     | '/people/$id'
     | '/people/new'
     | '/settings/memory'
+    | '/settings/preferences'
     | '/settings/proactive'
     | '/settings/voice'
     | '/today/horoscope'
@@ -325,6 +345,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/home'
     | '/journal'
+    | '/journey'
     | '/language'
     | '/life'
     | '/nudges'
@@ -336,6 +357,7 @@ export interface FileRouteTypes {
     | '/onboarding/consent'
     | '/people/new'
     | '/settings/memory'
+    | '/settings/preferences'
     | '/settings/proactive'
     | '/settings/voice'
     | '/today/horoscope'
@@ -354,6 +376,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/home'
     | '/journal'
+    | '/journey'
     | '/language'
     | '/life'
     | '/nudges'
@@ -368,6 +391,7 @@ export interface FileRouteTypes {
     | '/people/$id'
     | '/people/new'
     | '/settings/memory'
+    | '/settings/preferences'
     | '/settings/proactive'
     | '/settings/voice'
     | '/today/horoscope'
@@ -387,6 +411,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   HomeRoute: typeof HomeRoute
   JournalRoute: typeof JournalRoute
+  JourneyRoute: typeof JourneyRoute
   LanguageRoute: typeof LanguageRoute
   LifeRoute: typeof LifeRoute
   NudgesRoute: typeof NudgesRoute
@@ -437,6 +462,13 @@ declare module '@tanstack/react-router' {
       path: '/journal'
       fullPath: '/journal'
       preLoaderRoute: typeof JournalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/journey': {
+      id: '/journey'
+      path: '/journey'
+      fullPath: '/journey'
+      preLoaderRoute: typeof JourneyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/language': {
@@ -551,6 +583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsMemoryRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/preferences': {
+      id: '/settings/preferences'
+      path: '/preferences'
+      fullPath: '/settings/preferences'
+      preLoaderRoute: typeof SettingsPreferencesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/proactive': {
       id: '/settings/proactive'
       path: '/proactive'
@@ -629,6 +668,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface SettingsRouteChildren {
   SettingsMemoryRoute: typeof SettingsMemoryRoute
+  SettingsPreferencesRoute: typeof SettingsPreferencesRoute
   SettingsProactiveRoute: typeof SettingsProactiveRoute
   SettingsVoiceRoute: typeof SettingsVoiceRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
@@ -636,6 +676,7 @@ interface SettingsRouteChildren {
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsMemoryRoute: SettingsMemoryRoute,
+  SettingsPreferencesRoute: SettingsPreferencesRoute,
   SettingsProactiveRoute: SettingsProactiveRoute,
   SettingsVoiceRoute: SettingsVoiceRoute,
   SettingsIndexRoute: SettingsIndexRoute,
@@ -683,6 +724,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   HomeRoute: HomeRoute,
   JournalRoute: JournalRoute,
+  JourneyRoute: JourneyRoute,
   LanguageRoute: LanguageRoute,
   LifeRoute: LifeRoute,
   NudgesRoute: NudgesRoute,

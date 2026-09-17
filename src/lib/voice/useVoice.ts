@@ -133,6 +133,8 @@ export function useSpeechRecognition(opts: {
   const startedAtRef = useRef(0);
   const transcriptRef = useRef("");
   const chainRef = useRef<Promise<void>>(Promise.resolve());
+  const sessionRef = useRef(0);
+  const cancelledRef = useRef(false);
   const mimeRef = useRef("");
   const langRef = useRef(langCode);
   langRef.current = langCode;
@@ -152,19 +154,23 @@ export function useSpeechRecognition(opts: {
   const transcribeBlob = useCallback(
     (blob: Blob) => {
       if (!blob || blob.size === 0) return;
+      const session = sessionRef.current;
       // Chain so transcripts append in the order segments were recorded.
       chainRef.current = chainRef.current.then(async () => {
+        if (session !== sessionRef.current) return;
         try {
           setBusy(true);
           const text = await voiceProvider.transcribe(blob, langRef.current);
+          if (session !== sessionRef.current) return;
           if (text) {
             transcriptRef.current = (transcriptRef.current + " " + text).trim();
             onPartial(transcriptRef.current);
           }
         } catch (e) {
+          if (session !== sessionRef.current) return;
           onError?.(e instanceof Error ? e.message : String(e));
         } finally {
-          setBusy(false);
+          if (session === sessionRef.current) setBusy(false);
         }
       });
     },
@@ -192,7 +198,7 @@ export function useSpeechRecognition(opts: {
       } else {
         cleanup();
       }
-      transcribeBlob(blob);
+      if (!cancelledRef.current) transcribeBlob(blob);
     };
     recorderRef.current = recorder;
     recorder.start();
@@ -212,6 +218,8 @@ export function useSpeechRecognition(opts: {
       setStream(media);
       mimeRef.current = pickMimeType();
       stoppingRef.current = false;
+      cancelledRef.current = false;
+      sessionRef.current += 1;
       transcriptRef.current = "";
       startedAtRef.current = Date.now();
       setRecording(true);
@@ -229,6 +237,7 @@ export function useSpeechRecognition(opts: {
   }, [supported, recording, startSegment, onError, cleanup]);
 
   const stop = useCallback(() => {
+    cancelledRef.current = false;
     stoppingRef.current = true;
     if (rotateTimerRef.current) {
       clearTimeout(rotateTimerRef.current);
@@ -243,9 +252,30 @@ export function useSpeechRecognition(opts: {
     setRecording(false);
   }, [cleanup]);
 
-  useEffect(() => () => cleanup(), [cleanup]);
+  const cancel = useCallback(() => {
+    cancelledRef.current = true;
+    sessionRef.current += 1;
+    stoppingRef.current = true;
+    transcriptRef.current = "";
+    setBusy(false);
+    if (rotateTimerRef.current) {
+      clearTimeout(rotateTimerRef.current);
+      rotateTimerRef.current = null;
+    }
+    const rec = recorderRef.current;
+    if (rec && rec.state === "recording") rec.stop();
+    else cleanup();
+  }, [cleanup]);
 
-  return { supported, recording, busy, stream, start, stop };
+  useEffect(
+    () => () => {
+      sessionRef.current += 1;
+      cleanup();
+    },
+    [cleanup],
+  );
+
+  return { supported, recording, busy, stream, start, stop, cancel };
 }
 
 // --- Read-aloud (tap to play only) --------------------------------------

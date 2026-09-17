@@ -21,9 +21,17 @@ export function BarometerSummaryCard() {
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
           <Gauge size={15} className="text-accent" aria-hidden="true" />
         </span>
-        <h2 id="barometer-summary-heading" className="text-base font-semibold text-foreground">
-          {t("sections.barometer.title")}
-        </h2>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
+            {t("sections.market.experimentalLabel")}
+          </p>
+          <h2
+            id="barometer-summary-heading"
+            className="mt-0.5 text-base font-semibold text-foreground"
+          >
+            {t("sections.barometer.title")}
+          </h2>
+        </div>
       </div>
 
       {loading ? (
@@ -63,7 +71,7 @@ function AssetChip({ asset, t }: { asset: BarometerAsset; t: (key: string) => st
     bias === "bullish"
       ? "border-accent/30 bg-accent/10 text-accent"
       : bias === "bearish"
-        ? "border-destructive/30 bg-destructive/10 text-destructive-strong"
+        ? "border-border bg-card text-foreground"
         : "border-border bg-muted/50 text-muted-foreground";
   const pct = Math.round(Math.max(0, Math.min(1, asset.fusedProbability)) * 100);
 

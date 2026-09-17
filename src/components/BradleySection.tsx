@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
@@ -69,9 +69,14 @@ export function BradleySection() {
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
             <Activity size={15} className="text-accent" aria-hidden="true" />
           </span>
-          <CardTitle className="text-base font-semibold leading-tight">
-            {t("sections.bradley.title")}
-          </CardTitle>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+              {t("sections.market.experimentalLabel")}
+            </p>
+            <h2 id="bradley-heading" className="mt-0.5 text-lg font-semibold leading-tight">
+              {t("sections.bradley.title")}
+            </h2>
+          </div>
         </div>
         <CardDescription className="text-xs">{t("sections.bradley.subtitle")}</CardDescription>
       </CardHeader>

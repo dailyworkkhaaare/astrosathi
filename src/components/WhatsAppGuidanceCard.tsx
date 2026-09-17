@@ -89,9 +89,10 @@ export function WhatsAppGuidanceCard() {
             id="whatsapp-opt-in"
             type="button"
             role="switch"
+            aria-label={t("settings.whatsapp.toggleLabel")}
             aria-checked={optIn}
             onClick={() => setOptIn((v) => !v)}
-            className="grid place-items-center min-h-11 min-w-11 focus:outline-none"
+            className="grid min-h-11 min-w-11 place-items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span
               className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-[var(--motion-micro)] focus-visible:ring-2 focus-visible:ring-ring ${

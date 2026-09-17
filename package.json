@@ -11,6 +11,12 @@
     "build": "vite build",
     "postbuild": "cp dist/sw.js dist/workbox-*.js .output/public/ 2>/dev/null || true",
     "build:dev": "vite build --mode development",
+    "test:contracts": "node --experimental-strip-types --test tests/contracts/*.test.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test tests/e2e/critical-journeys.spec.ts",
+    "test:fixtures": "node scripts/validate-synthetic-fixtures.mjs",
+    "test:visual": "playwright test --config=playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config=playwright.visual.config.ts --update-snapshots",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -80,6 +86,7 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.7.7",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

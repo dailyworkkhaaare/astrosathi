@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Bell,
   CalendarClock,
+  Settings2,
   Moon,
   Orbit,
   Sparkles,
@@ -49,7 +50,10 @@ function iconFor(kind: string): LucideIcon {
   return KIND_ICON[kind] ?? Bell;
 }
 
-function relativeTime(iso: string | null, t: (k: string, o?: Record<string, unknown>) => string): string {
+function relativeTime(
+  iso: string | null,
+  t: (k: string, o?: Record<string, unknown>) => string,
+): string {
   if (!iso) return "";
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diffMs / 60000);
@@ -133,31 +137,57 @@ function NudgesPage() {
 
   return (
     <section className="mx-auto max-w-2xl space-y-6">
-      <div className="motion-fade-up flex items-center gap-2">
-        <Link
-          to="/"
-          aria-label={t("common.back")}
-          className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl">
-            {t("nudges.title")}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t("nudges.subtitle")}</p>
+      <header className="motion-fade-up rounded-[1.75rem] border border-border bg-card p-5 shadow-[0_16px_40px_-30px_hsl(var(--foreground)/0.42)] sm:p-6">
+        <div className="flex items-start gap-3">
+          <Link
+            to="/"
+            aria-label={t("common.back")}
+            className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-primary">
+                  <span
+                    className="grid h-8 w-8 place-items-center rounded-full bg-primary/10"
+                    aria-hidden="true"
+                  >
+                    <Bell size={15} />
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    {t("nudges.entryLabel")}
+                  </span>
+                </div>
+                <h1 className="mt-3 font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl">
+                  {t("nudges.title")}
+                </h1>
+              </div>
+              <Link
+                to="/settings/proactive"
+                aria-label={t("settings.proactive.title")}
+                className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Settings2 size={17} aria-hidden="true" />
+              </Link>
+            </div>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              {t("nudges.subtitle")}
+            </p>
+          </div>
         </div>
-      </div>
+      </header>
 
       {query.isLoading && (
         <div className="space-y-3" aria-hidden="true">
-          <div className="h-32 animate-pulse rounded-2xl border border-border bg-card" />
-          <div className="h-32 animate-pulse rounded-2xl border border-border bg-card" />
+          <div className="h-40 animate-pulse rounded-[1.5rem] border border-border bg-card" />
+          <div className="h-40 animate-pulse rounded-[1.5rem] border border-border bg-card" />
         </div>
       )}
 
       {!query.isLoading && query.isError && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
+        <div className="rounded-[1.5rem] border border-destructive/30 bg-destructive/5 p-5">
           <p className="text-sm text-foreground">{t("nudges.loadError")}</p>
           <button
             type="button"
@@ -170,7 +200,7 @@ function NudgesPage() {
       )}
 
       {!query.isLoading && !query.isError && visible.length === 0 && (
-        <div className="motion-fade-up rounded-2xl border border-border bg-card p-6 text-center">
+        <div className="motion-fade-up rounded-[1.5rem] border border-border bg-card p-6 text-center shadow-[0_16px_40px_-30px_hsl(var(--foreground)/0.42)]">
           <p className="text-base font-semibold text-foreground">{t("nudges.empty.title")}</p>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
             {t("nudges.empty.body")}
@@ -179,11 +209,13 @@ function NudgesPage() {
       )}
 
       {!query.isLoading && !query.isError && visible.length > 0 && (
-        <div className="space-y-3">
+        <ol className="space-y-3" aria-label={t("nudges.title")}>
           {visible.map((n) => (
-            <NudgeCard key={n.id} nudge={n} onAct={onAct} onDismiss={onDismiss} />
+            <li key={n.id}>
+              <NudgeCard nudge={n} onAct={onAct} onDismiss={onDismiss} />
+            </li>
           ))}
-        </div>
+        </ol>
       )}
     </section>
   );
@@ -204,46 +236,62 @@ function NudgeCard({
   const priority = nudge.priority as NudgePriority;
   const isHigh = priority === "high";
   const when = nudge.sent_at ?? nudge.scheduled_for ?? nudge.created_at;
+  const cardId = `nudge-${nudge.id}`;
 
   return (
     <article
+      aria-labelledby={cardId}
       className={cn(
-        "motion-fade-up rounded-2xl border bg-card p-5",
-        isHigh ? "border-l-2 border-accent/60 border-y-border border-r-border bg-accent/[0.05]" : "border-border",
+        "motion-fade-up rounded-[1.5rem] border bg-card p-5 shadow-[0_16px_36px_-30px_hsl(var(--foreground)/0.4)]",
+        isHigh ? "border-accent/50 bg-accent/[0.045]" : "border-border",
       )}
     >
       <div className="flex items-start gap-3">
         <div
           className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-            isHigh ? "bg-accent/15 text-accent" : "bg-muted text-muted-foreground",
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border",
+            isHigh
+              ? "border-accent/30 bg-accent/15 text-accent"
+              : "border-border bg-muted text-muted-foreground",
           )}
           aria-hidden="true"
         >
           <Icon size={16} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {kindLabel}
             </span>
-            {isHigh && (
-              <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
-                {t("nudges.priority.high")}
-              </span>
-            )}
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                isHigh
+                  ? "border-accent/40 bg-accent/10 text-accent"
+                  : "border-border bg-background text-muted-foreground",
+              )}
+            >
+              {t(`nudges.priority.${priority}`, { defaultValue: t("nudges.priority.normal") })}
+            </span>
             {when && (
-              <span className="ml-auto text-[11px] text-muted-foreground">
+              <time dateTime={when} className="ml-auto text-[11px] text-muted-foreground">
                 {relativeTime(when, t)}
-              </span>
+              </time>
             )}
           </div>
-          <h3 className="mt-1 text-base font-medium text-foreground">{nudge.title}</h3>
+          <h2 id={cardId} className="mt-2 text-base font-semibold leading-snug text-foreground">
+            {nudge.title}
+          </h2>
           {nudge.body && (
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{nudge.body}</p>
           )}
+          {nudge.topic && (
+            <p className="mt-3 border-l-2 border-primary/35 pl-3 text-xs leading-relaxed text-muted-foreground">
+              {nudge.topic}
+            </p>
+          )}
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border pt-4">
             <Button
               type="button"
               variant="primary"

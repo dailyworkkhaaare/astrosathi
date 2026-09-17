@@ -201,14 +201,25 @@ export function DashaSection() {
       className="rounded-2xl border border-border bg-card p-4 sm:p-6"
       style={{ boxShadow: "var(--shadow-soft)" }}
     >
-      <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3">
-        <h2
-          id="dasha-heading"
-          className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
-        >
-          {t("sections.dasha.title")}
-        </h2>
-        <p className="shrink-0 text-xs text-muted-foreground">{t("sections.dasha.subtitle")}</p>
+      <div className="mb-6 border-b border-border/70 pb-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+          {t("sections.dasha.eyebrow")}
+        </p>
+        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <h2
+            id="dasha-heading"
+            className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+          >
+            {t("sections.dasha.title")}
+          </h2>
+          <p className="text-xs text-muted-foreground">{t("sections.dasha.subtitle")}</p>
+        </div>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          {t("sections.dasha.description")}
+        </p>
+        <p className="mt-3 max-w-2xl border-l-2 border-primary/35 pl-3 text-xs leading-relaxed text-muted-foreground">
+          {t("sections.dasha.scope")}
+        </p>
       </div>
 
       {loading && <DashaSkeleton />}
@@ -298,15 +309,27 @@ function DashaBody({
     <div className="space-y-5">
       {current && (
         <div
+          aria-labelledby="current-timing-heading"
           className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-accent/10 to-transparent p-4 sm:p-5"
           style={{ boxShadow: "var(--shadow-soft)" }}
         >
           <div className="mb-4 flex items-center gap-2">
             <Sparkles size={16} aria-hidden="true" className="text-accent" />
-            <h3 className="text-base font-semibold text-foreground sm:text-lg">
-              {t("sections.dasha.currentTransit")}
+            <h3
+              id="current-timing-heading"
+              className="text-base font-semibold text-foreground sm:text-lg"
+            >
+              {t("sections.dasha.currentTiming")}
             </h3>
           </div>
+          <p className="mb-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {current.antar
+              ? t("sections.dasha.currentSummaryWithAntar", {
+                  maha: label(current.maha).primary,
+                  antar: label(current.antar).primary,
+                })
+              : t("sections.dasha.currentSummary", { maha: label(current.maha).primary })}
+          </p>
           <div className="grid gap-3 sm:grid-cols-3">
             <CurrentCell label={t("sections.dasha.mahadasha")} p={current.maha} />
             {current.antar && (
@@ -337,24 +360,34 @@ function DashaBody({
       {balance && (
         <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-secondary/40 px-4 py-3">
           <Scale size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-primary/80" />
-          <p className="min-w-0 text-sm leading-relaxed text-foreground">
-            <span className="font-medium">{t("sections.dasha.balanceAtBirth")}</span>{" "}
-            <span className="font-medium">{balance.lord?.name}</span>
-            {balance.lord?.vedic_name && (
-              <span className="text-muted-foreground"> ({balance.lord.vedic_name})</span>
-            )}
-            {balance.description && (
-              <span className="text-muted-foreground"> — {balance.description}</span>
-            )}
-          </p>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {t("sections.dasha.birthBalanceEyebrow")}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-foreground">
+              <span className="font-medium">{t("sections.dasha.balanceAtBirth")}</span>{" "}
+              <span className="font-medium">{balance.lord?.name}</span>
+              {balance.lord?.vedic_name && (
+                <span className="text-muted-foreground"> ({balance.lord.vedic_name})</span>
+              )}
+              {balance.description && (
+                <span className="text-muted-foreground"> — {balance.description}</span>
+              )}
+            </p>
+          </div>
         </div>
       )}
 
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <h3 className="text-base font-semibold text-foreground">
-            {t("sections.dasha.allMahadashas")}
-          </h3>
+        <div className="flex items-end gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {t("sections.dasha.periodMapEyebrow")}
+            </p>
+            <h3 className="mt-1 text-base font-semibold text-foreground">
+              {t("sections.dasha.allMahadashas")}
+            </h3>
+          </div>
           <span className="h-px flex-1 bg-border/70" aria-hidden="true" />
         </div>
         <ul className="space-y-2">

@@ -1,4 +1,4 @@
-import { RefreshCw, Sparkles, X } from "lucide-react";
+import { MessageCircle, RefreshCw, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
@@ -28,8 +28,12 @@ function computeHighlight(
   ascSignIndex: number | null,
 ): Highlight | null {
   const now = Date.now();
-  let closest: { planetKey: PlanetKey; signKey: SignKey; nextSignIndex: number; deltaMs: number } | null =
-    null;
+  let closest: {
+    planetKey: PlanetKey;
+    signKey: SignKey;
+    nextSignIndex: number;
+    deltaMs: number;
+  } | null = null;
   for (const p of planets) {
     if (p.nextIngressTs == null || p.nextSignIndex == null) continue;
     const deltaMs = new Date(p.nextIngressTs).getTime() - now;
@@ -106,12 +110,7 @@ export function TransitHighlightBand() {
   const hasError = transitsQuery.isError || planetsQuery.isError;
 
   if (loading) {
-    return (
-      <div
-        aria-hidden="true"
-        className="h-[52px] animate-pulse rounded-xl border border-accent/20 bg-accent/[0.05]"
-      />
-    );
+    return null;
   }
 
   if (hasError) {
@@ -174,24 +173,62 @@ export function TransitHighlightBand() {
           })
       : t("sections.today.bandMoonHouse", { house: highlight.house });
 
+  const evidence =
+    highlight.kind === "ingress"
+      ? `${t(`home.planets.${highlight.planetKey}`)} → ${t(`signs.${highlight.signKey}`)}`
+      : t("sections.today.bandMoonEvidence", { house: highlight.house });
+
   return (
-    <div className="motion-fade-up flex items-center gap-1 rounded-xl border border-accent/20 bg-accent/[0.05] pl-1 pr-1">
+    <article
+      aria-labelledby="transit-highlight-heading"
+      className="motion-fade-up relative isolate overflow-hidden rounded-2xl border border-accent/20 bg-card p-4 shadow-[var(--shadow-soft)] sm:p-5"
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-16 -top-20 -z-10 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(242,153,29,0.16),rgba(242,153,29,0)_70%)]"
+      />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+            <Sparkles size={14} aria-hidden="true" />
+            {t("sections.today.currentTiming")}
+          </p>
+          <h3
+            id="transit-highlight-heading"
+            className="mt-2 text-base font-semibold leading-snug text-foreground"
+          >
+            {text}
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label={t("sections.today.bandDismiss")}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X size={16} aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2" aria-label={t("sections.today.evidenceLabel")}>
+        <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-medium text-foreground">
+          {evidence}
+        </span>
+        {highlight.kind === "ingress" && highlight.house != null ? (
+          <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-medium text-foreground">
+            {t("home.houseLabel", { n: highlight.house })}
+          </span>
+        ) : null}
+      </div>
+
       <button
         type="button"
         onClick={handleTap}
-        className="flex min-h-11 flex-1 items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="tap-press mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-accent/30 bg-accent/[0.08] px-4 text-sm font-semibold text-foreground hover:bg-accent/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <Sparkles size={14} className="shrink-0 text-accent" aria-hidden="true" />
-        <span>{text}</span>
+        <MessageCircle size={16} className="text-accent" aria-hidden="true" />
+        {t("sections.today.askHighlight")}
       </button>
-      <button
-        type="button"
-        onClick={handleDismiss}
-        aria-label={t("sections.today.bandDismiss")}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <X size={16} aria-hidden="true" />
-      </button>
-    </div>
+    </article>
   );
 }

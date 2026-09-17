@@ -4,9 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   AudioLines,
   Bell,
-  BookHeart,
   Brain,
-  CalendarClock,
   CalendarDays,
   ChevronRight,
   FileText,
@@ -16,35 +14,20 @@ import {
   Sparkles,
   Trash2,
   UserCircle,
-  Users,
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { WhatsAppGuidanceCard } from "@/components/WhatsAppGuidanceCard";
-import {
-  ConfirmDialog,
-  Divider,
-  Group,
-  Row,
-  SegmentedGroup,
-  Toggle,
-} from "@/components/settings/primitives";
+import { ConfirmDialog, Divider, Group, Toggle } from "@/components/settings/primitives";
 import { clearSession, getSession, mockAuth } from "@/lib/auth";
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
-import { APP_NAME } from "@/lib/brand";
 import type { SignKey } from "@/lib/chart-types";
 import {
-  APP_VERSION,
-  applyTheme,
   getPreferences,
   loadPreferencesFromProfile,
   updatePreferences,
-  type AnswerLength,
   type Preferences,
-  type Theme,
-  type Tone,
 } from "@/lib/preferences";
 
 const SIGN_GLYPHS: Record<SignKey, string> = {
@@ -100,16 +83,14 @@ function SettingsPage() {
     void loadPreferencesFromProfile().then(setPrefs);
   }, []);
 
-  const update = (patch: Partial<Preferences>) => {
-    const next = updatePreferences(patch);
-    setPrefs(next);
-    if (patch.theme) applyTheme(patch.theme);
-  };
-
   const onSignOut = async () => {
     cache.clear();
     await mockAuth.signOut();
     navigate({ to: "/auth" });
+  };
+
+  const onMemoryOptInChange = (memory_opt_in: boolean) => {
+    setPrefs(updatePreferences({ memory_opt_in }));
   };
 
   const onDelete = () => {
@@ -136,11 +117,17 @@ function SettingsPage() {
 
   return (
     <section className="mx-auto max-w-2xl space-y-6">
-      <div className="motion-fade-up">
+      <header className="motion-fade-up">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+          {t("settings.eyebrow")}
+        </p>
         <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
           {t("settings.title")}
         </h1>
-      </div>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
+          {t("settings.subtitle")}
+        </p>
+      </header>
 
       {/* Profile */}
       <Group
@@ -182,24 +169,36 @@ function SettingsPage() {
           </span>
           <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
         </button>
-        <Divider />
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/people" })}
+      </Group>
+
+      {/* Preferences */}
+      <Group
+        title={t("settings.experience.title")}
+        icon={<Palette size={14} aria-hidden="true" />}
+        delay={2}
+      >
+        <Link
+          to="/settings/preferences"
           className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           <span className="inline-flex items-center gap-2">
-            <Users size={14} aria-hidden="true" className="text-muted-foreground" />
+            <Palette size={14} aria-hidden="true" className="text-muted-foreground" />
             <span>
-              {t("settings.profile.people")}
+              {t("settings.prefs.title")}
               <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t("settings.profile.peopleHint")}
+                {t("settings.experience.hint")}
               </span>
             </span>
           </span>
           <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </button>
-        <Divider />
+        </Link>
+      </Group>
+
+      <Group
+        title={t("settings.profile.memory")}
+        icon={<Brain size={14} aria-hidden="true" />}
+        delay={3}
+      >
         <button
           type="button"
           onClick={() => navigate({ to: "/settings/memory" })}
@@ -217,6 +216,32 @@ function SettingsPage() {
           <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
         </button>
         <Divider />
+        <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
+          <div className="min-w-0">
+            <label htmlFor="pref-memory" className="block text-sm font-medium text-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Sparkles size={13} aria-hidden="true" className="text-accent" />
+                {t("settings.prefs.memory")}
+              </span>
+            </label>
+            <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground truncate">
+              {t("settings.prefs.memoryHelp")}
+            </p>
+          </div>
+          <Toggle
+            id="pref-memory"
+            ariaLabel={t("settings.prefs.memory")}
+            checked={prefs.memory_opt_in}
+            onChange={onMemoryOptInChange}
+          />
+        </div>
+      </Group>
+
+      <Group
+        title={t("settings.guidance.title")}
+        icon={<Bell size={14} aria-hidden="true" />}
+        delay={4}
+      >
         <button
           type="button"
           onClick={() => navigate({ to: "/settings/proactive" })}
@@ -233,7 +258,11 @@ function SettingsPage() {
           </span>
           <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
         </button>
-        <Divider />
+      </Group>
+
+      <WhatsAppGuidanceCard />
+
+      <Group title={t("settings.voice.title")} icon={<AudioLines size={14} aria-hidden="true" />}>
         <button
           type="button"
           onClick={() => navigate({ to: "/settings/voice" })}
@@ -250,118 +279,12 @@ function SettingsPage() {
           </span>
           <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
         </button>
-        <Divider />
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/journal" })}
-          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        >
-          <span className="inline-flex items-center gap-2">
-            <BookHeart size={14} aria-hidden="true" className="text-muted-foreground" />
-            <span>
-              {t("journal.entryLabel")}
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t("journal.entryHint")}
-              </span>
-            </span>
-          </span>
-          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </button>
-        <Divider />
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/life" })}
-          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        >
-          <span className="inline-flex items-center gap-2">
-            <CalendarClock size={14} aria-hidden="true" className="text-muted-foreground" />
-            <span>
-              {t("life.entryLabel")}
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t("life.entryHint")}
-              </span>
-            </span>
-          </span>
-          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </button>
       </Group>
 
-      {/* Preferences */}
+      {/* Privacy & governance */}
       <Group
-        title={t("settings.prefs.title")}
-        icon={<Palette size={14} aria-hidden="true" />}
-        delay={2}
-      >
-        <Row label={t("settings.prefs.language")}>
-          <LanguageSwitcher />
-        </Row>
-        <Divider />
-        <Row label={t("settings.prefs.theme")}>
-          <SegmentedGroup<Theme>
-            name="theme"
-            value={prefs.theme}
-            onChange={(v) => update({ theme: v })}
-            options={[
-              { value: "light", label: t("settings.prefs.themeLight") },
-              { value: "dark", label: t("settings.prefs.themeDark") },
-              { value: "system", label: t("settings.prefs.themeSystem") },
-            ]}
-          />
-        </Row>
-        <Divider />
-        <Row label={t("settings.prefs.tone")}>
-          <SegmentedGroup<Tone>
-            name="tone"
-            value={prefs.tone}
-            onChange={(v) => update({ tone: v })}
-            options={[
-              { value: "calm", label: t("settings.prefs.toneCalm") },
-              { value: "direct", label: t("settings.prefs.toneDirect") },
-              { value: "supportive", label: t("settings.prefs.toneSupportive") },
-            ]}
-          />
-        </Row>
-        <Divider />
-        <Row label={t("settings.prefs.length")}>
-          <SegmentedGroup<AnswerLength>
-            name="length"
-            value={prefs.answer_length}
-            onChange={(v) => update({ answer_length: v })}
-            options={[
-              { value: "concise", label: t("settings.prefs.lengthConcise") },
-              { value: "balanced", label: t("settings.prefs.lengthBalanced") },
-              { value: "detailed", label: t("settings.prefs.lengthDetailed") },
-            ]}
-          />
-        </Row>
-        <Divider />
-        <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
-          <div className="min-w-0">
-            <label htmlFor="pref-memory" className="block text-sm font-medium text-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <Sparkles size={13} aria-hidden="true" className="text-accent" />
-                {t("settings.prefs.memory")}
-              </span>
-            </label>
-            <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground truncate">
-              {t("settings.prefs.memoryHelp")}
-            </p>
-          </div>
-          <Toggle
-            id="pref-memory"
-            checked={prefs.memory_opt_in}
-            onChange={(v) => update({ memory_opt_in: v })}
-          />
-        </div>
-      </Group>
-
-      <WhatsAppGuidanceCard />
-
-      {/* Legal & about */}
-      <Group
-        title={t("settings.legal.title")}
+        title={t("settings.governance.title")}
         icon={<ScrollText size={14} aria-hidden="true" />}
-        delay={3}
       >
         <LegalRow
           to="/terms"
@@ -380,30 +303,39 @@ function SettingsPage() {
       </Group>
 
       {/* Account */}
-      <Group
-        title={t("settings.account.title")}
-        icon={<LogOut size={14} aria-hidden="true" />}
-        delay={4}
-      >
+      <Group title={t("settings.account.title")} icon={<LogOut size={14} aria-hidden="true" />}>
         <Button
           type="button"
           variant="ghost"
           onClick={onSignOut}
-          className="w-full justify-start gap-2 h-auto px-4 py-3 min-h-11 font-medium text-foreground rounded-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-auto min-h-11 w-full justify-start gap-2 rounded-none px-4 py-3 text-left font-medium text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <LogOut size={15} aria-hidden="true" className="text-muted-foreground" />
-          {t("settings.account.signOut")}
+          <span>
+            {t("settings.account.signOut")}
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+              {t("settings.account.signOutHint")}
+            </span>
+          </span>
         </Button>
         <Divider />
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => setConfirmDelete(true)}
-          className="w-full justify-start gap-2 h-auto px-4 py-3 min-h-11 font-medium text-foreground hover:bg-accent/10 rounded-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Trash2 size={15} aria-hidden="true" className="text-accent" />
-          {t("settings.account.delete")}
-        </Button>
+        <div className="px-4 py-3">
+          <p className="text-sm font-semibold text-foreground">
+            {t("settings.account.localDataTitle")}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {t("settings.account.localDataHint")}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setConfirmDelete(true)}
+            className="mt-3 h-auto min-h-11 w-full justify-start gap-2 rounded-md border border-destructive/30 px-3 py-2 text-left font-medium text-destructive-strong hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Trash2 size={15} aria-hidden="true" />
+            {t("settings.account.delete")}
+          </Button>
+        </div>
       </Group>
 
       {confirmDelete && (
@@ -412,6 +344,7 @@ function SettingsPage() {
           body={t("settings.account.deleteBody")}
           cancelLabel={t("settings.account.cancel")}
           confirmLabel={t("settings.account.confirm")}
+          confirmTone="danger"
           onCancel={() => setConfirmDelete(false)}
           onConfirm={onDelete}
         />

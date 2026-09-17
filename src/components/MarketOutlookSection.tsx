@@ -34,9 +34,14 @@ export function MarketOutlookSection() {
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
             <Coins size={15} aria-hidden="true" />
           </span>
-          <h2 id="market-heading" className="text-base font-semibold text-foreground">
-            {t("sections.market.title")}
-          </h2>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+              {t("sections.market.experimentalLabel")}
+            </p>
+            <h2 id="market-heading" className="mt-0.5 text-lg font-semibold text-foreground">
+              {t("sections.market.title")}
+            </h2>
+          </div>
         </div>
         {dateLabel && (
           <span className="shrink-0 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
@@ -45,9 +50,7 @@ export function MarketOutlookSection() {
         )}
       </header>
 
-      <p className="mt-1 text-xs text-muted-foreground">
-        {t("sections.market.subtitle")}
-      </p>
+      <p className="mt-1 text-xs text-muted-foreground">{t("sections.market.subtitle")}</p>
 
       {loading && (
         <div className="mt-4 grid gap-3 sm:grid-cols-2" aria-hidden="true">
@@ -195,9 +198,7 @@ function MetalCard({
         <ul className="space-y-1.5 border-t border-border/60 pt-3">
           {outlook.reasoning.map((r, i) => {
             const signName =
-              r.params?.sign != null
-                ? t(`signs.${SIGN_KEYS_BY_INDEX[r.params.sign]}`)
-                : "";
+              r.params?.sign != null ? t(`signs.${SIGN_KEYS_BY_INDEX[r.params.sign]}`) : "";
             const label = r.code
               ? t(`sections.market.reasons.${r.code}`, { sign: signName })
               : r.text;

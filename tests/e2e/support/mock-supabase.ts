@@ -41,6 +41,20 @@ const BIRTH_PROFILE = {
   birth_timezone: "Asia/Kolkata",
 };
 
+const NATAL_PLANETS = {
+  planet_position: [
+    { id: 100, name: "Ascendant", rasi: { id: 0, name: "Aries" }, degree: 8, longitude: 8 },
+    { id: 0, name: "Sun", rasi: { id: 4, name: "Leo" }, degree: 2, longitude: 122 },
+    {
+      id: 1,
+      name: "Moon",
+      rasi: { id: 1, name: "Taurus", lord: { name: "Venus" } },
+      degree: 12,
+      longitude: 42,
+    },
+  ],
+};
+
 const PERSON = {
   id: TEST_PERSON_ID,
   user_id: TEST_USER_ID,
@@ -213,6 +227,15 @@ export async function installSupabaseMock(
     }
     if (pathname.endsWith("/functions/v1/compatibility")) {
       return json(route, { data: COMPATIBILITY });
+    }
+    if (pathname.endsWith("/functions/v1/chart-gateway")) {
+      let resource: unknown = null;
+      try {
+        resource = request.postDataJSON()?.resource;
+      } catch {
+        /* ignore */
+      }
+      if (resource === "planets") return json(route, { data: NATAL_PLANETS });
     }
     if (pathname.includes("/functions/v1/")) {
       return json(route, {

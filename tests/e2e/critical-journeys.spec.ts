@@ -209,13 +209,24 @@ test.describe("authenticated critical journeys", () => {
     );
   });
 
-  test("profile launcher keeps Settings reachable outside primary navigation", async ({ page }) => {
+  test("profile launcher keeps Settings reachable outside primary navigation", async ({
+    page,
+  }, testInfo) => {
     await page.goto("/today");
-    await page.getByRole("button", { name: "Profile and settings" }).click();
+    const launcher = page.getByRole("button", {
+      name: /Profile and settings.*Moon sign Taurus/,
+    });
+    await expect(launcher).toBeVisible();
+    await launcher.click();
 
     await expect(page.getByText("Aarohi Journey", { exact: true })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: "Edit birth details" })).toBeVisible();
-    await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
+    if (testInfo.project.name === "mobile-chrome") {
+      await expect(page.getByRole("link", { name: "Edit birth details" })).toBeVisible();
+      await page.getByRole("link", { name: "Settings", exact: true }).click();
+    } else {
+      await expect(page.getByRole("menuitem", { name: "Edit birth details" })).toBeVisible();
+      await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
+    }
     await expect(page).toHaveURL(/\/settings\/?$/);
   });
 

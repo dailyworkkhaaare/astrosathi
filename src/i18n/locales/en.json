@@ -657,6 +657,7 @@
       "emailLabel": "Email",
       "nameFallback": "Guest",
       "emailFallback": "not signed in",
+      "moonSignAvatar": "Moon sign {{sign}}",
       "editBirth": "Edit birth details",
       "birthHint": "Name, date, time and place used to build your chart.",
       "people": "People",

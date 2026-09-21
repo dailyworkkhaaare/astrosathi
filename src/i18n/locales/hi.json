@@ -657,6 +657,7 @@
       "emailLabel": "ईमेल",
       "nameFallback": "अतिथि",
       "emailFallback": "साइन इन नहीं हैं",
+      "moonSignAvatar": "चंद्र राशि {{sign}}",
       "editBirth": "जन्म विवरण संपादित करें",
       "birthHint": "आपकी कुंडली बनाने के लिए नाम, तिथि, समय और स्थान।",
       "people": "लोग",

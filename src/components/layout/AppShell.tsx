@@ -35,8 +35,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { readStoredLanguage, setLanguage } from "@/i18n";
 import { mockAuth, useAuthSession, type MockUser } from "@/lib/auth";
+import type { SignKey } from "@/lib/chart-types";
 import { applyTheme, bindSystemThemeListener, getPreferences } from "@/lib/preferences";
-import { useChartGatewayCacheControls } from "@/lib/queries";
+import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
 
 type MobileWorldItem = {
   to: "/home" | "/today" | "/chat" | "/journey" | "/people";
@@ -293,8 +294,65 @@ function DesktopRail({ pathname }: { pathname: string }) {
   );
 }
 
-function avatarInitial(user: MockUser) {
+const SIGN_GLYPHS: Record<SignKey, string> = {
+  aries: "♈",
+  taurus: "♉",
+  gemini: "♊",
+  cancer: "♋",
+  leo: "♌",
+  virgo: "♍",
+  libra: "♎",
+  scorpio: "♏",
+  sagittarius: "♐",
+  capricorn: "♑",
+  aquarius: "♒",
+  pisces: "♓",
+};
+
+function avatarFallback(user: MockUser) {
   return (user.name?.trim()[0] ?? user.email.trim()[0] ?? "?").toUpperCase();
+}
+
+function useMoonSignAvatar(user: MockUser) {
+  const { t } = useTranslation();
+  const planetsQuery = usePlanets();
+  const moonSignKey =
+    planetsQuery.data?.planets.find((planet) => planet.key === "moon")?.signKey ?? null;
+  const moonSignLabel = moonSignKey ? t(`signs.${moonSignKey}`) : null;
+  const moonLabel = moonSignLabel
+    ? t("settings.profile.moonSignAvatar", { sign: moonSignLabel })
+    : null;
+
+  return {
+    label: moonLabel ? `${t("nav.profileSettings")} · ${moonLabel}` : t("nav.profileSettings"),
+    title: moonLabel ?? t("nav.profileSettings"),
+    value: moonSignKey ? SIGN_GLYPHS[moonSignKey] : avatarFallback(user),
+    hasMoonSign: !!moonSignKey,
+  };
+}
+
+function MoonSignAvatar({
+  avatar,
+  size = "default",
+}: {
+  avatar: ReturnType<typeof useMoonSignAvatar>;
+  size?: "default" | "mobile";
+}) {
+  return (
+    <span
+      className={
+        "relative grid shrink-0 place-items-center rounded-full bg-accent/15 font-display text-accent ring-1 ring-accent/20 " +
+        (size === "mobile" ? "h-8 w-8 text-xl" : "h-7 w-7 text-lg")
+      }
+      aria-hidden="true"
+      title={avatar.title}
+    >
+      <span className="leading-none">{avatar.value}</span>
+      {avatar.hasMoonSign ? (
+        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_0_2px_hsl(var(--card))]" />
+      ) : null}
+    </span>
+  );
 }
 
 function ProfileIdentity({ user }: { user: MockUser }) {
@@ -312,7 +370,7 @@ function ProfileIdentity({ user }: { user: MockUser }) {
 function DesktopProfileLauncher({ user, expanded }: { user: MockUser; expanded: boolean }) {
   const { t } = useTranslation();
   const cache = useChartGatewayCacheControls();
-  const label = t("nav.profileSettings");
+  const avatar = useMoonSignAvatar(user);
   const onSignOut = () => {
     cache.clear();
     void mockAuth.signOut();
@@ -323,19 +381,14 @@ function DesktopProfileLauncher({ user, expanded }: { user: MockUser; expanded: 
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label={label}
-          title={expanded ? undefined : label}
+          aria-label={avatar.label}
+          title={expanded ? undefined : avatar.title}
           className={
             "tap-press mt-4 flex min-h-11 items-center rounded-xl border border-border/70 bg-card/60 text-foreground transition-colors hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
             (expanded ? "w-full gap-3 px-3 text-left" : "h-11 w-11 justify-center")
           }
         >
-          <span
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent/15 font-display text-sm text-accent"
-            aria-hidden="true"
-          >
-            {avatarInitial(user)}
-          </span>
+          <MoonSignAvatar avatar={avatar} />
           {expanded ? (
             <span className="truncate text-sm font-medium">{t("nav.profile")}</span>
           ) : null}
@@ -385,27 +438,28 @@ function ProfileMenuLinks() {
 function MobileProfileLauncher({ user }: { user: MockUser }) {
   const { t } = useTranslation();
   const cache = useChartGatewayCacheControls();
-  const label = t("nav.profileSettings");
+  const avatar = useMoonSignAvatar(user);
   const onSignOut = () => {
     cache.clear();
     void mockAuth.signOut();
   };
 
   return (
-    <div className="absolute right-4 top-[calc(env(safe-area-inset-top)+2.5rem)] z-10 sm:right-6 md:hidden">
+    <div className="absolute right-4 top-[calc(env(safe-area-inset-top)+2.5rem)] z-40 sm:right-6 md:hidden">
       <Drawer>
         <DrawerTrigger asChild>
           <button
             type="button"
-            aria-label={label}
-            className="tap-press grid h-11 w-11 place-items-center rounded-full border border-border/70 bg-card/85 font-display text-sm text-accent shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={avatar.label}
+            title={avatar.title}
+            className="tap-press grid h-11 w-11 place-items-center rounded-full border border-border/70 bg-card/85 shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {avatarInitial(user)}
+            <MoonSignAvatar avatar={avatar} size="mobile" />
           </button>
         </DrawerTrigger>
         <DrawerContent className="rounded-t-[1.75rem] border-border bg-background px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <DrawerHeader className="px-1 pb-4 pt-6 text-left">
-            <DrawerTitle>{label}</DrawerTitle>
+            <DrawerTitle>{t("nav.profileSettings")}</DrawerTitle>
             <DrawerDescription asChild>
               <ProfileIdentity user={user} />
             </DrawerDescription>

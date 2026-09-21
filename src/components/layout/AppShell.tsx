@@ -137,7 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           {hydrated ? (
             <>
-              {showNav && user && <MobileProfileLauncher user={user} />}
+              {showNav && user && !isChat && <MobileProfileLauncher user={user} />}
               {showNav && !isChat && supportsContextDock(pathname) ? (
                 <ContextDock pathname={pathname} />
               ) : null}

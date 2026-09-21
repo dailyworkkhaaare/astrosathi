@@ -252,6 +252,15 @@ test.describe("authenticated critical journeys", () => {
       .toBeLessThan((initialBox?.y ?? 0) - 100);
   });
 
+  test("mobile chat shell does not show the shared floating profile launcher", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "The chat shell is custom on mobile.");
+    await page.goto("/chat");
+
+    await expect(page.getByRole("button", { name: /Profile and settings/ })).toHaveCount(0);
+  });
+
   test("context lenses stay truthful to route ownership", async ({ page }) => {
     await page.goto("/today");
 

@@ -20,7 +20,7 @@ export function OnboardingShell({
   children: ReactNode;
 }) {
   return (
-    <section className="mx-auto max-w-xl px-4 md:px-6 py-8">
+    <section className="mx-auto max-w-xl px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] md:px-6">
       <div className="motion-fade-up">
         <StepIndicator step={step} total={totalSteps} eyebrow={eyebrow} />
         <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">

@@ -584,6 +584,9 @@
     min-height: 100%;
     background-color: var(--color-background);
     -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-padding-top: calc(1rem + var(--as-safe-top));
+    scroll-padding-bottom: calc(1rem + var(--as-safe-bottom));
   }
 
   * {
@@ -601,6 +604,25 @@
     font-variant-ligatures: common-ligatures contextual;
     letter-spacing: var(--as-tracking-body);
     text-rendering: optimizeLegibility;
+  }
+
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 1rem;
+    scroll-margin-block: 1rem;
+  }
+
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  [role="button"],
+  [role="switch"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
   :lang(mr),

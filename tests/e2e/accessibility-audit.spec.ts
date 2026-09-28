@@ -97,8 +97,18 @@ async function assertVisibleKeyboardFocus(page: Page, path: string) {
       const element = document.activeElement;
       if (!(element instanceof HTMLElement) || element === document.body) return null;
       const style = getComputedStyle(element);
+      const focusContainer = element.closest("form");
+      const containerClass = focusContainer?.className ?? "";
       return {
-        visible: style.outlineStyle !== "none" || style.boxShadow !== "none",
+        // The Ask composer keeps its focus treatment on the form so the
+        // whole writing surface is clearly active, rather than drawing a
+        // second ring around the textarea itself.
+        visible:
+          style.outlineStyle !== "none" ||
+          style.boxShadow !== "none" ||
+          (focusContainer?.matches(":focus-within") &&
+            typeof containerClass === "string" &&
+            containerClass.includes("focus-within:ring-2")),
       };
     });
     if (!focus && checked > 0) break;

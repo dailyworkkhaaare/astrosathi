@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthSession } from "@/lib/auth";
 import { APP_NAME } from "@/lib/brand";
 import { getOnboardingState, routeForOnboardingState } from "@/lib/birth-profile";
+import { triggerHaptic } from "@/lib/native-device";
 
 const STEP_ICONS = [Sparkles, Orbit, MessageCircle] as const;
 
@@ -80,7 +81,7 @@ function Landing() {
 
   if (loading || user) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
+      <div className="flex min-h-[calc(100dvh-8rem)] items-center justify-center">
         <LoadingState />
       </div>
     );
@@ -139,7 +140,7 @@ function Hero({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
               asChild
               className="group min-h-12 w-full justify-center px-7 text-base sm:w-auto"
             >
-              <Link to="/language">
+              <Link to="/language" onClick={() => void triggerHaptic("selection")}>
                 {t("landing.cta")}
                 <ArrowRight
                   className="transition-transform group-hover:translate-x-0.5"
@@ -151,6 +152,7 @@ function Hero({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
               {t("landing.signInPrompt")}{" "}
               <Link
                 to="/auth"
+                onClick={() => void triggerHaptic("selection")}
                 className="font-semibold text-on-night underline decoration-white/30 underline-offset-4 hover:decoration-accent"
               >
                 {t("landing.signIn")}

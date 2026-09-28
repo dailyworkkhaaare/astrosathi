@@ -6,6 +6,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { SUPPORTED_LANGUAGES, setLanguage, type SupportedLanguage } from "@/i18n";
 import { APP_NAME } from "@/lib/brand";
+import { triggerHaptic } from "@/lib/native-device";
 
 export const Route = createFileRoute("/language")({
   head: () => ({
@@ -58,8 +59,8 @@ function LanguagePage() {
   const current = SUPPORTED_LANGUAGES.includes(languagePrefix) ? languagePrefix : "mr";
 
   return (
-    <main className="min-h-dvh w-full bg-background p-3 text-foreground sm:p-5 lg:p-6">
-      <div className="mx-auto grid min-h-[calc(100dvh-1.5rem)] w-full max-w-[88rem] overflow-hidden rounded-[2rem] border border-border/70 bg-card/75 shadow-[var(--shadow-elevated)] backdrop-blur sm:min-h-[calc(100dvh-2.5rem)] lg:grid-cols-[0.92fr_1.08fr]">
+    <main className="min-h-dvh w-full bg-background text-foreground lg:p-6">
+      <div className="mx-auto grid min-h-dvh w-full max-w-[88rem] overflow-hidden bg-card/75 lg:min-h-[calc(100dvh-3rem)] lg:grid-cols-[0.92fr_1.08fr] lg:rounded-lg lg:border lg:border-border/70 lg:shadow-[var(--shadow-elevated)] lg:backdrop-blur">
         <WelcomePanel t={t} current={current} />
         <SelectionPanel t={t} current={current} />
       </div>
@@ -79,8 +80,8 @@ function WelcomePanel({
   return (
     <section
       aria-label={t("language.welcomePanel")}
-      className="relative isolate flex min-h-[21rem] flex-col overflow-hidden px-6 py-7 text-on-night sm:min-h-[25rem] sm:px-10 sm:py-9 lg:min-h-full lg:px-14 lg:py-12"
-      style={{ background: "var(--gradient-night)" }}
+      className="relative isolate flex min-h-[15rem] flex-col overflow-hidden px-5 py-5 text-on-night sm:min-h-[25rem] sm:px-10 sm:py-9 lg:min-h-full lg:px-14 lg:py-12"
+      style={{ background: "hsl(248 36% 16%)" }}
     >
       <LanguageCosmos />
       <div className="relative flex items-center justify-between">
@@ -90,15 +91,15 @@ function WelcomePanel({
         </span>
       </div>
 
-      <div className="relative my-auto max-w-xl py-10 lg:py-16">
+      <div className="relative my-auto max-w-xl py-6 sm:py-10 lg:py-16">
         <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
           <Sparkles className="h-4 w-4" aria-hidden />
           {t("language.eyebrow")}
         </div>
-        <h1 className="font-display-hero mt-5 max-w-[9ch] text-balance text-4xl font-semibold leading-[1.02] sm:text-5xl lg:text-6xl">
+        <h1 className="font-display-hero mt-4 max-w-[11ch] text-balance text-3xl font-semibold leading-[1.08] sm:mt-5 sm:max-w-[9ch] sm:text-5xl lg:text-6xl">
           {t("language.heroTitle")}
         </h1>
-        <p className="mt-5 max-w-md text-sm leading-6 text-on-night-muted sm:text-base sm:leading-7">
+        <p className="mt-3 max-w-md text-sm leading-6 text-on-night-muted sm:mt-5 sm:text-base sm:leading-7">
           {t("language.heroBody")}
         </p>
       </div>
@@ -126,7 +127,7 @@ function SelectionPanel({
   current: SupportedLanguage;
 }) {
   return (
-    <section className="flex flex-col justify-center px-5 py-9 sm:px-10 sm:py-12 lg:px-[clamp(3rem,6vw,6rem)]">
+    <section className="flex flex-col justify-center px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-10 sm:py-12 lg:p-[clamp(3rem,6vw,6rem)]">
       <div className="mx-auto w-full max-w-[35rem]">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
           {t("language.stepLabel")}
@@ -150,9 +151,12 @@ function SelectionPanel({
                   role="radio"
                   aria-checked={selected}
                   aria-label={`${detail.native} — ${detail.latin}`}
-                  onClick={() => setLanguage(language)}
+                  onClick={() => {
+                    void triggerHaptic("selection");
+                    setLanguage(language);
+                  }}
                   lang={language}
-                  className={`tap-press group relative flex min-h-[5.25rem] w-full items-center gap-4 overflow-hidden rounded-2xl border px-4 text-left transition-[border-color,background-color,box-shadow] duration-[var(--motion-micro)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-5 ${
+                  className={`tap-press group relative flex min-h-[5.25rem] w-full items-center gap-4 overflow-hidden rounded-lg border px-4 text-left transition-[border-color,background-color,box-shadow] duration-[var(--motion-micro)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-5 ${
                     selected
                       ? "border-primary/60 bg-primary/[0.07] shadow-[var(--shadow-soft)]"
                       : "border-border/80 bg-background/65 hover:border-primary/30 hover:bg-card"
@@ -194,7 +198,7 @@ function SelectionPanel({
 
         <div className="mt-7">
           <Button variant="primary" size="lg" asChild className="group min-h-12 w-full text-base">
-            <Link to="/auth">
+            <Link to="/auth" onClick={() => void triggerHaptic("selection")}>
               {t("common.continue")}
               <ArrowRight
                 className="transition-transform group-hover:translate-x-0.5"
@@ -214,8 +218,6 @@ function SelectionPanel({
 function LanguageCosmos() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      <div className="absolute -left-20 bottom-[-8rem] h-80 w-80 rounded-full bg-[oklch(0.69_0.16_75/0.13)] blur-3xl" />
-      <div className="absolute -right-24 -top-20 h-72 w-72 rounded-full bg-[oklch(0.55_0.22_302/0.22)] blur-3xl" />
       <svg
         className="absolute right-[-5rem] top-[12%] h-[24rem] w-[24rem] opacity-50"
         viewBox="0 0 400 400"

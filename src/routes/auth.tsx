@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { mockAuth, useAuthSession } from "@/lib/auth";
 import { getOnboardingState, routeForOnboardingState } from "@/lib/birth-profile";
 import { APP_NAME } from "@/lib/brand";
+import { triggerHaptic } from "@/lib/native-device";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -67,6 +68,7 @@ function AuthPage() {
     setValues((current) => ({ ...current, [key]: event.target.value }));
 
   const switchMode = (next: Mode) => {
+    void triggerHaptic("selection");
     setMode(next);
     setErrors({});
     setFormError(null);
@@ -93,14 +95,19 @@ function AuthPage() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setFormError(null);
-    if (!validate()) return;
+    if (!validate()) {
+      void triggerHaptic("warning");
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "signin") {
         const result = await mockAuth.signIn(values.email.trim(), values.password);
-        if ("error" in result)
+        if ("error" in result) {
+          void triggerHaptic("error");
           setFormError(t(`auth.errors.${result.error}`, t("auth.errors.generic")));
-        else {
+        } else {
+          void triggerHaptic("success");
           const state = await getOnboardingState();
           navigate({ to: routeForOnboardingState(state) });
         }
@@ -110,20 +117,29 @@ function AuthPage() {
           values.email.trim(),
           values.password,
         );
-        if ("error" in result)
+        if ("error" in result) {
+          void triggerHaptic("error");
           setFormError(t(`auth.errors.${result.error}`, t("auth.errors.generic")));
-        else if (result.needsConfirmation) setConfirmSent(values.email.trim());
-        else {
+        } else if (result.needsConfirmation) {
+          void triggerHaptic("success");
+          setConfirmSent(values.email.trim());
+        } else {
+          void triggerHaptic("success");
           const state = await getOnboardingState();
           navigate({ to: routeForOnboardingState(state) });
         }
       } else {
         const result = await mockAuth.resetPassword(values.email.trim());
-        if ("error" in result)
+        if ("error" in result) {
+          void triggerHaptic("error");
           setFormError(t(`auth.errors.${result.error}`, t("auth.errors.generic")));
-        else setResetSent(true);
+        } else {
+          void triggerHaptic("success");
+          setResetSent(true);
+        }
       }
     } catch {
+      void triggerHaptic("error");
       setFormError(t("auth.errors.generic"));
     } finally {
       setLoading(false);
@@ -131,19 +147,23 @@ function AuthPage() {
   };
 
   const onGoogle = async () => {
+    void triggerHaptic("selection");
     setFormError(null);
     setGoogleLoading(true);
     try {
       const result = await mockAuth.signInWithGoogle();
       if (result.error) {
+        void triggerHaptic("error");
         setFormError(t(`auth.errors.${result.error}`, t("auth.errors.generic")));
         setGoogleLoading(false);
         return;
       }
       if (result.redirected) return;
+      void triggerHaptic("success");
       const state = await getOnboardingState();
       navigate({ to: routeForOnboardingState(state) });
     } catch {
+      void triggerHaptic("error");
       setFormError(t("auth.errors.generic"));
       setGoogleLoading(false);
     }
@@ -151,7 +171,7 @@ function AuthPage() {
 
   if (sessionLoading || user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-dvh items-center justify-center bg-background">
         <LoadingState />
       </div>
     );
@@ -165,11 +185,11 @@ function AuthPage() {
         : t("auth.forgotSubtitle");
 
   return (
-    <main className="min-h-dvh w-full bg-background p-3 text-foreground sm:p-5 lg:p-6">
-      <div className="mx-auto grid min-h-[calc(100dvh-1.5rem)] w-full max-w-[88rem] overflow-hidden rounded-[2rem] border border-border/70 bg-card/75 shadow-[var(--shadow-elevated)] backdrop-blur sm:min-h-[calc(100dvh-2.5rem)] lg:grid-cols-[0.9fr_1.1fr]">
+    <main className="min-h-dvh w-full bg-background text-foreground lg:p-6">
+      <div className="mx-auto grid min-h-dvh w-full max-w-[88rem] overflow-hidden bg-card/75 lg:min-h-[calc(100dvh-3rem)] lg:grid-cols-[0.9fr_1.1fr] lg:rounded-lg lg:border lg:border-border/70 lg:shadow-[var(--shadow-elevated)] lg:backdrop-blur">
         <AuthStory t={t} />
 
-        <section className="relative flex flex-col bg-background/75 px-5 pb-8 pt-5 sm:px-10 lg:px-[clamp(3rem,6vw,6rem)]">
+        <section className="relative flex flex-col bg-background/75 px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-10 lg:p-[clamp(3rem,6vw,6rem)]">
           <div className="flex items-center justify-end gap-2">
             <ThemeToggle />
             <LanguageSwitcher />
@@ -451,7 +471,7 @@ function AuthStory({ t }: { t: Translation }) {
   ] as const;
   return (
     <aside
-      className="relative isolate flex min-h-[17rem] flex-col overflow-hidden px-6 py-7 text-on-night sm:min-h-[22rem] sm:px-10 sm:py-9 lg:min-h-full lg:px-14 lg:py-12"
+      className="relative isolate flex min-h-[14rem] flex-col overflow-hidden px-5 py-5 text-on-night sm:min-h-[22rem] sm:px-10 sm:py-9 lg:min-h-full lg:px-14 lg:py-12"
       style={{ background: "var(--gradient-night)" }}
     >
       <AuthCosmos />
@@ -463,15 +483,15 @@ function AuthStory({ t }: { t: Translation }) {
         <BrandMark withWordmark={false} className="h-8 w-8" />
         <span className="text-lg font-semibold tracking-tight text-on-night">{APP_NAME}</span>
       </Link>
-      <div className="relative my-auto max-w-lg py-9 lg:py-14">
+      <div className="relative my-auto max-w-lg py-6 sm:py-9 lg:py-14">
         <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
           <Sparkles className="h-4 w-4" aria-hidden />
           {t("auth.heroEyebrow")}
         </p>
-        <h2 className="font-display-hero mt-5 max-w-[10ch] text-balance text-4xl font-semibold leading-[1.02] sm:text-5xl lg:text-6xl">
+        <h2 className="font-display-hero mt-4 max-w-[12ch] text-balance text-3xl font-semibold leading-[1.08] sm:mt-5 sm:max-w-[10ch] sm:text-5xl lg:text-6xl">
           {t("auth.heroTitle")}
         </h2>
-        <p className="mt-5 max-w-md text-sm leading-6 text-on-night-muted sm:text-base sm:leading-7">
+        <p className="mt-3 max-w-md text-sm leading-6 text-on-night-muted sm:mt-5 sm:text-base sm:leading-7">
           {t("auth.heroBody")}
         </p>
       </div>
@@ -520,7 +540,7 @@ function AuthCosmos() {
 
 function SuccessMessage({ title, body }: { title: string; body: string }) {
   return (
-    <div className="mt-6 rounded-2xl border border-primary/25 bg-primary/[0.06] p-5 text-sm text-foreground shadow-[var(--shadow-soft)]">
+    <div className="mt-6 rounded-lg border border-primary/25 bg-primary/[0.06] p-5 text-sm text-foreground shadow-[var(--shadow-soft)]">
       <div className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
         <ShieldCheck className="h-4 w-4" aria-hidden />
       </div>

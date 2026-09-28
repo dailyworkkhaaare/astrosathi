@@ -27,6 +27,26 @@ AstroSaathi is already ahead of many web-to-native candidates. It has:
 
 The main gap is not basic responsiveness. The main gap is that several screens still feel like a responsive web app inside a phone rather than a native mobile product. The app needs a stronger mobile shell policy, route-level hierarchy, sheet-first interactions, native keyboard behavior, denser but calmer information design, and device-level polish.
 
+Recent implementation: sign-in, account recovery, and password reset now use edge-to-edge mobile surfaces with safe-area-aware spacing. Their existing keyboard hints are retained, while validation, state changes, success, and recoverable errors provide restrained haptic feedback when the native bridge is available.
+
+Recent implementation: Today detail routes share a native-sized back control with tactile feedback. Horoscope, Panchang, and Markets now begin with tighter reading hierarchy on phones, and the horoscope and Panchang panels no longer rely on decorative gradient glow for emphasis.
+
+Recent implementation: Cosmos now uses a native bottom-sheet picker for its primary sections on phones, matching the existing chart-style and Varga selectors. Section switches and nearby Journey, Nudge, and Journal shortcuts provide consistent tactile confirmation.
+
+Recent implementation: birth onboarding now keeps its final chart action safely reachable without reserving space for the absent tab bar. Stage changes, birth-detail selections, validation, completion, and recoverable save failures provide restrained native feedback.
+
+Recent implementation: language selection now uses an edge-to-edge mobile transition with safe-area-aware spacing, a calmer static visual treatment, and tactile confirmation from landing through the handoff to sign-in.
+
+Recent implementation: shared native-shell styles now keep focused form controls clear of safe device edges while the viewport resizes for the on-screen keyboard. Profile and context sheets use the same compact mobile geometry as the shared drawer.
+
+Recent implementation: proactive guidance now exposes an honest device-alert permission state, requests access only from a deliberate settings action, and continues to work as an in-app nudge feed when device alerts are unavailable. The native bridge also routes a tapped push payload through the existing safe deep-link allowlist.
+
+Recent implementation: the shared webview layer now prevents iOS from zooming into editable controls, removes the tap highlight from interactive controls, and keeps numeric chart content from being mistaken for phone links. It does not disable pinch zoom or text selection.
+
+Recent implementation: loading, not-found, and error surfaces now use dynamic viewport height as well, avoiding browser-chrome gaps or cropped fallback states when a native webview changes its visible height.
+
+Recent implementation: the mobile QA pass now verifies the Ask composer through its intentional whole-surface focus treatment and keeps Today pull-to-refresh announcements out of the visible status landmark stream until there is an actual announcement.
+
 ## Priority Findings
 
 ### P0 - Native Shell and Capacitor Foundations
@@ -342,6 +362,7 @@ Implemented so far:
 - A draft is restored after a background/resume or reload, never sent to Supabase, and removed only once a complete reply succeeds.
 - Signing out clears session-only Ask drafts, and an offline send keeps the question in place until the connection returns.
 - Nudge notification targets now deep-link to the matching inbox item, with focused arrival, native refresh, and tactile action feedback.
+- Consent onboarding now keeps its primary action above the home indicator, uses calmer trust surfaces, and confirms choices or save outcomes with native feedback.
 
 ## Screen-by-Screen Fix Plan
 

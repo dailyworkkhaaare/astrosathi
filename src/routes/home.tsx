@@ -168,7 +168,10 @@ function HomePage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const { tab: tabParam } = Route.useSearch();
   const tab: TabKey = tabParam ?? "overview";
-  const setTab = (k: TabKey) => void navigate({ search: { tab: k }, replace: true });
+  const setTab = (k: TabKey) => {
+    void triggerHaptic("selection");
+    void navigate({ search: { tab: k }, replace: true });
+  };
   const isProfileIncomplete = profileLoaded && (!profile || !profile.dob);
   const unreadNudges = useUnreadNudgeCount();
 
@@ -201,7 +204,8 @@ function HomePage() {
       <div className="motion-fade-up grid grid-cols-2 gap-3 border-t border-border/70 pt-5">
         <Link
           to="/life"
-          className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+          onClick={() => void triggerHaptic("selection")}
+          className="tap-press flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <CalendarClock size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{t("life.entryLabel")}</span>
@@ -210,7 +214,8 @@ function HomePage() {
 
         <Link
           to="/nudges"
-          className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+          onClick={() => void triggerHaptic("selection")}
+          className="tap-press flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <Bell size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{t("nudges.entryLabel")}</span>
@@ -227,7 +232,8 @@ function HomePage() {
 
         <Link
           to="/journal"
-          className="tap-press col-span-2 flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+          onClick={() => void triggerHaptic("selection")}
+          className="tap-press col-span-2 flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <BookHeart size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{t("journal.entryLabel")}</span>
@@ -282,33 +288,63 @@ const TAB_CONFIG: {
 
 function Tabs({ current, onChange }: { current: TabKey; onChange: (k: TabKey) => void }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
   const currentConfig = TAB_CONFIG.find(({ key }) => key === current) ?? TAB_CONFIG[0];
   const CurrentIcon = currentConfig.icon;
   return (
     <>
-      <div className="relative sm:hidden">
-        <CurrentIcon
-          size={17}
-          aria-hidden="true"
-          className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-primary"
-        />
-        <select
-          aria-label={t("home.title")}
-          value={current}
-          onChange={(e) => onChange(e.target.value as TabKey)}
-          className="h-12 w-full appearance-none rounded-2xl border border-primary/25 bg-card/85 pl-11 pr-11 text-sm font-semibold text-foreground shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {TAB_CONFIG.map(({ key }) => (
-            <option key={key} value={key}>
-              {t(`home.tabs.${key}`)}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={18}
-          aria-hidden="true"
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-        />
+      <div className="sm:hidden">
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild>
+            <button
+              type="button"
+              aria-label={t("home.title")}
+              className="tap-press flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-primary/25 bg-card/85 px-4 text-left text-sm font-semibold text-foreground shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="flex min-w-0 items-center gap-2.5">
+                <CurrentIcon size={17} aria-hidden="true" className="shrink-0 text-primary" />
+                <span className="truncate">{t(`home.tabs.${current}`)}</span>
+              </span>
+              <ChevronDown size={18} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+            </button>
+          </DrawerTrigger>
+          <DrawerContent aria-label={t("home.title")} className="bg-card">
+            <DrawerHeader className="px-5 pb-4 pt-5 text-left">
+              <DrawerTitle className="font-display text-xl">{t("home.title")}</DrawerTitle>
+            </DrawerHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
+              <div role="listbox" aria-label={t("home.title")} className="space-y-2">
+                {TAB_CONFIG.map(({ key, icon: Icon }) => {
+                  const selected = current === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => {
+                        onChange(key);
+                        setOpen(false);
+                      }}
+                      className={
+                        "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        (selected
+                          ? "border-primary/45 bg-primary/10 text-foreground"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Icon size={17} aria-hidden="true" className="shrink-0 text-accent" />
+                        <span className="truncate">{t(`home.tabs.${key}`)}</span>
+                      </span>
+                      {selected && <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
 
       <div

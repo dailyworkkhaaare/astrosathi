@@ -13,6 +13,7 @@ import {
 import { useRequireAuth } from "@/lib/require-auth";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { Button } from "@/components/ui/button";
+import { triggerHaptic } from "@/lib/native-device";
 
 import { saveConsent } from "@/lib/consent";
 
@@ -63,9 +64,11 @@ function ConsentPage() {
     });
     setSaving(false);
     if (res.error) {
+      void triggerHaptic("error");
       setSaveError(t("auth.errors.generic"));
       return;
     }
+    void triggerHaptic("success");
     navigate({ to: "/onboarding/birth" });
   };
 
@@ -77,13 +80,9 @@ function ConsentPage() {
       subtitle={t("consent.body")}
     >
       <div className="space-y-7">
-        <section className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(145deg,hsl(251_37%_13%),hsl(258_36%_18%)_55%,hsl(270_31%_22%))] p-5 text-white shadow-[0_24px_70px_-34px_hsl(258_70%_24%/0.8)] sm:p-6">
-          <div
-            className="pointer-events-none absolute -right-14 -top-20 h-44 w-44 rounded-full bg-[radial-gradient(circle,hsl(37_94%_70%/0.2),transparent_68%)]"
-            aria-hidden="true"
-          />
-          <div className="relative flex items-start gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[hsl(38_92%_72%)] shadow-inner">
+        <section className="rounded-lg border border-white/10 bg-[hsl(251_37%_15%)] p-5 text-white shadow-[var(--shadow-elevated)] sm:p-6">
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 text-[hsl(38_92%_72%)]">
               <LockKeyhole size={20} strokeWidth={1.8} aria-hidden="true" />
             </span>
             <div className="min-w-0 flex-1">
@@ -101,7 +100,7 @@ function ConsentPage() {
             </div>
           </div>
 
-          <div className="relative mt-5" aria-live="polite">
+          <div className="mt-5" aria-live="polite">
             <div className="mb-2.5 flex items-center justify-between gap-4 text-xs">
               <span className="font-medium text-white/72">
                 {t("consent.progressLabel", { done: completedRequired, total: 3 })}
@@ -117,7 +116,7 @@ function ConsentPage() {
                   className={
                     "h-1.5 rounded-full transition-all duration-300 " +
                     (complete
-                      ? "bg-[linear-gradient(90deg,hsl(38_92%_65%),hsl(21_92%_67%))] shadow-[0_0_12px_hsl(36_90%_64%/0.35)]"
+                      ? "bg-accent"
                       : "bg-white/15")
                   }
                 />
@@ -181,9 +180,9 @@ function ConsentPage() {
           />
         </Group>
 
-        <section className="rounded-2xl border border-accent/20 bg-[linear-gradient(135deg,hsl(var(--accent)/0.08),hsl(var(--card))_58%)] p-5">
+        <section className="rounded-lg border border-accent/20 bg-accent/[0.06] p-5">
           <div className="flex gap-3">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
               <Sparkles size={15} aria-hidden="true" />
             </span>
             <div>
@@ -197,7 +196,7 @@ function ConsentPage() {
           </div>
         </section>
 
-        <div className="rounded-[1.5rem] border border-border/80 bg-card/90 p-4 shadow-[0_16px_45px_-34px_hsl(var(--foreground)/0.45)] backdrop-blur sm:p-5">
+        <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 rounded-lg border border-border/80 bg-background/95 p-3 shadow-[var(--shadow-elevated)] backdrop-blur sm:p-4">
           <p className="mb-3 text-center text-xs leading-relaxed text-muted-foreground">
             {canContinue ? t("consent.readyHint") : t("consent.continueHint")}
           </p>
@@ -207,7 +206,7 @@ function ConsentPage() {
             onClick={onContinue}
             disabled={!canContinue || saving}
             aria-disabled={!canContinue || saving}
-            className="w-full"
+            className="min-h-12 w-full"
           >
             {saving ? t("auth.loading") : t("common.continue")}
           </Button>
@@ -288,23 +287,23 @@ function CheckboxRow({
   return (
     <div
       className={
-        "group rounded-2xl border px-4 py-4 transition-all duration-[var(--motion-micro)] sm:px-5 " +
+        "group rounded-lg border px-4 py-4 transition-all duration-[var(--motion-micro)] sm:px-5 " +
         (checked
           ? optional
-            ? "border-[hsl(274_62%_63%/0.55)] bg-[linear-gradient(135deg,hsl(274_70%_60%/0.1),hsl(var(--card))_65%)] shadow-[0_14px_36px_-30px_hsl(274_70%_46%/0.8)]"
-            : "border-accent/45 bg-[linear-gradient(135deg,hsl(var(--accent)/0.08),hsl(var(--card))_65%)] shadow-[0_14px_36px_-30px_hsl(var(--accent)/0.7)]"
+            ? "border-primary/35 bg-primary/[0.06] shadow-[var(--shadow-soft)]"
+            : "border-accent/45 bg-accent/[0.06] shadow-[var(--shadow-soft)]"
           : optional
-            ? "border-[hsl(274_45%_60%/0.24)] bg-[linear-gradient(135deg,hsl(274_55%_60%/0.04),hsl(var(--card))_68%)] hover:border-[hsl(274_45%_60%/0.4)]"
+            ? "border-border bg-card hover:border-primary/30"
             : "border-border bg-card hover:border-accent/30")
       }
     >
       <label className="flex cursor-pointer items-start gap-3.5">
         <span
           className={
-            "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors " +
+            "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors " +
             (checked
               ? optional
-                ? "border-[hsl(274_62%_63%/0.35)] bg-[hsl(274_62%_63%/0.12)] text-[hsl(274_58%_58%)]"
+                ? "border-primary/30 bg-primary/10 text-primary"
                 : "border-accent/30 bg-accent/10 text-accent"
               : "border-border bg-muted/45 text-muted-foreground")
           }
@@ -334,7 +333,11 @@ function CheckboxRow({
           <input
             type="checkbox"
             checked={checked}
-            onChange={(event) => onChange(event.target.checked)}
+            onChange={(event) => {
+              const next = event.target.checked;
+              void triggerHaptic(next ? "selection" : "light");
+              onChange(next);
+            }}
             className="peer h-6 w-6 cursor-pointer appearance-none rounded-lg border border-input bg-background transition-all checked:border-primary checked:bg-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-required={required || undefined}
             aria-describedby={help ? helpId : undefined}

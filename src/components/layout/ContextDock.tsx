@@ -100,7 +100,7 @@ function LensShell({
       <div className="md:hidden">
         <Drawer>
           <DrawerTrigger asChild>{trigger}</DrawerTrigger>
-          <DrawerContent className="rounded-t-[1.75rem] border-border bg-background px-4 pb-[calc(1rem+var(--as-safe-bottom))]">
+          <DrawerContent className="rounded-t-lg border-border bg-background px-4 pb-[calc(1rem+var(--as-safe-bottom))]">
             <LensDetails {...details} surface="drawer" />
           </DrawerContent>
         </Drawer>

@@ -24,6 +24,7 @@ import {
   onAppResume,
   onNativeBack,
   onNativeDeepLink,
+  onNativeNotificationOpen,
   supportedDeepLinkPath,
 } from "../lib/native-device";
 import { APP_VERSION } from "../lib/preferences";
@@ -34,7 +35,7 @@ import { PERSIST_STORAGE_KEY, clearChartGatewayCache } from "../lib/queries";
 function NotFoundComponent() {
   const { t } = useTranslation();
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="font-display text-7xl font-bold text-foreground">404</h1>
         <h2 className="font-display mt-4 text-xl font-semibold text-foreground">
@@ -63,7 +64,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">
           {t("states.errorTitle")}
@@ -103,6 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#151732" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
+      { name: "format-detection", content: "telephone=no" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { name: "apple-mobile-web-app-title", content: "AstroSaathi" },
       { title: "AstroSaathi — Vedic Astrology Guidance in Your Language" },
@@ -181,6 +183,7 @@ function RootComponent() {
       <NativeResumeSync />
       <NativeBackSync />
       <NativeDeepLinkSync />
+      <NativeNotificationOpenSync />
       <PwaRegister />
       <NetworkStatusBanner />
       <AppShell>
@@ -296,17 +299,25 @@ function NativeDeepLinkSync() {
   useEffect(
     () =>
       onNativeDeepLink((url) => {
-        if (typeof window === "undefined") return;
         const target = supportedDeepLinkPath(url);
-        if (!target) return;
-        const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-        if (target === current) return;
-        window.history.pushState(null, "", target);
-        window.dispatchEvent(new PopStateEvent("popstate"));
+        if (target) navigateNativePath(target);
       }),
     [],
   );
   return null;
+}
+
+function NativeNotificationOpenSync() {
+  useEffect(() => onNativeNotificationOpen(navigateNativePath), []);
+  return null;
+}
+
+function navigateNativePath(target: string) {
+  if (typeof window === "undefined") return;
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (target === current) return;
+  window.history.pushState(null, "", target);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
 function NativeBackSync() {

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { CalendarClock, Check, Moon, Orbit, Sparkles, type LucideIcon } from "lucide-react";
+import { Bell, CalendarClock, Check, Moon, Orbit, Sparkles, type LucideIcon } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,13 @@ import {
 } from "@/components/ui/select";
 import { useProactiveSettings, useSaveProactiveSettings } from "@/lib/queries";
 import { NUDGE_KINDS, PROACTIVE_SETTINGS_DEFAULTS, type ProactiveSettings } from "@/lib/proactive";
+import {
+  getDeviceNotificationPermission,
+  requestDeviceNotificationPermission,
+  triggerHaptic,
+  type DeviceNotificationPermission,
+} from "@/lib/native-device";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/settings/proactive")({
   head: () => ({
@@ -50,10 +57,23 @@ function ProactiveSettingsPage() {
   // load / after invalidation, but writes flow through here so the UI reacts
   // instantly (matching settings.memory.tsx's onToggle/onChange pattern).
   const [local, setLocal] = useState<ProactiveSettings>(PROACTIVE_SETTINGS_DEFAULTS);
+  const [notificationPermission, setNotificationPermission] =
+    useState<DeviceNotificationPermission>("unavailable");
+  const [requestingNotificationPermission, setRequestingNotificationPermission] = useState(false);
 
   useEffect(() => {
     if (settingsQuery.data) setLocal(settingsQuery.data);
   }, [settingsQuery.data]);
+
+  useEffect(() => {
+    let active = true;
+    void getDeviceNotificationPermission().then((permission) => {
+      if (active) setNotificationPermission(permission);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const persist = async (patch: Partial<ProactiveSettings>, prev: ProactiveSettings) => {
     const res = await saveMutation.mutateAsync(patch);
@@ -105,6 +125,20 @@ function ProactiveSettingsPage() {
       : Array.from(new Set([...local.muted_kinds, kind]));
     setLocal((s) => ({ ...s, muted_kinds: nextMuted }));
     void persist({ muted_kinds: nextMuted }, prev);
+  };
+
+  const onEnableDeviceAlerts = async () => {
+    setRequestingNotificationPermission(true);
+    const permission = await requestDeviceNotificationPermission();
+    setNotificationPermission(permission);
+    setRequestingNotificationPermission(false);
+    if (permission === "granted") {
+      void triggerHaptic("success");
+      toast.success(t("settings.proactive.toasts.alertsEnabled"));
+    } else if (permission === "denied") {
+      void triggerHaptic("warning");
+      toast.message(t("settings.proactive.toasts.alertsBlocked"));
+    }
   };
 
   const disabled = !local.enabled;
@@ -168,8 +202,35 @@ function ProactiveSettingsPage() {
           </p>
         )}
 
+        <Group title={t("settings.proactive.deviceAlerts")} icon={<Bell size={14} aria-hidden="true" />} delay={2}>
+          <div className="flex min-h-12 items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {t(`settings.proactive.deviceAlertStatus.${notificationPermission}`)}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                {t(`settings.proactive.deviceAlertHint.${notificationPermission}`)}
+              </p>
+            </div>
+            {notificationPermission === "prompt" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                disabled={requestingNotificationPermission}
+                onClick={() => void onEnableDeviceAlerts()}
+              >
+                {requestingNotificationPermission
+                  ? t("settings.proactive.deviceAlertsRequesting")
+                  : t("settings.proactive.deviceAlertsEnable")}
+              </Button>
+            ) : null}
+          </div>
+        </Group>
+
         {/* Frequency cap */}
-        <Group title={t("settings.proactive.frequency")} delay={2}>
+        <Group title={t("settings.proactive.frequency")} delay={3}>
           <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
             <p className="text-xs leading-snug text-muted-foreground">
               {t("settings.proactive.frequencyHint")}
@@ -204,7 +265,7 @@ function ProactiveSettingsPage() {
         </Group>
 
         {/* Quiet hours */}
-        <Group title={t("settings.proactive.quietHours")} delay={3}>
+        <Group title={t("settings.proactive.quietHours")} delay={4}>
           <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
             <p className="text-xs leading-snug text-muted-foreground">
               {t("settings.proactive.quietHint")}
@@ -238,7 +299,7 @@ function ProactiveSettingsPage() {
         </Group>
 
         {/* Muted kinds */}
-        <Group title={t("settings.proactive.mutedKinds")} delay={4}>
+        <Group title={t("settings.proactive.mutedKinds")}>
           <div className="flex flex-col gap-3 px-4 py-3">
             <p className="text-xs leading-snug text-muted-foreground">
               {t("settings.proactive.mutedKindsHint")}

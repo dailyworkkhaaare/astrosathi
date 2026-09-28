@@ -140,6 +140,19 @@ test("proactive guidance settings preserve delivery preferences and quiet-hour b
     "settings.proactive.mutedKindsDetail",
     "settings.proactive.mutedKindsStatusAll",
     "settings.proactive.mutedKindsStatusMuted",
+    "settings.proactive.deviceAlerts",
+    "settings.proactive.deviceAlertsEnable",
+    "settings.proactive.deviceAlertsRequesting",
+    "settings.proactive.deviceAlertStatus.granted",
+    "settings.proactive.deviceAlertStatus.denied",
+    "settings.proactive.deviceAlertStatus.prompt",
+    "settings.proactive.deviceAlertStatus.unavailable",
+    "settings.proactive.deviceAlertHint.granted",
+    "settings.proactive.deviceAlertHint.denied",
+    "settings.proactive.deviceAlertHint.prompt",
+    "settings.proactive.deviceAlertHint.unavailable",
+    "settings.proactive.toasts.alertsEnabled",
+    "settings.proactive.toasts.alertsBlocked",
   ]) {
     const english = atPath(locales.en, path);
     assert.equal(typeof english, "string", `English key missing: ${path}`);
@@ -153,6 +166,27 @@ test("proactive guidance settings preserve delivery preferences and quiet-hour b
       );
     }
   }
+});
+
+test("device alerts expose an optional native permission bridge and safe notification routing", async () => {
+  const [routeSource, rootSource, nativeSource] = await Promise.all([
+    readProjectFile("src/routes/settings.proactive.tsx"),
+    readProjectFile("src/routes/__root.tsx"),
+    readProjectFile("src/lib/native-device.ts"),
+  ]);
+
+  assert.match(routeSource, /getDeviceNotificationPermission/);
+  assert.match(routeSource, /requestDeviceNotificationPermission/);
+  assert.match(routeSource, /onEnableDeviceAlerts/);
+  assert.match(routeSource, /notificationPermission === "prompt"/);
+  assert.match(routeSource, /settings\.proactive\.deviceAlertStatus\.\$\{notificationPermission\}/);
+  assert.match(nativeSource, /PushNotifications/);
+  assert.match(nativeSource, /export async function getDeviceNotificationPermission/);
+  assert.match(nativeSource, /export async function requestDeviceNotificationPermission/);
+  assert.match(nativeSource, /export function onNativeNotificationOpen/);
+  assert.match(nativeSource, /supportedDeepLinkPath\(candidate\)/);
+  assert.match(rootSource, /<NativeNotificationOpenSync \/>/);
+  assert.match(rootSource, /onNativeNotificationOpen\(navigateNativePath\)/);
 });
 
 test("ascendant lookup prefers an explicit Lagna over a house-one fallback", () => {
@@ -225,6 +259,21 @@ test("Ask protects typed questions across offline and sign-out boundaries", asyn
   }
 });
 
+test("consent keeps its mobile action reachable and provides native feedback", async () => {
+  const [consentSource, shellSource] = await Promise.all([
+    readProjectFile("src/routes/onboarding.consent.tsx"),
+    readProjectFile("src/components/OnboardingShell.tsx"),
+  ]);
+
+  assert.match(consentSource, /triggerHaptic\("success"\)/);
+  assert.match(consentSource, /triggerHaptic\("error"\)/);
+  assert.match(consentSource, /triggerHaptic\(next \? "selection" : "light"\)/);
+  assert.match(consentSource, /sticky bottom-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
+  assert.doesNotMatch(consentSource, /radial-gradient/);
+  assert.match(shellSource, /env\(safe-area-inset-top\)/);
+  assert.match(shellSource, /env\(safe-area-inset-bottom\)/);
+});
+
 test("native deep links normalize supported worlds and reject unknown destinations", () => {
   assert.equal(supportedDeepLinkPath("astrosaathi://chat?seed=today"), "/chat?seed=today");
   assert.equal(supportedDeepLinkPath("astrosaathi://ask?seed=today"), "/chat?seed=today");
@@ -294,6 +343,52 @@ test("native back behavior delegates to browser history without root exits", asy
   const overlaySource = await readProjectFile("src/lib/native-overlay-stack.ts");
   assert.match(overlaySource, /export function closeTopNativeOverlay/);
   assert.match(overlaySource, /openOverlays\.pop\(\)/);
+});
+
+test("native shell keeps focused fields and mobile drawers clear of device edges", async () => {
+  const [stylesSource, drawerSource, shellSource, dockSource] = await Promise.all([
+    readProjectFile("src/styles.css"),
+    readProjectFile("src/components/ui/drawer.tsx"),
+    readProjectFile("src/components/layout/AppShell.tsx"),
+    readProjectFile("src/components/layout/ContextDock.tsx"),
+  ]);
+
+  assert.match(stylesSource, /scroll-padding-top: calc\(1rem \+ var\(--as-safe-top\)\)/);
+  assert.match(stylesSource, /scroll-padding-bottom: calc\(1rem \+ var\(--as-safe-bottom\)\)/);
+  assert.match(stylesSource, /\[contenteditable="true"\]/);
+  assert.match(stylesSource, /scroll-margin-block: 1rem/);
+  assert.match(drawerSource, /rounded-t-lg/);
+  assert.doesNotMatch(drawerSource, /rounded-t-\[1\.75rem\]/);
+  assert.match(shellSource, /DrawerContent className="rounded-t-lg/);
+  assert.match(dockSource, /DrawerContent className="rounded-t-lg/);
+});
+
+test("webview interaction defaults avoid iOS field zoom without reducing accessibility", async () => {
+  const [stylesSource, rootSource] = await Promise.all([
+    readProjectFile("src/styles.css"),
+    readProjectFile("src/routes/__root.tsx"),
+  ]);
+
+  assert.match(stylesSource, /input,[\s\S]*textarea,[\s\S]*select,[\s\S]*\[contenteditable="true"\][\s\S]*font-size: 1rem/);
+  assert.match(stylesSource, /-webkit-tap-highlight-color: transparent/);
+  assert.match(stylesSource, /touch-action: manipulation/);
+  assert.doesNotMatch(stylesSource, /user-scalable\s*=\s*(?:"no"|no)/);
+  assert.match(rootSource, /name: "format-detection", content: "telephone=no"/);
+});
+
+test("mobile fallback surfaces use dynamic viewport height", async () => {
+  const [landingSource, authSource, rootSource] = await Promise.all([
+    readProjectFile("src/routes/index.tsx"),
+    readProjectFile("src/routes/auth.tsx"),
+    readProjectFile("src/routes/__root.tsx"),
+  ]);
+
+  assert.match(landingSource, /min-h-\[calc\(100dvh-8rem\)\]/);
+  assert.doesNotMatch(landingSource, /min-h-\[calc\(100vh-8rem\)\]/);
+  assert.match(authSource, /min-h-dvh items-center justify-center bg-background/);
+  assert.doesNotMatch(authSource, /min-h-screen items-center justify-center bg-background/);
+  assert.equal((rootSource.match(/min-h-dvh items-center justify-center bg-background px-4/g) ?? []).length, 2);
+  assert.doesNotMatch(rootSource, /min-h-screen items-center justify-center bg-background px-4/);
 });
 
 test("shared native overlays provide safe open and close feedback", async () => {
@@ -750,6 +845,86 @@ test("native form completion feedback covers People, Life and Journal", async ()
   assert.match(sources[3], /triggerHaptic\("warning"\)/);
 });
 
+test("auth entry flows use native phone spacing and tactile feedback", async () => {
+  const [authSource, resetSource, transitionSource] = await Promise.all([
+    readProjectFile("src/routes/auth.tsx"),
+    readProjectFile("src/routes/reset-password.tsx"),
+    readProjectFile("src/components/auth/AuthTransitionPage.tsx"),
+  ]);
+
+  assert.match(authSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
+  assert.match(authSource, /triggerHaptic\("selection"\)/);
+  assert.match(authSource, /triggerHaptic\("warning"\)/);
+  assert.match(authSource, /triggerHaptic\("success"\)/);
+  assert.match(authSource, /triggerHaptic\("error"\)/);
+  assert.match(authSource, /lg:rounded-lg/);
+  assert.match(authSource, /env\(safe-area-inset-bottom\)/);
+  assert.match(resetSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
+  assert.match(resetSource, /triggerHaptic\("warning"\)/);
+  assert.match(resetSource, /triggerHaptic\("success"\)/);
+  assert.match(resetSource, /triggerHaptic\("error"\)/);
+  assert.match(transitionSource, /env\(safe-area-inset-top\)/);
+  assert.match(transitionSource, /env\(safe-area-inset-bottom\)/);
+});
+
+test("birth onboarding keeps its final action reachable and recovers from save failures", async () => {
+  const [routeSource, formSource] = await Promise.all([
+    readProjectFile("src/routes/onboarding.birth.tsx"),
+    readProjectFile("src/components/BirthDetailsForm.tsx"),
+  ]);
+
+  assert.match(routeSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
+  assert.match(routeSource, /triggerHaptic\("warning"\)/);
+  assert.match(routeSource, /triggerHaptic\("success"\)/);
+  assert.match(routeSource, /triggerHaptic\("error"\)/);
+  assert.match(routeSource, /sticky bottom-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
+  assert.match(routeSource, /try \{[\s\S]*saveBirthProfile[\s\S]*\} catch \{/);
+  assert.match(formSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
+  assert.match(formSource, /triggerHaptic\("selection"\)/);
+});
+
+test("language selection uses a native mobile transition and preserves tactile entry feedback", async () => {
+  const [landingSource, languageSource] = await Promise.all([
+    readProjectFile("src/routes/index.tsx"),
+    readProjectFile("src/routes/language.tsx"),
+  ]);
+
+  assert.match(landingSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
+  assert.match(landingSource, /to="\/language" onClick=\{\(\) => void triggerHaptic\("selection"\)\}/);
+  assert.match(landingSource, /to="\/auth"[\s\S]*triggerHaptic\("selection"\)/);
+  assert.match(languageSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
+  assert.match(languageSource, /triggerHaptic\("selection"\)/);
+  assert.match(languageSource, /lg:rounded-lg/);
+  assert.match(languageSource, /env\(safe-area-inset-bottom\)/);
+  assert.doesNotMatch(languageSource, /blur-3xl/);
+});
+
+test("Today detail screens share native back controls and compact reading surfaces", async () => {
+  const [backSource, horoscopeRoute, panchangRoute, marketsRoute, horoscopeSource, panchangSource, marketSource] =
+    await Promise.all([
+      readProjectFile("src/components/TodayBackButton.tsx"),
+      readProjectFile("src/routes/today.horoscope.tsx"),
+      readProjectFile("src/routes/today.panchang.tsx"),
+      readProjectFile("src/routes/today.markets.tsx"),
+      readProjectFile("src/components/DailyHoroscopeSection.tsx"),
+      readProjectFile("src/components/PanchangSection.tsx"),
+      readProjectFile("src/components/MarketOutlookSection.tsx"),
+    ]);
+
+  assert.match(backSource, /to="\/today"/);
+  assert.match(backSource, /triggerHaptic\("selection"\)/);
+  for (const source of [horoscopeRoute, panchangRoute, marketsRoute]) {
+    assert.match(source, /TodayBackButton/);
+  }
+  assert.match(horoscopeSource, /triggerHaptic\("selection"\)/);
+  assert.match(horoscopeSource, /rounded-lg/);
+  assert.doesNotMatch(horoscopeSource, /radial-gradient/);
+  assert.match(panchangSource, /rounded-lg/);
+  assert.doesNotMatch(panchangSource, /radial-gradient/);
+  assert.match(marketsRoute, /<header className="motion-fade-up px-1">/);
+  assert.match(marketSource, /triggerHaptic\("selection"\)/);
+});
+
 test("native theme chrome follows the active light or dark surface", async () => {
   const [shellSource, nativeSource, preferencesSource, settingsSource] = await Promise.all([
     readProjectFile("src/components/layout/AppShell.tsx"),
@@ -783,6 +958,18 @@ test("Cosmos chart style selector keeps desktop select and adds a mobile sheet",
   assert.match(routeSource, /role="listbox"/);
   assert.match(routeSource, /role="option"/);
   assert.match(routeSource, /setOpen\(false\)/);
+});
+
+test("Cosmos primary sections use a native mobile picker with tactile transitions", async () => {
+  const routeSource = await readProjectFile("src/routes/home.tsx");
+
+  assert.match(routeSource, /function Tabs/);
+  assert.match(routeSource, /<Drawer open=\{open\} onOpenChange=\{setOpen\}>/);
+  assert.match(routeSource, /role="listbox" aria-label=\{t\("home\.title"\)\}/);
+  assert.match(routeSource, /role="option"/);
+  assert.match(routeSource, /setOpen\(false\)/);
+  assert.match(routeSource, /const setTab = \(k: TabKey\) => \{[\s\S]*triggerHaptic\("selection"\)/);
+  assert.match(routeSource, /to="\/life"[\s\S]*onClick=\{\(\) => void triggerHaptic\("selection"\)\}/);
 });
 
 test("person chart Varga selector uses the same native mobile sheet", async () => {

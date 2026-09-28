@@ -256,6 +256,10 @@
   },
   "today": {
     "title": "Today",
+    "refresh": "Refresh today",
+    "refreshing": "Refreshing today",
+    "pullToRefresh": "Pull to refresh",
+    "releaseToRefresh": "Release to refresh",
     "backToToday": "Back to Today"
   },
   "todayOverview": {
@@ -263,6 +267,21 @@
     "chartGrounded": "Personalized from your chart",
     "evidence": "Why this may matter now",
     "ask": "Ask about this",
+    "share": "Share",
+    "shareTitle": "Today's AstroSaathi signal",
+    "sharedCopied": "Daily signal copied for sharing",
+    "glance": {
+      "title": "Today at a glance",
+      "subtitle": "A quick read of the sky and your personal focus.",
+      "moon": "Moon",
+      "pada": "pada {{n}}",
+      "focus": "Your focus",
+      "house": "House {{n}}",
+      "focusDetail": "Moon moving through your chart",
+      "sky": "Today's sky",
+      "skyDetail": "Personal house focus is unavailable",
+      "ask": "Ask about today"
+    },
     "askSeed": "What should I focus on today, based on my chart and today's sky?",
     "readFull": "Read the full daily reading",
     "currentTiming": "Current timing",
@@ -430,6 +449,16 @@
     "ascShort": "Asc",
     "colRetro": "Motion",
     "colStates": "Dignity & states",
+    "planetStates": {
+      "exaltedDeep": "Exalted (deep)",
+      "exalted": "Exalted",
+      "debilitatedDeep": "Debilitated (deep)",
+      "debilitated": "Debilitated",
+      "moolatrikona": "Moolatrikona",
+      "ownSign": "Own sign",
+      "combust": "Combust",
+      "vargottama": "Vargottama"
+    },
     "colLord": "Lord",
     "motionDirect": "Direct",
     "motionRetro": "Retrograde",
@@ -541,6 +570,107 @@
     "phaseThinking": "Consulting the planets…",
     "phaseReconnecting": "Realigning with the stars…",
     "phaseWriting": "Reading your chart…",
+    "chartActive": "Vedic chart active",
+    "profileChart": "{{name}}'s chart",
+    "reading": {
+      "title": "Preparing your reading",
+      "slowHint": "This is taking a little longer because your chart is being checked carefully.",
+      "focus": {
+        "career": "Career · 10th house · D10",
+        "health": "Health · 1st, 6th and 8th houses",
+        "marriage": "Marriage · 7th house · D9",
+        "relationships": "Relationships · Venus, Moon and 7th house",
+        "finance": "Finance · 2nd and 11th houses",
+        "children": "Children · 5th house · D7",
+        "education": "Education · Mercury, Jupiter and D24",
+        "travel": "Travel · 9th and 12th houses",
+        "property": "Property · 4th house · D4",
+        "business": "Business · 7th, 10th and 11th houses",
+        "spirituality": "Spirituality · 9th and 12th houses",
+        "family": "Family · 2nd and 4th houses",
+        "general": "Kundli · Dasha · Gochar"
+      },
+      "steps": {
+        "career": [
+          "Reading your 10th house of career…",
+          "Checking Saturn, Sun and Mercury influence…",
+          "Looking at your D10 chart for work direction…",
+          "Matching this with dasha and gochar…"
+        ],
+        "health": [
+          "Reading your vitality and health houses…",
+          "Checking Moon, Saturn and Mars patterns…",
+          "Looking for stress and recovery indicators…",
+          "Preparing careful health guidance…"
+        ],
+        "marriage": [
+          "Reading your 7th house of partnership…",
+          "Checking Venus, Jupiter and relationship yogas…",
+          "Looking at your D9 chart for marriage strength…",
+          "Matching timing through dasha and gochar…"
+        ],
+        "relationships": [
+          "Reading your relationship patterns…",
+          "Checking Venus, Moon and the 7th house…",
+          "Looking at emotional compatibility signals…",
+          "Preparing relationship guidance…"
+        ],
+        "finance": [
+          "Reading your 2nd and 11th houses…",
+          "Checking wealth yogas and income patterns…",
+          "Looking at Jupiter, Venus and Saturn influence…",
+          "Matching this with current dasha…"
+        ],
+        "children": [
+          "Reading your 5th house of children…",
+          "Checking Jupiter and santaan indicators…",
+          "Looking at your D7 chart…",
+          "Preparing family guidance…"
+        ],
+        "education": [
+          "Reading your learning and study houses…",
+          "Checking Mercury and Jupiter strength…",
+          "Looking at your D24 chart…",
+          "Preparing education guidance…"
+        ],
+        "travel": [
+          "Reading your travel and foreign-settlement houses…",
+          "Checking Rahu, Jupiter and 12th-house signals…",
+          "Looking at timing through dasha and gochar…",
+          "Preparing travel guidance…"
+        ],
+        "property": [
+          "Reading your 4th house of home and property…",
+          "Checking Mars, Moon and land indicators…",
+          "Looking at your D4 chart…",
+          "Preparing property guidance…"
+        ],
+        "business": [
+          "Reading your business and partnership houses…",
+          "Checking Mercury, Saturn and Jupiter influence…",
+          "Looking at D10 support for enterprise…",
+          "Preparing business guidance…"
+        ],
+        "spirituality": [
+          "Reading your dharma and spiritual houses…",
+          "Checking Jupiter, Ketu and 12th-house signals…",
+          "Looking at dasha support for inner growth…",
+          "Preparing spiritual guidance…"
+        ],
+        "family": [
+          "Reading your family and home houses…",
+          "Checking Moon, 2nd house and 4th house patterns…",
+          "Looking at current dasha and gochar…",
+          "Preparing family guidance…"
+        ],
+        "general": [
+          "Reading your main kundli…",
+          "Checking key graha influences…",
+          "Looking at dasha and gochar…",
+          "Preparing your guidance…"
+        ]
+      }
+    },
     "disclaimer": "Guidance is for reflection, not a substitute for professional advice.",
     "mockReplies": {
       "career": "In your chart, Saturn in the 10th house asks for patience and steady effort — big leaps rarely help here. Focus on a craft you can practise daily; recognition tends to follow quietly.",
@@ -596,6 +726,8 @@
     "scrollToBottom": "Scroll to latest",
     "copy": "Copy",
     "copied": "Copied",
+    "share": "Share",
+    "sharedCopied": "Copied for sharing",
     "good": "Good response",
     "bad": "Bad response",
     "edit": "Edit message",
@@ -603,6 +735,7 @@
     "errorTitle": "We couldn't complete that reading",
     "errorGeneric": "Something went wrong reaching AstroSaathi. Please try again.",
     "errorInterrupted": "The reading paused before it finished — tap retry to continue.",
+    "errorOffline": "You're offline. Your question is still ready to send when the connection returns.",
     "disclaimerLong": "AstroSaathi can make mistakes. Not professional advice.",
     "groups": {
       "today": "Today",
@@ -651,6 +784,7 @@
     "about": "About AstroSaathi",
     "aboutBody": "A calm, trustworthy companion for Vedic astrology guidance.",
     "back": "Back to home",
+    "versionLabel": "App version",
     "version": "Version {{v}}",
     "profile": {
       "title": "Your profile",
@@ -686,6 +820,8 @@
       "lengthDetailed": "Detailed",
       "lengthConcise": "Concise",
       "lengthBalanced": "Balanced",
+      "haptics": "Haptic feedback",
+      "hapticsHint": "Feel a light touch for selections, saved changes, and important warnings.",
       "memory": "Remember our conversations",
       "memoryHelp": "Personalize guidance based on past chats."
     },
@@ -702,7 +838,8 @@
       "appearanceTitle": "Appearance",
       "themeHint": "System follows this device’s appearance. Changing appearance never changes your chart or guidance.",
       "guidanceTitle": "Guidance style",
-      "guidanceHint": "These choices shape the tone and length of future AstroSaathi responses."
+      "guidanceHint": "These choices shape the tone and length of future AstroSaathi responses.",
+      "feedbackTitle": "Device feedback"
     },
     "guidance": {
       "title": "Guidance & delivery"
@@ -903,7 +1040,9 @@
     "notFoundTitle": "Page not found",
     "notFoundBody": "The page you're looking for doesn't exist or has been moved.",
     "errorTitle": "This page didn't load",
-    "errorBody": "Something went wrong on our end. You can try again or head back home."
+    "errorBody": "Something went wrong on our end. You can try again or head back home.",
+    "offlineBanner": "You're offline. Saved readings stay available; new guidance will resume when connected.",
+    "onlineBanner": "Connection restored. Your active readings are refreshing."
   },
   "numerology": {
     "title": "Numerology",
@@ -1141,6 +1280,10 @@
         "notComputed": "No data yet"
       },
       "todayTitle": "What's driving {{asset}} today",
+      "signalCountOne": "{{count}} signal",
+      "signalCountMany": "{{count}} signals",
+      "netScore": "net {{score}}",
+      "notComputed": "Not calculated yet",
       "notComputedToday": "Today's reading isn't ready yet.",
       "noVedhasToday": "No planetary events today — a calm day.",
       "benefic": "Supportive",
@@ -1541,6 +1684,15 @@
     "listAria": "{{count}} saved people",
     "birthTimeKnown": "Birth time recorded",
     "birthTimeUnknown": "Birth time unknown",
+    "quickActions": {
+      "label": "Quick actions",
+      "chart": "Chart",
+      "ask": "Ask",
+      "compatibility": "Compare",
+      "chartFor": "Open {{name}}'s chart",
+      "askAbout": "Ask about {{name}}",
+      "compatibilityWith": "Compare with {{name}}"
+    },
     "loading": "Loading saved people",
     "emptyTitle": "Your circle is waiting",
     "empty": "No saved people yet. Add someone to see their chart.",
@@ -1637,6 +1789,12 @@
     },
     "saveFailed": "Could not save. Please try again.",
     "compatibility": {
+      "share": "Share compatibility",
+      "shareTitle": "Compatibility with {{partner}}",
+      "shareScore": "Compatibility with {{partner}}: {{got}} of {{max}} Guna Milan points.",
+      "sharedCopied": "Compatibility summary copied for sharing",
+      "ask": "Ask about this match",
+      "askSeed": "What should I understand about my compatibility with {{partner}}?",
       "eyebrow": "Relationship reading",
       "title": "Compatibility",
       "subtitle": "How your chart aligns with {{partner}}'s",
@@ -1799,7 +1957,8 @@
     "timeline": {
       "title": "Life timeline",
       "hint": "Milestones you've chosen to remember.",
-      "empty": "No milestones yet"
+      "empty": "No milestones yet",
+      "emptyHint": "Start with a milestone like a job, move, relationship, or health shift."
     },
     "journal": {
       "title": "Reflection journal",
@@ -1847,6 +2006,26 @@
     "form": {
       "eyebrow": "Life event",
       "intro": "Record the moment first. Astrology is added only after your milestone is safely saved.",
+      "templatesTitle": "Start with a template",
+      "templatesHint": "Choose a starting point, then make the milestone your own.",
+      "templates": {
+        "job": {
+          "label": "Job or role",
+          "title": "Started a new job or role"
+        },
+        "move": {
+          "label": "Move or home",
+          "title": "Moved to a new home"
+        },
+        "relationship": {
+          "label": "Relationship",
+          "title": "Entered an important relationship"
+        },
+        "health": {
+          "label": "Health milestone",
+          "title": "Reached a health milestone"
+        }
+      },
       "details": "What happened",
       "detailsHint": "A title and date are required.",
       "timing": "When it happened",
@@ -1925,6 +2104,7 @@
     "loading": "Reading the sky…",
     "loadError": "Couldn't load nudges. Please try again.",
     "retry": "Retry",
+    "refresh": "Refresh nudges",
     "time": {
       "justNow": "just now",
       "minutesAgo": "{{n}}m ago",

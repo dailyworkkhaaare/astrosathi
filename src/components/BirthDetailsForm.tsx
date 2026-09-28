@@ -84,6 +84,8 @@ export function BirthDetailsForm({
               id="name"
               type="text"
               autoComplete="name"
+              autoCapitalize="words"
+              enterKeyHint="next"
               value={value.name}
               onChange={(e) => onChange({ name: e.target.value })}
               className={inputCls}
@@ -143,6 +145,7 @@ export function BirthDetailsForm({
                 id="dob"
                 type="date"
                 max={todayMax}
+                enterKeyHint="next"
                 value={value.dob}
                 onChange={(e) => onChange({ dob: e.target.value })}
                 className={inputCls}
@@ -153,6 +156,7 @@ export function BirthDetailsForm({
               <input
                 id="time"
                 type="time"
+                enterKeyHint="next"
                 value={value.time}
                 onChange={(e) => onChange({ time: e.target.value })}
                 disabled={value.timeUnknown}
@@ -203,6 +207,7 @@ export function BirthDetailsForm({
                   id="place"
                   type="text"
                   autoComplete="off"
+                  enterKeyHint="done"
                   role="combobox"
                   aria-expanded={placeOpen && placeResults.length > 0}
                   aria-autocomplete="list"

@@ -11,11 +11,12 @@ export function BarometerSummaryCard() {
   const hasError = query.isError;
   const assets = (query.data?.assets ?? []).filter((a) => a.assetKey !== "mcxsilver");
   const isEmpty = !loading && !hasError && assets.length === 0;
+  const unavailable = !loading && (hasError || isEmpty);
 
   return (
     <section
       aria-labelledby="barometer-summary-heading"
-      className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+      className={`rounded-2xl border border-border bg-card shadow-[var(--shadow-soft)] ${unavailable ? "p-4" : "p-5"}`}
     >
       <div className="flex items-center gap-2.5">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
@@ -40,10 +41,19 @@ export function BarometerSummaryCard() {
           <div className="h-8 w-24 animate-pulse rounded-full bg-muted" />
           <div className="h-8 w-24 animate-pulse rounded-full bg-muted" />
         </div>
-      ) : hasError ? (
-        <p className="mt-4 text-sm text-muted-foreground">{t("sections.barometer.loadError")}</p>
-      ) : isEmpty ? (
-        <p className="mt-4 text-sm text-muted-foreground">{t("sections.barometer.empty")}</p>
+      ) : unavailable ? (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-background/60 px-3 py-3">
+          <p className="min-w-0 flex-1 text-sm leading-relaxed text-muted-foreground">
+            {hasError ? t("sections.barometer.loadError") : t("sections.barometer.empty")}
+          </p>
+          <Link
+            to="/today/markets"
+            className="tap-press inline-flex min-h-10 shrink-0 items-center gap-1 text-xs font-semibold text-accent"
+          >
+            {t("sections.barometer.viewFull")}
+            <ChevronRight size={15} aria-hidden="true" />
+          </Link>
+        </div>
       ) : (
         <>
           <div className="mt-4 flex flex-wrap gap-2">

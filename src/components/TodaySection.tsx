@@ -11,6 +11,7 @@ import {
   INGRESS_SOON_MS,
   PLANET_KEY_BY_CODE,
 } from "@/lib/todayTransits";
+import { triggerHaptic } from "@/lib/native-device";
 import { Button } from "@/components/ui/button";
 
 export function TodaySection() {
@@ -41,6 +42,7 @@ export function TodaySection() {
 
   const handleAskAboutToday = () => {
     if (!moon || moonHouse == null) return;
+    void triggerHaptic("selection");
     const seed = t("sections.today.askSeed", {
       sign: t(`signs.${SIGN_KEYS_BY_INDEX[moon.signIndex]}`),
       nakshatra: NAKSHATRAS[moon.nakshatraIndex] ?? "",
@@ -52,7 +54,7 @@ export function TodaySection() {
   return (
     <section
       aria-labelledby="today-heading"
-      className="min-h-[10.5rem] rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+      className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)] sm:min-h-[10.5rem] sm:p-5"
     >
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -67,29 +69,43 @@ export function TodaySection() {
       </header>
 
       {loading && (
-        <div className="mt-4 space-y-3" aria-hidden="true">
-          <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
-          <div className="h-16 w-full animate-pulse rounded-xl bg-muted" />
+        <div className="mt-4 space-y-3" aria-busy="true" role="status">
+          <span className="sr-only">{t("states.loading")}</span>
+          <div
+            className="h-5 w-2/3 motion-safe:animate-pulse rounded bg-muted"
+            aria-hidden="true"
+          />
+          <div
+            className="h-16 w-full motion-safe:animate-pulse rounded-xl bg-muted"
+            aria-hidden="true"
+          />
         </div>
       )}
 
       {!loading && hasError && (
-        <div className="mt-4 flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-          <p className="text-sm text-foreground">{t("sections.today.loadError")}</p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-3">
+          <p className="min-w-0 flex-1 text-sm text-foreground">{t("sections.today.loadError")}</p>
           <button
             type="button"
             onClick={() => {
               void transitsQuery.refetch();
               void planetsQuery.refetch();
             }}
-            className="inline-flex min-h-11 items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("states.retry")}
           </button>
         </div>
       )}
 
-      {isEmpty && <p className="mt-4 text-sm text-muted-foreground">{t("sections.today.empty")}</p>}
+      {isEmpty && (
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-dashed border-border bg-background/60 px-3 py-3">
+          <Moon size={17} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {t("sections.today.empty")}
+          </p>
+        </div>
+      )}
 
       {!loading && !hasError && !isEmpty && (
         <div className="mt-4 space-y-4">
@@ -156,10 +172,10 @@ export function TodaySection() {
           {moonHouse != null && (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={handleAskAboutToday}
-              className="gap-1.5 px-3 text-muted-foreground hover:text-foreground"
+              className="w-full gap-1.5 rounded-full px-3 text-muted-foreground hover:text-foreground sm:w-auto"
             >
               <MessageCircle size={16} aria-hidden="true" />
               {t("sections.today.askAboutToday")}

@@ -3,6 +3,7 @@ import { useId, useState, type ReactNode } from "react";
 
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { triggerHaptic } from "@/lib/native-device";
 
 export function ExpandableSection({
   title,
@@ -29,7 +30,11 @@ export function ExpandableSection({
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const open = openProp ?? uncontrolledOpen;
-  const setOpen = (next: boolean) => (onOpenChange ? onOpenChange(next) : setUncontrolledOpen(next));
+  const setOpen = (next: boolean) => {
+    void triggerHaptic("selection");
+    if (onOpenChange) onOpenChange(next);
+    else setUncontrolledOpen(next);
+  };
   const contentId = useId();
 
   return (

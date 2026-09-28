@@ -47,6 +47,13 @@ import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -63,7 +70,9 @@ import {
   PLANET_KEY_BY_CODE,
 } from "@/lib/todayTransits";
 import { getFeedbackForMessages } from "@/lib/feedback";
+import { clearChatDraft, readChatDraft, saveChatDraft } from "@/lib/chat-draft";
 import { isJourneyAskToken, takeJourneyAskDraft } from "@/lib/journey-ask";
+import { triggerHaptic } from "@/lib/native-device";
 import {
   MessageActionRow,
   type FeedbackEntry,
@@ -82,6 +91,21 @@ export type ChatMessage = {
 };
 type Conversation = { id: string; title: string | null; updated_at: string };
 type FeedbackMap = Record<string, FeedbackEntry>;
+type ReadingTopic =
+  | "career"
+  | "health"
+  | "marriage"
+  | "relationships"
+  | "finance"
+  | "children"
+  | "education"
+  | "travel"
+  | "property"
+  | "business"
+  | "spirituality"
+  | "family"
+  | "general";
+type ReadingPlan = { topic: ReadingTopic; steps: string[]; focusKey: string };
 
 function newId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -114,6 +138,59 @@ function commonPrefixLen(a: string, b: string): number {
   return i;
 }
 
+const READING_TOPIC_KEYWORDS: Array<[ReadingTopic, string[]]> = [
+  ["career", ["job", "career", "work", "promotion", "boss", "salary", "interview", "kaam"]],
+  ["health", ["health", "illness", "stress", "anxiety", "depress", "sehat", "bimar", "aarogya"]],
+  [
+    "marriage",
+    ["marriage", "marry", "wedding", "spouse", "wife", "husband", "shaadi", "vivah", "lagna"],
+  ],
+  ["relationships", ["relationship", "love", "breakup", "partner", "pyaar", "prem", "rishta"]],
+  ["finance", ["money", "finance", "wealth", "loan", "debt", "invest", "paisa", "dhan"]],
+  ["children", ["child", "children", "baby", "pregnan", "son", "daughter", "santaan", "garbh"]],
+  ["education", ["education", "study", "exam", "college", "school", "padhai", "shiksha"]],
+  ["travel", ["travel", "abroad", "foreign", "visa", "relocat", "yatra", "videsh"]],
+  ["property", ["property", "house", "home", "land", "flat", "ghar", "zameen"]],
+  ["business", ["business", "startup", "venture", "trade", "vyapar", "dhandha"]],
+  ["spirituality", ["spiritual", "temple", "puja", "mantra", "karma", "dharma"]],
+  ["family", ["family", "mother", "father", "parents", "brother", "sister", "parivar"]],
+];
+
+const READING_STEPS: Record<ReadingTopic, string[]> = {
+  career: ["career.0", "career.1", "career.2", "career.3"],
+  health: ["health.0", "health.1", "health.2", "health.3"],
+  marriage: ["marriage.0", "marriage.1", "marriage.2", "marriage.3"],
+  relationships: ["relationships.0", "relationships.1", "relationships.2", "relationships.3"],
+  finance: ["finance.0", "finance.1", "finance.2", "finance.3"],
+  children: ["children.0", "children.1", "children.2", "children.3"],
+  education: ["education.0", "education.1", "education.2", "education.3"],
+  travel: ["travel.0", "travel.1", "travel.2", "travel.3"],
+  property: ["property.0", "property.1", "property.2", "property.3"],
+  business: ["business.0", "business.1", "business.2", "business.3"],
+  spirituality: ["spirituality.0", "spirituality.1", "spirituality.2", "spirituality.3"],
+  family: ["family.0", "family.1", "family.2", "family.3"],
+  general: ["general.0", "general.1", "general.2", "general.3"],
+};
+
+function buildReadingPlan(message: string, forcedTopic?: string): ReadingPlan {
+  const forced =
+    forcedTopic && Object.prototype.hasOwnProperty.call(READING_STEPS, forcedTopic)
+      ? (forcedTopic as ReadingTopic)
+      : null;
+  const lower = message.toLowerCase();
+  const topic =
+    forced ??
+    READING_TOPIC_KEYWORDS.find(([, keywords]) =>
+      keywords.some((keyword) => lower.includes(keyword)),
+    )?.[0] ??
+    "general";
+  return {
+    topic,
+    steps: READING_STEPS[topic].map((key) => `chat.reading.steps.${key}`),
+    focusKey: `chat.reading.focus.${topic}`,
+  };
+}
+
 // Calls the astrologer-chat Edge Function in streaming mode and invokes the
 // handlers as Server-Sent Events arrive. We can't use supabase.functions.invoke
 // here because it buffers the whole response; we need the raw streaming body.
@@ -121,6 +198,7 @@ async function streamAstrologerReply(
   args: { message: string; conversationId: string | null; subjectRelatedChartId?: string },
   handlers: {
     onMeta?: (conversationId: string) => void;
+    onProgress?: (payload: { topic?: string; step_index?: number }) => void;
     onDelta: (text: string) => void;
   },
   opts?: { signal?: AbortSignal },
@@ -217,6 +295,8 @@ async function streamAstrologerReply(
           conversation_id?: string;
           text?: string;
           message?: string;
+          topic?: string;
+          step_index?: number;
         } = {};
         try {
           payload = JSON.parse(dataStr);
@@ -225,6 +305,8 @@ async function streamAstrologerReply(
         }
         if (event === "meta") {
           if (payload.conversation_id) handlers.onMeta?.(payload.conversation_id);
+        } else if (event === "progress") {
+          handlers.onProgress?.(payload);
         } else if (event === "delta") {
           if (payload.text) handlers.onDelta(payload.text);
         } else if (event === "error") {
@@ -294,11 +376,14 @@ const MAX_SUGGESTIONS = 4;
 // remaining slots with evergreen prompts so there are always at least a few.
 function buildSuggestedPrompts(
   t: (key: string, opts?: Record<string, unknown>) => string,
-  transits: { moon: { signIndex: number; nakshatraIndex: number } | null; planets: Array<{
-    planet: number;
-    nextIngressTs: string | null;
-    nextSignIndex: number | null;
-  }> } | null,
+  transits: {
+    moon: { signIndex: number; nakshatraIndex: number } | null;
+    planets: Array<{
+      planet: number;
+      nextIngressTs: string | null;
+      nextSignIndex: number | null;
+    }>;
+  } | null,
   ascSignIndex: number | null,
 ): string[] {
   const prompts: string[] = [];
@@ -354,7 +439,8 @@ function buildSuggestedPrompts(
 // ---------- Page ----------
 
 function ChatPage() {
-  useRequireOnboarding();
+  const user = useRequireOnboarding();
+  const userId = user?.id ?? null;
   const { t, i18n } = useTranslation();
   const { seed, subjectRelatedChartId, journeyDraft } = Route.useSearch();
   const { settings: voiceSettings } = useVoiceSettings();
@@ -392,7 +478,8 @@ function ChatPage() {
     !transitsQuery.isError &&
     (!!transitsQuery.data?.moon || (transitsQuery.data?.planets.length ?? 0) > 0);
   const suggestions = useMemo(
-    () => buildSuggestedPrompts(t, hasTransitData ? (transitsQuery.data ?? null) : null, ascSignIndex),
+    () =>
+      buildSuggestedPrompts(t, hasTransitData ? (transitsQuery.data ?? null) : null, ascSignIndex),
     [t, hasTransitData, transitsQuery.data, ascSignIndex],
   );
 
@@ -405,6 +492,7 @@ function ChatPage() {
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
   );
+  const visibleSuggestions = isMobile ? suggestions.slice(0, 3) : suggestions;
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === "undefined") return true;
     if (window.matchMedia("(max-width: 767px)").matches) return false;
@@ -429,6 +517,7 @@ function ChatPage() {
   const toggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => {
       const next = !prev;
+      if (isMobile) void triggerHaptic(next ? "light" : "selection");
       if (!isMobile) {
         window.localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? "open" : "closed");
       }
@@ -440,18 +529,18 @@ function ChatPage() {
     if (!isMobile) return;
     const html = document.documentElement;
     const body = document.body;
-    const prev = { htmlOverflow: html.style.overflow, bodyOverflow: body.style.overflow, bodyPos: body.style.position, bodyW: body.style.width };
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      bodyOverscroll: body.style.overscrollBehavior,
+    };
     html.style.overflow = "hidden";
     body.style.overflow = "hidden";
-    body.style.position = "fixed";
-    body.style.width = "100%";
-    (body.style as any).overscrollBehavior = "none";
+    body.style.overscrollBehavior = "none";
     return () => {
       html.style.overflow = prev.htmlOverflow;
       body.style.overflow = prev.bodyOverflow;
-      body.style.position = prev.bodyPos;
-      body.style.width = prev.bodyW;
-      (body.style as any).overscrollBehavior = "";
+      body.style.overscrollBehavior = prev.bodyOverscroll;
     };
   }, [isMobile]);
 
@@ -477,8 +566,17 @@ function ChatPage() {
   const [streamPhase, setStreamPhase] = useState<
     "idle" | "connecting" | "thinking" | "writing" | "reconnecting"
   >("idle");
+  const [readingPlan, setReadingPlan] = useState<ReadingPlan | null>(null);
+  const [readingStepIndex, setReadingStepIndex] = useState(0);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [srFinal, setSrFinal] = useState("");
+  const updateInput = useCallback(
+    (value: string) => {
+      setInput(value);
+      saveChatDraft(userId, conversationId, value);
+    },
+    [conversationId, userId],
+  );
   const phaseAnnouncement = useMemo(() => {
     switch (streamPhase) {
       case "connecting":
@@ -512,6 +610,8 @@ function ChatPage() {
   const settledTurnIdRef = useRef<string | null>(null);
   const userScrolledDuringTurnRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const draftRestoreBlockedRef = useRef(false);
+  const restoredDraftContextRef = useRef<string | null>(null);
   // Tracks the freshest known conversation id for provenance hydration after
   // a stream completes, since `conversationId` state lags behind onMeta/the
   // response payload within the same sendToBackend call.
@@ -598,10 +698,7 @@ function ChatPage() {
     [scheduleFlush],
   );
 
-  function createRevealController(opts: {
-    paint: (text: string) => void;
-    reduceMotion: boolean;
-  }) {
+  function createRevealController(opts: { paint: (text: string) => void; reduceMotion: boolean }) {
     const BASE_CPS = 180;
     const MAX_CPS = 1400;
     const MAX_LAG_MS = 400;
@@ -615,12 +712,23 @@ function ChatPage() {
     let disposed = false;
 
     const paintNow = () => opts.paint(target.slice(0, revealed));
-    const stopRaf = () => { if (raf !== null) { cancelAnimationFrame(raf); raf = null; } };
+    const stopRaf = () => {
+      if (raf !== null) {
+        cancelAnimationFrame(raf);
+        raf = null;
+      }
+    };
     const finishIfDone = () => {
-      if (revealed >= target.length && ended) { onDrained?.(); onDrained = null; }
+      if (revealed >= target.length && ended) {
+        onDrained?.();
+        onDrained = null;
+      }
     };
     const fastForward = () => {
-      if (revealed !== target.length) { revealed = target.length; paintNow(); }
+      if (revealed !== target.length) {
+        revealed = target.length;
+        paintNow();
+      }
       stopRaf();
       finishIfDone();
     };
@@ -648,7 +756,10 @@ function ChatPage() {
         fastForward();
         return;
       }
-      if (raf === null && revealed < target.length) { lastTs = 0; raf = requestAnimationFrame(tick); }
+      if (raf === null && revealed < target.length) {
+        lastTs = 0;
+        raf = requestAnimationFrame(tick);
+      }
     };
 
     const onVisibility = () => {
@@ -662,13 +773,19 @@ function ChatPage() {
       }
     };
 
-    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibility);
+    if (typeof document !== "undefined")
+      document.addEventListener("visibilitychange", onVisibility);
     const teardown = () => {
-      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibility);
+      if (typeof document !== "undefined")
+        document.removeEventListener("visibilitychange", onVisibility);
     };
 
     return {
-      push(chunk: string) { if (!chunk || disposed) return; target += chunk; ensureRunning(); },
+      push(chunk: string) {
+        if (!chunk || disposed) return;
+        target += chunk;
+        ensureRunning();
+      },
       end(): Promise<void> {
         ended = true;
         if (revealed >= target.length) return Promise.resolve();
@@ -676,10 +793,20 @@ function ChatPage() {
           fastForward();
           return Promise.resolve();
         }
-        return new Promise<void>((resolve) => { onDrained = resolve; ensureRunning(); });
+        return new Promise<void>((resolve) => {
+          onDrained = resolve;
+          ensureRunning();
+        });
       },
-      cancel() { disposed = true; stopRaf(); onDrained = null; teardown(); },
-      get text() { return target; },
+      cancel() {
+        disposed = true;
+        stopRaf();
+        onDrained = null;
+        teardown();
+      },
+      get text() {
+        return target;
+      },
     };
   }
 
@@ -693,9 +820,19 @@ function ChatPage() {
     activeStreamIdRef.current = null;
     bufferRef.current = "";
     setStreamPhase("idle");
+    setReadingPlan(null);
+    setReadingStepIndex(0);
   }, [cancelPendingFrame]);
 
   useEffect(() => () => abortActiveStream(), [abortActiveStream]);
+
+  useEffect(() => {
+    if (!sending || streamingId || !readingPlan) return;
+    const id = window.setInterval(() => {
+      setReadingStepIndex((idx) => idx + 1);
+    }, 2400);
+    return () => window.clearInterval(id);
+  }, [sending, streamingId, readingPlan]);
 
   // ---- Data loading ----
   const refetchConversations = useCallback(async () => {
@@ -708,48 +845,55 @@ function ChatPage() {
     return list;
   }, []);
 
-  const loadConversation = useCallback(async (id: string) => {
-    setConversationId(id);
-    setError(null);
-    setLastFailed(null);
-    setPendingSubjectChartId(null);
-    setJourneyDraftSource(null);
-    setPendingAnchorId(null);
-    setAnchoredMessageId(null);
-    setTurnSpacerPx(0);
-    messageElRefs.current.clear();
-    lastTurnUserIdRef.current = null;
-    lastTurnAssistantIdRef.current = null;
-    settledTurnIdRef.current = null;
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("id, role, content, created_at, metadata")
-      .eq("conversation_id", id)
-      .order("created_at", { ascending: true });
-    const rows = Array.isArray(data) ? data : [];
-    const mapped: ChatMessage[] = rows
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => ({
-        id: newId(),
-        dbId: typeof m.id === "string" ? m.id : undefined,
-        role: m.role as ChatRole,
-        content: String(m.content ?? ""),
-        provenance: (m.metadata as { provenance?: Provenance } | null)?.provenance,
-      }));
-    setMessages(mapped);
-    setPinnedToBottom(true);
+  const loadConversation = useCallback(
+    async (id: string) => {
+      setConversationId(id);
+      setInput(readChatDraft(userId, id));
+      if (userId) restoredDraftContextRef.current = `${userId}:${id}`;
+      setError(null);
+      setLastFailed(null);
+      setPendingSubjectChartId(null);
+      setJourneyDraftSource(null);
+      setReadingPlan(null);
+      setReadingStepIndex(0);
+      setPendingAnchorId(null);
+      setAnchoredMessageId(null);
+      setTurnSpacerPx(0);
+      messageElRefs.current.clear();
+      lastTurnUserIdRef.current = null;
+      lastTurnAssistantIdRef.current = null;
+      settledTurnIdRef.current = null;
+      const { data } = await supabase
+        .from("chat_messages")
+        .select("id, role, content, created_at, metadata")
+        .eq("conversation_id", id)
+        .order("created_at", { ascending: true });
+      const rows = Array.isArray(data) ? data : [];
+      const mapped: ChatMessage[] = rows
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({
+          id: newId(),
+          dbId: typeof m.id === "string" ? m.id : undefined,
+          role: m.role as ChatRole,
+          content: String(m.content ?? ""),
+          provenance: (m.metadata as { provenance?: Provenance } | null)?.provenance,
+        }));
+      setMessages(mapped);
+      setPinnedToBottom(true);
 
-    const assistantDbIds = mapped
-      .filter((m) => m.role === "assistant" && m.dbId)
-      .map((m) => m.dbId as string);
-    if (assistantDbIds.length > 0) {
-      getFeedbackForMessages(assistantDbIds)
-        .then((fb) => setFeedbackMap((prev) => ({ ...prev, ...fb })))
-        .catch(() => {
-          /* fail-soft: selections just won't be pre-filled */
-        });
-    }
-  }, []);
+      const assistantDbIds = mapped
+        .filter((m) => m.role === "assistant" && m.dbId)
+        .map((m) => m.dbId as string);
+      if (assistantDbIds.length > 0) {
+        getFeedbackForMessages(assistantDbIds)
+          .then((fb) => setFeedbackMap((prev) => ({ ...prev, ...fb })))
+          .catch(() => {
+            /* fail-soft: selections just won't be pre-filled */
+          });
+      }
+    },
+    [userId],
+  );
 
   // Hydrates the id + provenance metadata of the most recently persisted
   // assistant row onto the (client-only-id) streamed bubble, so the
@@ -801,7 +945,8 @@ function ChatPage() {
       if (cancelled) return;
       const mostRecent = list[0];
       const lastActiveMs = mostRecent ? new Date(mostRecent.updated_at).getTime() : NaN;
-      const isRecent = Number.isFinite(lastActiveMs) && Date.now() - lastActiveMs < RESUME_WINDOW_MS;
+      const isRecent =
+        Number.isFinite(lastActiveMs) && Date.now() - lastActiveMs < RESUME_WINDOW_MS;
       if (mostRecent && isRecent && !seed && !subjectRelatedChartId && !journeyDraft) {
         await loadConversation(mostRecent.id);
       }
@@ -837,18 +982,42 @@ function ChatPage() {
       messages.length > 0
     )
       return;
-    if (seed) setInput(seed);
+    draftRestoreBlockedRef.current = true;
+    if (seed) updateInput(seed);
     if (subjectRelatedChartId) setPendingSubjectChartId(subjectRelatedChartId);
     if (journeyDraft) {
       const draft = takeJourneyAskDraft(journeyDraft);
       if (draft) {
-        setInput(draft.draft);
+        updateInput(draft.draft);
         setJourneyDraftSource(draft.sourceLabel);
       }
     }
     textareaRef.current?.focus();
     void navigate({ search: {}, replace: true });
-  }, [initialLoadDone, seed, subjectRelatedChartId, journeyDraft, messages.length, navigate]);
+  }, [
+    initialLoadDone,
+    seed,
+    subjectRelatedChartId,
+    journeyDraft,
+    messages.length,
+    navigate,
+    updateInput,
+  ]);
+
+  // A composer draft is session-only and tied to the active person + thread.
+  // This also covers a cold native resume where auth hydrates after the thread.
+  useEffect(() => {
+    if (!initialLoadDone || !userId || input || draftRestoreBlockedRef.current) return;
+    const context = `${userId}:${conversationId ?? "new"}`;
+    if (restoredDraftContextRef.current === context) return;
+    setInput(readChatDraft(userId, conversationId));
+    restoredDraftContextRef.current = context;
+  }, [
+    conversationId,
+    initialLoadDone,
+    input,
+    userId,
+  ]);
 
   // Auto-grow textarea
   useLayoutEffect(() => {
@@ -895,7 +1064,11 @@ function ChatPage() {
     const onScroll = () => {
       if (anchoredMessageId || suppressScrollTrackingRef.current) return;
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-      if (!suppressScrollTrackingRef.current && (sending || streamingId) && distance > PIN_EXIT_PX) {
+      if (
+        !suppressScrollTrackingRef.current &&
+        (sending || streamingId) &&
+        distance > PIN_EXIT_PX
+      ) {
         userScrolledDuringTurnRef.current = true;
       }
       setPinnedToBottom((prev) => (prev ? distance < PIN_EXIT_PX : distance < PIN_REENTER_PX));
@@ -1261,7 +1434,10 @@ function ChatPage() {
   // (e.g. hydrateLastAssistantMessage patching in `dbId`).
   useEffect(() => {
     if (streamingId || anchoredMessageId || turnSpacerPx > 0) return;
-    if (lastTurnAssistantIdRef.current && settledTurnIdRef.current === lastTurnAssistantIdRef.current)
+    if (
+      lastTurnAssistantIdRef.current &&
+      settledTurnIdRef.current === lastTurnAssistantIdRef.current
+    )
       return;
     const el = listRef.current;
     if (!el || !pinnedToBottom) return;
@@ -1284,7 +1460,16 @@ function ChatPage() {
 
   // ---- Send via real Edge Function (streaming) ----
   const sendToBackend = useCallback(
-    async (text: string, subjectRelatedChartId?: string) => {
+    async (
+      text: string,
+      subjectRelatedChartId?: string,
+      draftConversationId?: string | null,
+    ) => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setError(t("chat.errorOffline"));
+        setLastFailed(text);
+        return;
+      }
       setSending(true);
       setStreamPhase("connecting");
       setError(null);
@@ -1292,6 +1477,8 @@ function ChatPage() {
 
       // Cancel any previous in-flight stream before starting a new one.
       abortActiveStream();
+      setReadingPlan(buildReadingPlan(text));
+      setReadingStepIndex(0);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -1342,10 +1529,17 @@ function ChatPage() {
                 if (cid) latestConvIdRef.current = cid;
                 setStreamPhase("thinking");
               },
+              onProgress: (payload) => {
+                if (payload.topic) setReadingPlan(buildReadingPlan(text, payload.topic));
+                if (typeof payload.step_index === "number") {
+                  setReadingStepIndex((idx) => Math.max(idx, payload.step_index as number));
+                }
+              },
               onDelta: (chunk) => {
                 if (!chunk) return;
                 receivedAny = true;
                 ensurePlaceholder();
+                setReadingPlan(null);
                 reveal.push(chunk);
               },
             },
@@ -1367,12 +1561,15 @@ function ChatPage() {
             setStreamingId(null);
             setSending(false);
             setStreamPhase("idle");
+            setReadingPlan(null);
+            setReadingStepIndex(0);
             activeStreamIdRef.current = null;
             bufferRef.current = "";
             reveal.cancel();
             cancelStreamRef.current = null;
             abortRef.current = null;
             setSrFinal(finalText);
+            if (draftConversationId !== undefined) clearChatDraft(userId, draftConversationId);
             void refetchConversations();
             void hydrateLastAssistantMessage(latestConvIdRef.current, assistantId);
             return;
@@ -1397,6 +1594,8 @@ function ChatPage() {
             setStreamingId(null);
             setStreamPhase("idle");
             setSending(false);
+            setReadingPlan(null);
+            setReadingStepIndex(0);
             activeStreamIdRef.current = null;
             bufferRef.current = "";
             cancelStreamRef.current = null;
@@ -1447,6 +1646,8 @@ function ChatPage() {
         if (!reply) throw new Error("empty_response");
 
         ensurePlaceholder();
+        setReadingPlan(null);
+        setReadingStepIndex(0);
         const shown = bufferRef.current;
         if (shown && reply.startsWith(shown)) {
           // Same answer so far — keep it and reveal only the remainder.
@@ -1478,9 +1679,12 @@ function ChatPage() {
         });
         setStreamingId(null);
         setStreamPhase("idle");
+        setReadingPlan(null);
+        setReadingStepIndex(0);
         activeStreamIdRef.current = null;
         bufferRef.current = "";
         setSrFinal(reply);
+        if (draftConversationId !== undefined) clearChatDraft(userId, draftConversationId);
         void refetchConversations();
         void hydrateLastAssistantMessage(latestConvIdRef.current, assistantId);
       } catch (e) {
@@ -1507,6 +1711,8 @@ function ChatPage() {
         }
         setStreamingId(null);
         setStreamPhase("idle");
+        setReadingPlan(null);
+        setReadingStepIndex(0);
         activeStreamIdRef.current = null;
         bufferRef.current = "";
       } finally {
@@ -1522,6 +1728,7 @@ function ChatPage() {
       typewriterReveal,
       hydrateLastAssistantMessage,
       t,
+      userId,
     ],
   );
 
@@ -1530,6 +1737,12 @@ function ChatPage() {
       userScrolledDuringTurnRef.current = false;
       const text = raw.trim();
       if (!text || sending) return;
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setError(t("chat.errorOffline"));
+        setLastFailed(text);
+        return;
+      }
+      void triggerHaptic("selection");
       // Cancel any read-aloud in progress — the user is moving on.
       readAloud.stop();
       // Drop any leftover reserved space from a previous turn before
@@ -1545,9 +1758,9 @@ function ChatPage() {
       setJourneyDraftSource(null);
       const subjectRelatedChartId = pendingSubjectChartId ?? undefined;
       if (pendingSubjectChartId) setPendingSubjectChartId(null);
-      await sendToBackend(text, subjectRelatedChartId);
+      await sendToBackend(text, subjectRelatedChartId, conversationId);
     },
-    [sending, sendToBackend, pendingSubjectChartId, readAloud],
+    [sending, sendToBackend, pendingSubjectChartId, readAloud, conversationId],
   );
 
   // Light-touch nudge when the composer gains focus on mobile: if the
@@ -1568,8 +1781,8 @@ function ChatPage() {
 
   const handleRetry = useCallback(() => {
     if (!lastFailed || sending) return;
-    void sendToBackend(lastFailed);
-  }, [lastFailed, sending, sendToBackend]);
+    void sendToBackend(lastFailed, undefined, conversationId);
+  }, [lastFailed, sending, sendToBackend, conversationId]);
 
   const handleRegenerate = useCallback(() => {
     if (sending) return;
@@ -1591,13 +1804,16 @@ function ChatPage() {
   const handleNewChat = useCallback(() => {
     setMessages([]);
     setFeedbackMap({});
-    setInput("");
+    setInput(readChatDraft(userId, null));
+    if (userId) restoredDraftContextRef.current = `${userId}:new`;
     setConversationId(null);
     setError(null);
     setLastFailed(null);
     setPinnedToBottom(true);
     setPendingSubjectChartId(null);
     setJourneyDraftSource(null);
+    setReadingPlan(null);
+    setReadingStepIndex(0);
     setPendingAnchorId(null);
     setAnchoredMessageId(null);
     setTurnSpacerPx(0);
@@ -1607,7 +1823,7 @@ function ChatPage() {
     settledTurnIdRef.current = null;
     if (isMobile) setSidebarOpen(false);
     textareaRef.current?.focus();
-  }, [isMobile]);
+  }, [isMobile, userId]);
 
   const handleDeleteConversation = useCallback(
     async (id: string) => {
@@ -1650,12 +1866,12 @@ function ChatPage() {
   const handleEditUser = (id: string) => {
     const msg = messages.find((m) => m.id === id);
     if (!msg) return;
-    setInput(msg.content);
+    updateInput(msg.content);
     textareaRef.current?.focus();
   };
 
   const handleSuggestionClick = (text: string) => {
-    setInput(text);
+    updateInput(text);
     textareaRef.current?.focus();
   };
 
@@ -1704,6 +1920,8 @@ function ChatPage() {
       {sending && !streamingId && (
         <TypingRow
           groupedWithPrev={messages[messages.length - 1]?.role === "user"}
+          plan={readingPlan}
+          stepIndex={readingStepIndex}
           phase={
             streamPhase === "reconnecting"
               ? "reconnecting"
@@ -1771,7 +1989,7 @@ function ChatPage() {
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {!initialLoadDone ? (
-            <div className="flex-1" aria-hidden="true" />
+            <AskLoadingState />
           ) : (
             <>
               {/* One shared shell for both the empty hero and the active
@@ -1806,7 +2024,7 @@ function ChatPage() {
                     </div>
                   )
                 ) : (
-                  <div className="relative flex h-full flex-col items-center justify-center overflow-y-auto px-4 py-10">
+                  <div className="relative flex h-full flex-col items-center justify-start overflow-y-auto px-4 py-6 pt-8 sm:justify-center sm:py-10">
                     {/* Ambient celestial wash */}
                     <div
                       aria-hidden="true"
@@ -1816,29 +2034,29 @@ function ChatPage() {
                           "radial-gradient(60% 45% at 50% 20%, color-mix(in oklab, var(--glow-gold) 10%, transparent), transparent 65%), radial-gradient(50% 40% at 20% 90%, color-mix(in oklab, var(--glow-violet) 10%, transparent), transparent 70%)",
                       }}
                     />
-                    <div className="motion-fade-up relative flex w-full max-w-2xl flex-col items-center gap-8">
-                      <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="motion-fade-up relative flex w-full max-w-2xl flex-col items-center gap-5 sm:gap-8">
+                      <div className="flex flex-col items-center gap-3 text-center sm:gap-4">
                         <div
                           aria-hidden="true"
-                          className="relative grid h-16 w-16 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary shadow-[var(--shadow-glow-gold)]"
+                          className="relative grid h-12 w-12 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary shadow-[var(--shadow-glow-gold)] sm:h-16 sm:w-16"
                         >
                           <BrandMark withWordmark={false} />
                         </div>
                         <p className="as-micro text-primary">{t("chat.emptyEyebrow")}</p>
-                        <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
+                        <h1 className="font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
                           {t("chat.emptyGreeting")}
                         </h1>
                         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
                           {t("chat.emptyHint")}
                         </p>
                       </div>
-                      {suggestions.length > 0 && (
+                      {visibleSuggestions.length > 0 && (
                         <div
                           role="group"
                           aria-label={t("chat.suggestionsLabel")}
                           className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
                         >
-                          {suggestions.map((text, i) => (
+                          {visibleSuggestions.map((text, i) => (
                             <button
                               key={i}
                               type="button"
@@ -1874,7 +2092,7 @@ function ChatPage() {
               </div>
               <Composer
                 value={input}
-                onChange={setInput}
+                onChange={updateInput}
                 onSend={() => handleSend(input)}
                 onStop={abortActiveStream}
                 onKeyDown={onKeyDown}
@@ -1887,6 +2105,38 @@ function ChatPage() {
               />
             </>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AskLoadingState() {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="relative flex flex-1 flex-col items-center justify-start px-4 py-6 pt-8 text-center sm:justify-center sm:py-10"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="motion-fade-up flex w-full max-w-md flex-col items-center gap-4">
+        <div
+          aria-hidden="true"
+          className="grid h-12 w-12 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary shadow-[var(--shadow-glow-gold)]"
+        >
+          <BrandMark withWordmark={false} />
+        </div>
+        <div>
+          <p className="as-micro text-primary">{t("chat.emptyEyebrow")}</p>
+          <h1 className="mt-2 font-display text-2xl leading-tight text-foreground">
+            {t("chat.emptyGreeting")}
+          </h1>
+        </div>
+        <div className="grid w-full gap-2" aria-hidden="true">
+          <div className="h-11 animate-pulse rounded-xl bg-card/70" />
+          <div className="h-11 animate-pulse rounded-xl bg-card/50" />
+          <div className="h-11 animate-pulse rounded-xl bg-card/40" />
         </div>
       </div>
     </div>
@@ -2058,34 +2308,118 @@ function Sidebar({
     [conversations, query, t],
   );
 
-  const panel = (
+  const searchBox = (
+    <div className="relative block">
+      <label htmlFor="chat-history-search" className="sr-only">
+        {t("chat.searchPlaceholder")}
+      </label>
+      <Search
+        size={14}
+        aria-hidden="true"
+        className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+      />
+      <input
+        id="chat-history-search"
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={t("chat.searchPlaceholder")}
+        className="w-full rounded-full border border-border bg-background py-2 pl-8 pr-10 text-base text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
+      />
+      {query && (
+        <button
+          type="button"
+          onClick={() => setQuery("")}
+          aria-label={t("chat.clearSearch")}
+          className="tap-press absolute right-1 top-1/2 grid min-h-9 min-w-9 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X size={14} aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+
+  const conversationList = (
+    <>
+      {filteredGroups.length === 0 && (
+        <div className="px-3 py-4 text-xs text-muted-foreground">{t("chat.historyEmpty")}</div>
+      )}
+      {filteredGroups.map((g, index) => {
+        const groupId = `conversation-group-${index}`;
+        return (
+          <section key={g.label} aria-labelledby={groupId} className="mb-4">
+            <h3
+              id={groupId}
+              className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+            >
+              {g.label}
+            </h3>
+            <ul aria-label={g.label} className="flex flex-col gap-0.5">
+              {g.items.map((it) => (
+                <ConversationItem
+                  key={it.id}
+                  id={it.id}
+                  title={it.title}
+                  active={activeId === it.id}
+                  onSelect={onSelect}
+                  onRename={onRename}
+                  onDelete={onDelete}
+                />
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={(next) => !next && onClose()}>
+        <DrawerContent aria-label={t("chat.historyTitle")} className="px-0">
+          <DrawerHeader className="border-b border-border/60">
+            <div className="flex items-center justify-between gap-3">
+              <DrawerTitle className="font-display text-xl tracking-tight">
+                {t("chat.historyTitle")}
+              </DrawerTitle>
+              <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                {t("chat.historyCount", { count: conversations.length })}
+              </span>
+            </div>
+            <DrawerDescription>{t("chat.historySortHint")}</DrawerDescription>
+          </DrawerHeader>
+
+          <div className="border-b border-border/60 p-3">
+            <Button
+              variant="secondary"
+              className="w-full gap-2 font-medium shadow-sm"
+              onClick={onNewChat}
+            >
+              <Plus size={16} aria-hidden="true" />
+              {t("chat.newChat")}
+            </Button>
+          </div>
+
+          <div className="border-b border-border/60 px-3 py-2">{searchBox}</div>
+
+          <nav
+            aria-label={t("chat.historyTitle")}
+            className="min-h-0 flex-1 overflow-y-auto px-2 pb-[calc(1rem+var(--as-safe-bottom))] pt-2"
+          >
+            {conversationList}
+          </nav>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
     <aside
       aria-label={t("chat.historyTitle")}
-      className={`flex h-full w-80 shrink-0 flex-col border-r border-border/70 bg-card/70 backdrop-blur-xl transition-transform duration-300 ease-out ${
-        isMobile ? "fixed inset-y-0 left-0 z-50 rounded-r-3xl shadow-2xl" : "relative"
-      } ${open ? "translate-x-0" : "-translate-x-full"} ${!isMobile && !open ? "hidden" : ""}`}
-      style={
-        isMobile
-          ? {
-              paddingTop: "env(safe-area-inset-top)",
-              paddingBottom: "env(safe-area-inset-bottom)",
-            }
-          : undefined
-      }
+      className={`relative flex h-full w-80 shrink-0 flex-col border-r border-border/70 bg-card/70 backdrop-blur-xl transition-transform duration-300 ease-out ${
+        open ? "translate-x-0" : "-translate-x-full"
+      } ${!open ? "hidden" : ""}`}
     >
-      {isMobile && (
-        <div className="flex justify-end px-3 pt-3">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("chat.closeSidebar")}
-            className="tap-press grid min-h-11 min-w-11 place-items-center rounded-full text-foreground/70 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X size={18} aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
       <div className="border-b border-border/60 px-4 pb-3 pt-2">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
@@ -2109,89 +2443,13 @@ function Sidebar({
         </Button>
       </div>
 
-      <div className="px-3 pb-2">
-        <div className="relative block">
-          <label htmlFor="chat-history-search" className="sr-only">
-            {t("chat.searchPlaceholder")}
-          </label>
-          <Search
-            size={14}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            id="chat-history-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("chat.searchPlaceholder")}
-            className="w-full rounded-full border border-border bg-background py-2 pl-8 pr-10 text-base text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label={t("chat.clearSearch")}
-              className="tap-press absolute right-1 top-1/2 grid min-h-9 min-w-9 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <X size={14} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      </div>
+      <div className="px-3 pb-2">{searchBox}</div>
 
       <nav aria-label={t("chat.historyTitle")} className="flex-1 overflow-y-auto px-2 pb-3">
-        {filteredGroups.length === 0 && (
-          <div className="px-3 py-4 text-xs text-muted-foreground">{t("chat.historyEmpty")}</div>
-        )}
-        {filteredGroups.map((g, index) => {
-          const groupId = `conversation-group-${index}`;
-          return (
-            <section key={g.label} aria-labelledby={groupId} className="mb-4">
-              <h3
-                id={groupId}
-                className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground"
-              >
-                {g.label}
-              </h3>
-              <ul aria-label={g.label} className="flex flex-col gap-0.5">
-                {g.items.map((it) => (
-                  <ConversationItem
-                    key={it.id}
-                    id={it.id}
-                    title={it.title}
-                    active={activeId === it.id}
-                    onSelect={onSelect}
-                    onRename={onRename}
-                    onDelete={onDelete}
-                  />
-                ))}
-              </ul>
-            </section>
-          );
-        })}
+        {conversationList}
       </nav>
     </aside>
   );
-
-  if (isMobile) {
-    return (
-      <>
-        <button
-          type="button"
-          aria-label={t("chat.closeSidebar")}
-          onClick={onClose}
-          aria-hidden={!open}
-          tabIndex={open ? 0 : -1}
-          className={`fixed inset-0 z-40 bg-foreground/50 backdrop-blur-sm transition-opacity duration-300 ${
-            open ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
-        />
-        {panel}
-      </>
-    );
-  }
-  return panel;
 }
 
 function StickJumpButton() {
@@ -2266,7 +2524,7 @@ function TopBar({
             <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
           </span>
           <span className="truncate max-w-[160px] sm:max-w-xs">
-            {profileName ? `${profileName}'s Kundli` : "Vedic Chart Active"}
+            {profileName ? t("chat.profileChart", { name: profileName }) : t("chat.chartActive")}
           </span>
         </div>
       </div>
@@ -2323,7 +2581,7 @@ function sanitizeStreamingMarkdown(text: string, streaming: boolean): string {
 
   // 5) Close an unclosed inline code span by dropping the dangling opening backtick,
   //    so the text stays visible and becomes code once the closer arrives.
-  if (((out.match(/`/g) ?? []).length) % 2 === 1) {
+  if ((out.match(/`/g) ?? []).length % 2 === 1) {
     const idx = out.lastIndexOf("`");
     out = out.slice(0, idx) + out.slice(idx + 1);
   }
@@ -2331,7 +2589,7 @@ function sanitizeStreamingMarkdown(text: string, streaming: boolean): string {
   // 6) Emphasis: drop a just-started trailing marker, then close an earlier open bold
   //    so it renders bold live instead of showing literal "**".
   out = out.replace(/(\*\*|~~|\*|_)$/, "");
-  if (((out.match(/\*\*/g) ?? []).length) % 2 === 1) out += "**";
+  if ((out.match(/\*\*/g) ?? []).length % 2 === 1) out += "**";
 
   return out;
 }
@@ -2349,25 +2607,44 @@ const markdownComponents = {
       {children}
     </code>
   ),
-  table: ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLTableElement>) => (
+  table: ({
+    node: _node,
+    ...props
+  }: { node?: unknown } & React.HTMLAttributes<HTMLTableElement>) => (
     <div className="my-4 w-full overflow-x-auto rounded-lg border border-border">
       <table {...props} className="w-full border-collapse text-left text-sm" />
     </div>
   ),
-  thead: ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLTableSectionElement>) => <thead {...props} className="bg-muted" />,
-  tbody: ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props} />,
-  tr: ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLTableRowElement>) => <tr {...props} className="even:bg-muted/40" />,
-  th: ({ node: _node, ...props }: { node?: unknown } & React.ThHTMLAttributes<HTMLTableCellElement>) => (
+  thead: ({
+    node: _node,
+    ...props
+  }: { node?: unknown } & React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead {...props} className="bg-muted" />
+  ),
+  tbody: ({
+    node: _node,
+    ...props
+  }: { node?: unknown } & React.HTMLAttributes<HTMLTableSectionElement>) => <tbody {...props} />,
+  tr: ({
+    node: _node,
+    ...props
+  }: { node?: unknown } & React.HTMLAttributes<HTMLTableRowElement>) => (
+    <tr {...props} className="even:bg-muted/40" />
+  ),
+  th: ({
+    node: _node,
+    ...props
+  }: { node?: unknown } & React.ThHTMLAttributes<HTMLTableCellElement>) => (
     <th
       {...props}
       className="!border !border-border px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-foreground whitespace-nowrap"
     />
   ),
-  td: ({ node: _node, ...props }: { node?: unknown } & React.TdHTMLAttributes<HTMLTableCellElement>) => (
-    <td
-      {...props}
-      className="!border !border-border px-4 py-2.5 align-top text-foreground"
-    />
+  td: ({
+    node: _node,
+    ...props
+  }: { node?: unknown } & React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td {...props} className="!border !border-border px-4 py-2.5 align-top text-foreground" />
   ),
 } as const;
 
@@ -2497,6 +2774,7 @@ function MessageRow({
   const [copied, setCopied] = useState(false);
   const doCopy = () => {
     onCopy();
+    void triggerHaptic("success");
     setCopied(true);
     setTimeout(() => setCopied(false), 1400);
   };
@@ -2617,7 +2895,11 @@ function MessageRow({
               }
             >
               {isSpeakLoading ? (
-                <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                <Loader2
+                  size={16}
+                  className="animate-spin motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
               ) : isSpeaking ? (
                 <Square size={14} className="fill-current" aria-hidden="true" />
               ) : (
@@ -2890,6 +3172,11 @@ function Composer({
               disabled={sending}
               placeholder={t("chat.composerPlaceholder")}
               aria-label={t("chat.composerPlaceholder")}
+              inputMode="text"
+              enterKeyHint="send"
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              spellCheck
               className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none md:text-sm"
             />
           )}
@@ -2977,45 +3264,61 @@ async function copy(text: string) {
 
 function TypingRow({
   phase,
+  plan,
+  stepIndex,
   groupedWithPrev = false,
 }: {
   phase: "connecting" | "thinking" | "reconnecting";
+  plan: ReadingPlan | null;
+  stepIndex: number;
   groupedWithPrev?: boolean;
 }) {
   const { t } = useTranslation();
-  const label =
+  const fallbackLabel =
     phase === "reconnecting"
       ? t("chat.phaseReconnecting")
       : phase === "thinking"
         ? t("chat.phaseThinking")
         : t("chat.phaseConnecting");
+  const safeStepIndex = plan ? stepIndex % plan.steps.length : 0;
+  const label = plan ? t(plan.steps[safeStepIndex]) : fallbackLabel;
   return (
     // min-h matches the assistant row's empty-placeholder min-height below
     // (name label + ~1 line) so swapping this pill for that row when the
     // first delta arrives doesn't change the list's total height. This only
     // ever appears right after the user's own bubble, so it always gets the
     // same "grouped" pull-up as a grouped assistant reply (see MessageRow).
-    <div
-      className={
-        "motion-fade-up flex min-h-12 items-center" + (groupedWithPrev ? " -mt-2 md:-mt-2.5" : "")
-      }
-    >
-      <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3.5 py-1.5 text-xs font-medium text-accent backdrop-blur">
-        <span className="flex gap-1" aria-hidden="true">
-          <span
-            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
-            style={{ animationDelay: "0ms" }}
-          />
-          <span
-            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
-            style={{ animationDelay: "150ms" }}
-          />
-          <span
-            className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
-            style={{ animationDelay: "300ms" }}
-          />
-        </span>
-        <span>{label}</span>
+    <div className={"motion-fade-up min-h-12" + (groupedWithPrev ? " -mt-2 md:-mt-2.5" : "")}>
+      <div className="max-w-[min(42rem,92%)] rounded-2xl border border-border/60 bg-card/55 px-4 py-3.5 shadow-sm backdrop-blur md:px-5">
+        <div className="mb-2 flex items-center gap-2.5">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+            <Sparkles size={14} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground">{t("chat.reading.title")}</p>
+            <p className="truncate text-[10px] font-medium text-muted-foreground">
+              {plan ? t(plan.focusKey) : t("chat.reading.focus.general")}
+            </p>
+          </div>
+          <span className="ml-auto flex gap-1" aria-hidden="true">
+            {[0, 1, 2].map((dot) => (
+              <span
+                key={dot}
+                className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
+                style={{ animationDelay: `${dot * 150}ms` }}
+              />
+            ))}
+          </span>
+        </div>
+        <p
+          key={label}
+          className="motion-fade-in min-h-[1.5rem] text-sm leading-relaxed text-foreground"
+        >
+          {label}
+        </p>
+        {plan && stepIndex >= plan.steps.length && (
+          <p className="mt-1.5 text-xs text-muted-foreground">{t("chat.reading.slowHint")}</p>
+        )}
       </div>
     </div>
   );

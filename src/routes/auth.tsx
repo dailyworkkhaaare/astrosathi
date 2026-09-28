@@ -347,6 +347,7 @@ function AuthForm({
                 id="name"
                 type="text"
                 autoComplete="name"
+                enterKeyHint="next"
                 value={values.name}
                 onChange={set("name")}
                 className={INPUT_CLASS}
@@ -364,6 +365,10 @@ function AuthForm({
               type="email"
               inputMode="email"
               autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint={mode === "forgot" ? "send" : "next"}
               value={values.email}
               onChange={set("email")}
               className={INPUT_CLASS}
@@ -391,6 +396,7 @@ function AuthForm({
                 id="password"
                 type="password"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                enterKeyHint={mode === "signup" ? "next" : "done"}
                 value={values.password}
                 onChange={set("password")}
                 className={INPUT_CLASS}
@@ -408,6 +414,7 @@ function AuthForm({
                 id="confirm"
                 type="password"
                 autoComplete="new-password"
+                enterKeyHint="done"
                 value={values.confirm}
                 onChange={set("confirm")}
                 className={INPUT_CLASS}

@@ -344,6 +344,44 @@ function classifyTopics(message: string): string[] {
   return hits;
 }
 
+type ReadingTopic =
+  | "career"
+  | "health"
+  | "marriage"
+  | "relationships"
+  | "finance"
+  | "children"
+  | "education"
+  | "travel"
+  | "property"
+  | "business"
+  | "spirituality"
+  | "family"
+  | "general";
+
+const READING_TOPIC_SET = new Set<ReadingTopic>([
+  "career",
+  "health",
+  "marriage",
+  "relationships",
+  "finance",
+  "children",
+  "education",
+  "travel",
+  "property",
+  "business",
+  "spirituality",
+  "family",
+  "general",
+]);
+
+function buildReadingPlanTopic(message: string): ReadingTopic {
+  const topic = classifyTopics(message).find((t) =>
+    READING_TOPIC_SET.has(t as ReadingTopic),
+  );
+  return topic ? (topic as ReadingTopic) : "general";
+}
+
 // Render structured preferences into a short, plain instruction (or "").
 function buildPreferenceInstruction(
   prefs: Record<string, unknown> | null,
@@ -2106,6 +2144,7 @@ Deno.serve(async (req: Request) => {
   if (!message) {
     return err(400, "empty_message", "A non-empty 'message' is required");
   }
+  const readingPlanTopic = buildReadingPlanTopic(message);
   const requestedConversationId = body.conversation_id
     ? String(body.conversation_id)
     : "";
@@ -3512,9 +3551,29 @@ Deno.serve(async (req: Request) => {
         // Tell the client the conversation id up front so it can thread
         // follow-ups even before the first token arrives.
         sse("meta", { conversation_id: conversationId, model: MODEL });
+        sse("progress", {
+          stage: "reading_plan",
+          topic: readingPlanTopic,
+          step_index: 0,
+        });
+        sse("progress", {
+          stage: "context_ready",
+          topic: readingPlanTopic,
+          step_index: 1,
+        });
+        sse("progress", {
+          stage: "memory_ready",
+          topic: readingPlanTopic,
+          step_index: 2,
+        });
 
         let full = "";
         try {
+          sse("progress", {
+            stage: "answer_starting",
+            topic: readingPlanTopic,
+            step_index: 3,
+          });
           const orRes = await fetchWithTimeout(
             "https://openrouter.ai/api/v1/chat/completions",
             {

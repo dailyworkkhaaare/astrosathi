@@ -16,10 +16,19 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import "../i18n";
 import { AppShell } from "../components/layout/AppShell";
+import { NetworkStatusBanner } from "../components/NetworkStatusBanner";
 import { PwaRegister } from "../components/PwaRegister";
 import { Toaster } from "../components/ui/sonner";
 import { supabase } from "../integrations/supabase/client";
+import {
+  onAppResume,
+  onNativeBack,
+  onNativeDeepLink,
+  supportedDeepLinkPath,
+} from "../lib/native-device";
 import { APP_VERSION } from "../lib/preferences";
+import { clearAllChatDrafts } from "../lib/chat-draft";
+import { closeTopNativeOverlay } from "../lib/native-overlay-stack";
 import { PERSIST_STORAGE_KEY, clearChartGatewayCache } from "../lib/queries";
 
 function NotFoundComponent() {
@@ -132,6 +141,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico?v=2", type: "image/x-icon" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -166,8 +176,13 @@ function RootComponent() {
 
   return (
     <AppQueryProvider queryClient={queryClient}>
+      <AuthCallbackRedirect />
       <AuthCacheSync />
+      <NativeResumeSync />
+      <NativeBackSync />
+      <NativeDeepLinkSync />
       <PwaRegister />
+      <NetworkStatusBanner />
       <AppShell>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
@@ -175,6 +190,18 @@ function RootComponent() {
       <Toaster position="bottom-center" />
     </AppQueryProvider>
   );
+}
+
+function AuthCallbackRedirect() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.pathname === "/auth/callback") return;
+    const hasAuthCode = url.searchParams.has("code") || url.hash.includes("access_token=");
+    if (!hasAuthCode) return;
+    window.location.replace(`/auth/callback${url.search}${url.hash}`);
+  }, []);
+  return null;
 }
 
 function AppQueryProvider({
@@ -234,9 +261,64 @@ function AuthCacheSync() {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
         clearChartGatewayCache(qc);
+        clearAllChatDrafts();
       }
     });
     return () => sub.subscription.unsubscribe();
   }, [qc]);
+  return null;
+}
+
+function NativeResumeSync() {
+  const qc = useQueryClient();
+  useEffect(
+    () =>
+      onAppResume(() => {
+        void supabase.auth.refreshSession();
+        void qc.invalidateQueries({
+          predicate: (query) => {
+            const key = query.queryKey;
+            return (
+              key[0] === "chart-gateway" &&
+              ["today-transits", "daily-horoscope", "panchang", "barometer"].some((part) =>
+                key.includes(part),
+              )
+            );
+          },
+        });
+      }),
+    [qc],
+  );
+  return null;
+}
+
+function NativeDeepLinkSync() {
+  useEffect(
+    () =>
+      onNativeDeepLink((url) => {
+        if (typeof window === "undefined") return;
+        const target = supportedDeepLinkPath(url);
+        if (!target) return;
+        const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (target === current) return;
+        window.history.pushState(null, "", target);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      }),
+    [],
+  );
+  return null;
+}
+
+function NativeBackSync() {
+  useEffect(
+    () =>
+      onNativeBack((canGoBack) => {
+        if (closeTopNativeOverlay()) return;
+        if (canGoBack && typeof window !== "undefined" && window.history.length > 1) {
+          window.history.back();
+        }
+      }),
+    [],
+  );
   return null;
 }

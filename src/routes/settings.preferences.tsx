@@ -1,9 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Check, Languages, Palette, SlidersHorizontal } from "lucide-react";
+import { Check, Languages, Palette, SlidersHorizontal, Vibrate } from "lucide-react";
 
-import { Divider, Group, Row, SegmentedGroup } from "@/components/settings/primitives";
+import {
+  Divider,
+  Group,
+  Row,
+  SegmentedGroup,
+  SettingsBackHeader,
+  Toggle,
+} from "@/components/settings/primitives";
 import { SUPPORTED_LANGUAGES, setLanguage, type SupportedLanguage } from "@/i18n";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import {
@@ -42,24 +49,12 @@ function PreferencesPage() {
 
   return (
     <section className="mx-auto max-w-2xl space-y-6">
-      <header className="motion-fade-up">
-        <Link
-          to="/settings"
-          aria-label={t("settings.memory.back")}
-          className="tap-press mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-          {t("settings.preferences.eyebrow")}
-        </p>
-        <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
-          {t("settings.preferences.title")}
-        </h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-          {t("settings.preferences.subtitle")}
-        </p>
-      </header>
+      <SettingsBackHeader
+        title={t("settings.preferences.title")}
+        backLabel={t("settings.memory.back")}
+        eyebrow={t("settings.preferences.eyebrow")}
+        subtitle={t("settings.preferences.subtitle")}
+      />
 
       <Group
         title={t("settings.preferences.languageTitle")}
@@ -170,6 +165,27 @@ function PreferencesPage() {
             ]}
           />
         </Row>
+      </Group>
+
+      <Group
+        title={t("settings.preferences.feedbackTitle")}
+        icon={<Vibrate size={14} aria-hidden="true" />}
+        delay={4}
+      >
+        <div className="flex min-h-12 items-center justify-between gap-4 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">{t("settings.prefs.haptics")}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+              {t("settings.prefs.hapticsHint")}
+            </p>
+          </div>
+          <Toggle
+            id="pref-haptics"
+            ariaLabel={t("settings.prefs.haptics")}
+            checked={prefs.haptics_enabled}
+            onChange={(haptics_enabled) => update({ haptics_enabled })}
+          />
+        </div>
       </Group>
     </section>
   );

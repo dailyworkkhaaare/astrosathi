@@ -33,6 +33,9 @@ test("password reset preserves validation, update and completion routing", async
   await expect(page.getByRole("heading", { level: 1, name: "Set a new password" })).toBeVisible();
   const password = page.getByLabel("New password");
   const confirmation = page.getByLabel("Confirm password");
+  await expect(password).toHaveAttribute("autocomplete", "new-password");
+  await expect(password).toHaveAttribute("enterkeyhint", "next");
+  await expect(confirmation).toHaveAttribute("enterkeyhint", "done");
 
   await password.fill("short");
   await confirmation.fill("different");

@@ -1,10 +1,28 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Clock3, Heart, MessageCircle, Orbit, Pencil, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  Clock3,
+  Heart,
+  MessageCircle,
+  Orbit,
+  Pencil,
+  Sparkles,
+} from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { ChartFrame } from "@/components/chart/ChartFrame";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { usePersonCharts } from "@/lib/queries";
@@ -285,23 +303,7 @@ function PersonDetailPage() {
                   {t("people.detail.chartsTitle")}
                 </h2>
               </div>
-              <div className="w-full min-w-0 sm:w-auto">
-                <label htmlFor="person-varga-select" className="sr-only">
-                  {t("home.varga.pickerLabel")}
-                </label>
-                <select
-                  id="person-varga-select"
-                  value={varga}
-                  onChange={(e) => setVarga(e.target.value as VargaKey)}
-                  className="h-11 w-full max-w-full truncate rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
-                >
-                  {VARGA_KEYS.map((k) => (
-                    <option key={k} value={k}>
-                      {t(`home.varga.${k.toLowerCase()}`)}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <PersonVargaPicker current={varga} onSelect={setVarga} />
             </div>
 
             {svg && (
@@ -340,6 +342,109 @@ function PersonDetailPage() {
         </>
       )}
     </section>
+  );
+}
+
+function PersonVargaPicker({
+  current,
+  onSelect,
+}: {
+  current: VargaKey;
+  onSelect: (varga: VargaKey) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const currentLabel = t(`home.varga.${current.toLowerCase()}`);
+
+  return (
+    <div className="w-full min-w-0 sm:w-auto">
+      <div className="sm:hidden">
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild>
+            <button
+              type="button"
+              aria-label={t("home.varga.pickerLabel")}
+              className="tap-press flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-left text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  {t("home.varga.pickerLabel")}
+                </span>
+                <span className="mt-0.5 block truncate">{currentLabel}</span>
+              </span>
+              <ChevronDown
+                size={16}
+                className="shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </button>
+          </DrawerTrigger>
+          <DrawerContent
+            aria-label={t("home.varga.pickerLabel")}
+            className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+          >
+            <DrawerHeader className="px-5 pb-4 pt-5 text-left">
+              <DrawerTitle className="font-display text-xl">
+                {t("home.varga.pickerLabel")}
+              </DrawerTitle>
+              <DrawerDescription className="leading-relaxed">
+                {t("home.vargaExplorer.description")}
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
+              <div role="listbox" aria-label={t("home.varga.pickerLabel")} className="space-y-2">
+                {VARGA_KEYS.map((key) => {
+                  const selected = current === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => {
+                        onSelect(key);
+                        setOpen(false);
+                      }}
+                      className={
+                        "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        (selected
+                          ? "border-primary/45 bg-primary/10 text-foreground"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      <span>{t(`home.varga.${key.toLowerCase()}`)}</span>
+                      {selected && (
+                        <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+      <div className="hidden sm:block">
+        <label
+          htmlFor="person-varga-select"
+          className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+        >
+          {t("home.varga.pickerLabel")}
+        </label>
+        <select
+          id="person-varga-select"
+          value={current}
+          onChange={(event) => onSelect(event.target.value as VargaKey)}
+          className="mt-1.5 h-11 w-full max-w-full truncate rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
+        >
+          {VARGA_KEYS.map((key) => (
+            <option key={key} value={key}>
+              {t(`home.varga.${key.toLowerCase()}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }
 

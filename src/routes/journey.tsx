@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
+import { triggerHaptic } from "@/lib/native-device";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { useDasha, useJournal, useLifeEvents, useSentNudges } from "@/lib/queries";
 import type { JournalEntry } from "@/lib/journal";
@@ -98,14 +99,14 @@ function JourneyPage() {
 
   return (
     <section className="mx-auto max-w-3xl space-y-6">
-      <header className="motion-fade-up relative isolate overflow-hidden rounded-[2rem] border border-border bg-card p-6 shadow-[var(--shadow-soft)] sm:p-8">
+      <header className="motion-fade-up relative isolate overflow-hidden rounded-[1.5rem] border border-border bg-card p-4 shadow-[var(--shadow-soft)] sm:rounded-[2rem] sm:p-8">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -right-20 -top-24 -z-10 h-64 w-64 rounded-full bg-accent/10 blur-3xl"
         />
-        <div className="flex items-start gap-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-accent/15 text-accent ring-1 ring-accent/25">
-            <History size={22} aria-hidden="true" />
+        <div className="flex items-start gap-3 sm:gap-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-accent/15 text-accent ring-1 ring-accent/25 sm:h-12 sm:w-12">
+            <History size={20} aria-hidden="true" />
           </span>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -114,14 +115,15 @@ function JourneyPage() {
             <h1 className="mt-2 font-display text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
               {t("journey.title")}
             </h1>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-2 sm:text-base">
               {t("journey.subtitle")}
             </p>
           </div>
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2 sm:mt-6 sm:grid-cols-2 sm:gap-3">
           <Link
             to="/life"
+            onClick={() => void triggerHaptic("selection")}
             className="tap-press flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Plus size={16} aria-hidden="true" />
@@ -129,6 +131,7 @@ function JourneyPage() {
           </Link>
           <Link
             to="/journal"
+            onClick={() => void triggerHaptic("selection")}
             className="tap-press flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <BookHeart size={16} aria-hidden="true" />
@@ -147,6 +150,7 @@ function JourneyPage() {
           </h2>
           <Link
             to="/life"
+            onClick={() => void triggerHaptic("selection")}
             className="tap-press inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-primary underline-offset-4 hover:bg-muted hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("journey.viewTimeline")}
@@ -188,18 +192,19 @@ function JourneyPage() {
         )}
       </section>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-3 md:gap-4">
         <SummaryCard
           title={t("journey.timeline.title")}
           description={t("journey.timeline.hint")}
           icon={<CalendarDays size={18} aria-hidden="true" />}
           to="/life"
-          linkLabel={t("journey.viewTimeline")}
           loading={lifeQuery.isLoading}
           error={lifeQuery.isError}
           onRetry={() => void lifeQuery.refetch()}
           empty={!latestEvent}
           emptyTitle={t("journey.timeline.empty")}
+          emptyDescription={t("journey.timeline.emptyHint")}
+          linkLabel={latestEvent ? t("journey.viewTimeline") : t("journey.actions.addEvent")}
           errorTitle={t("journey.moduleError")}
           errorDescription={t("journey.moduleErrorBody")}
         >
@@ -220,12 +225,12 @@ function JourneyPage() {
           description={t("journey.journal.hint")}
           icon={<BookHeart size={18} aria-hidden="true" />}
           to="/journal"
-          linkLabel={t("journey.viewJournal")}
           loading={journalQuery.isLoading}
           error={journalQuery.isError}
           onRetry={() => void journalQuery.refetch()}
           empty={!latestEntry}
           emptyTitle={t("journey.journal.empty")}
+          linkLabel={latestEntry ? t("journey.viewJournal") : t("journey.actions.writeReflection")}
           errorTitle={t("journey.moduleError")}
           errorDescription={t("journey.moduleErrorBody")}
         >
@@ -274,6 +279,7 @@ function SummaryCard({
   onRetry,
   empty,
   emptyTitle,
+  emptyDescription,
   errorTitle,
   errorDescription,
   children,
@@ -288,12 +294,13 @@ function SummaryCard({
   onRetry: () => void;
   empty: boolean;
   emptyTitle: string;
+  emptyDescription?: string;
   errorTitle: string;
   errorDescription: string;
   children: React.ReactNode;
 }) {
   return (
-    <article className="motion-fade-up flex min-h-64 flex-col rounded-[1.5rem] border border-border bg-card p-5 shadow-[var(--shadow-soft)]">
+    <article className="motion-fade-up flex flex-col rounded-[1.25rem] border border-border bg-card p-4 shadow-[var(--shadow-soft)] sm:rounded-[1.5rem] sm:p-5 md:min-h-64">
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
           {icon}
@@ -303,7 +310,7 @@ function SummaryCard({
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>
         </div>
       </div>
-      <div className="mt-5 flex-1">
+      <div className="mt-4 flex-1 sm:mt-5">
         {loading ? (
           <div
             role="status"
@@ -318,18 +325,36 @@ function SummaryCard({
             onRetry={onRetry}
           />
         ) : empty ? (
-          <EmptyState scope="inline" title={emptyTitle} icon={icon} />
+          <EmptyState
+            scope="inline"
+            title={emptyTitle}
+            description={emptyDescription}
+            action={
+              <Link
+                to={to}
+                onClick={() => void triggerHaptic("selection")}
+                className="tap-press inline-flex min-h-11 w-full items-center justify-between rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {linkLabel}
+                <span aria-hidden="true">→</span>
+              </Link>
+            }
+            icon={icon}
+          />
         ) : (
           children
         )}
       </div>
-      <Link
-        to={to}
-        className="tap-press mt-5 inline-flex min-h-11 items-center justify-between rounded-xl border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {linkLabel}
-        <span aria-hidden="true">→</span>
-      </Link>
+      {!empty ? (
+        <Link
+          to={to}
+          onClick={() => void triggerHaptic("selection")}
+          className="tap-press mt-4 inline-flex min-h-11 items-center justify-between rounded-xl border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:mt-5"
+        >
+          {linkLabel}
+          <span aria-hidden="true">→</span>
+        </Link>
+      ) : null}
     </article>
   );
 }

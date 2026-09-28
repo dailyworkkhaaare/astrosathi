@@ -76,6 +76,10 @@ test.describe("onboarding routing", () => {
     await expect(page.getByText("Birth details", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Date of birth")).toBeVisible();
     await expect(page.getByLabel("Place of birth")).toBeVisible();
+    await expect(page.getByLabel("Full name")).toHaveAttribute("enterkeyhint", "next");
+    await expect(page.getByLabel("Date of birth")).toHaveAttribute("enterkeyhint", "next");
+    await expect(page.getByLabel("Time of birth")).toHaveAttribute("enterkeyhint", "next");
+    await expect(page.getByLabel("Place of birth")).toHaveAttribute("enterkeyhint", "done");
     await expect(page.getByRole("button", { name: "Calculate my chart" })).toBeVisible();
   });
 
@@ -168,7 +172,7 @@ test.describe("authenticated critical journeys", () => {
       { label: "Today", path: "/today" },
       { label: "My Cosmos", path: "/home" },
       { label: "Ask", path: "/chat" },
-      { label: "Journey", path: "/life" },
+      { label: "Journey", path: "/journey" },
       { label: "Connections", path: "/people" },
     ];
 
@@ -178,6 +182,91 @@ test.describe("authenticated critical journeys", () => {
       await expect(page).toHaveURL(new RegExp(`${world.path}/?$`));
       await expect(link).toHaveAttribute("aria-current", "page");
     }
+  });
+
+  test("mobile five-world dock triggers tactile feedback fallback", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "Mobile tactile feedback is mobile-only.");
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "vibrate", {
+        configurable: true,
+        value: (pattern: VibratePattern) => {
+          (window as Window & { __asVibrations?: VibratePattern[] }).__asVibrations ??= [];
+          (window as Window & { __asVibrations: VibratePattern[] }).__asVibrations.push(pattern);
+          return true;
+        },
+      });
+    });
+    await page.goto("/today");
+
+    await page
+      .getByRole("navigation", { name: "Primary" })
+      .getByRole("link", { name: "Ask" })
+      .click();
+
+    await expect(page).toHaveURL(/\/chat\/?$/);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as Window & { __asVibrations?: VibratePattern[] }).__asVibrations?.length ?? 0,
+        ),
+      )
+      .toBeGreaterThan(0);
+  });
+
+  test("mobile shell reserves the native bottom chrome area", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "Mobile shell geometry is mobile-only.");
+
+    for (const viewport of [
+      { width: 360, height: 780 },
+      { width: 390, height: 844 },
+      { width: 430, height: 932 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/today");
+      await expect(page.getByRole("heading", { name: "Today", level: 1 })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+
+      const shell = await page.evaluate(() => {
+        const nav = [...document.querySelectorAll('nav[aria-label="Primary"]')].find(
+          (candidate) => {
+            const styles = getComputedStyle(candidate);
+            const rect = candidate.getBoundingClientRect();
+            return styles.position === "fixed" && rect.width > 0 && rect.height > 0;
+          },
+        );
+        const main = document.querySelector("main");
+        if (!nav || !main) return null;
+        const navRect = nav.getBoundingClientRect();
+        const mainStyles = getComputedStyle(main);
+        return {
+          navPosition: getComputedStyle(nav).position,
+          navBottom: Math.round(navRect.bottom),
+          viewportHeight: window.innerHeight,
+          mainPaddingBottom: Number.parseFloat(mainStyles.paddingBottom),
+        };
+      });
+
+      expect(shell).not.toBeNull();
+      expect(shell?.navPosition).toBe("fixed");
+      expect(shell?.navBottom).toBeLessThanOrEqual(shell?.viewportHeight ?? 0);
+      expect(shell?.mainPaddingBottom).toBeGreaterThanOrEqual(80);
+    }
+  });
+
+  test("mobile Cosmos uses a native section picker instead of clipped tabs", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "The mobile picker is mobile-only.");
+    await page.goto("/home");
+
+    const picker = page.getByRole("combobox", { name: "Your chart" });
+    await expect(picker).toBeVisible();
+    await expect(page.getByRole("tab")).toHaveCount(0);
+
+    await picker.selectOption("remedies");
+    await expect(page).toHaveURL(/\/home\?tab=remedies$/);
+    await expect(picker).toHaveValue("remedies");
   });
 
   test("desktop rail expands with keyboard and keeps five-world routing", async ({
@@ -259,6 +348,54 @@ test.describe("authenticated critical journeys", () => {
     await page.goto("/chat");
 
     await expect(page.getByRole("button", { name: /Profile and settings/ })).toHaveCount(0);
+  });
+
+  test("mobile chat history opens as a bottom sheet", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "Chat history sheet is mobile-only.");
+    await page.goto("/chat");
+
+    await page.getByRole("button", { name: "Open sidebar" }).click();
+    const sheet = page.getByRole("dialog", { name: "Conversations" });
+    await expect(sheet).toBeVisible();
+    await page.waitForTimeout(600);
+
+    const geometry = await sheet.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        bottom: Math.round(rect.bottom),
+        height: Math.round(rect.height),
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        viewportHeight: window.innerHeight,
+        viewportWidth: window.innerWidth,
+        width: Math.round(rect.width),
+      };
+    });
+
+    expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewportHeight - 12);
+    expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight + 12);
+    expect(geometry.left).toBe(0);
+    expect(geometry.width).toBe(geometry.viewportWidth);
+    expect(geometry.top).toBeGreaterThan(geometry.viewportHeight * 0.1);
+    expect(geometry.height).toBeLessThanOrEqual(geometry.viewportHeight * 0.9);
+
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+  });
+
+  test("settings subpages keep a consistent native back header", async ({ page }) => {
+    for (const path of [
+      "/settings/preferences",
+      "/settings/memory",
+      "/settings/proactive",
+      "/settings/voice",
+    ]) {
+      await page.goto(path);
+      const back = page.getByRole("link", { name: "Back to settings" });
+      await expect(back).toBeVisible();
+      await expect(back).toHaveClass(/h-11/);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    }
   });
 
   test("context lenses stay truthful to route ownership", async ({ page }) => {
@@ -357,6 +494,104 @@ test.describe("authenticated critical journeys", () => {
     await expect(page.getByRole("textbox", { name: "Message AstroSaathi" })).toHaveValue(
       "What should I focus on today, based on my chart and today's sky?",
     );
+  });
+
+  test("Today daily signal shares through the native share affordance", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "Native sharing is mobile-only.");
+
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "__sharedToday", { configurable: true, writable: true });
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (payload: unknown) => {
+          (window as Window & { __sharedToday?: unknown }).__sharedToday = payload;
+        },
+      });
+    });
+    await page.route("**/functions/v1/daily-horoscope", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          incomplete: false,
+          date: "2026-09-09",
+          summary: "A calm pace creates room for what matters.",
+          focus: null,
+          areas: [],
+          lucky: null,
+          reasons: { summary: [], areas: {} },
+        }),
+      });
+    });
+
+    await page.goto("/today");
+    await page.getByRole("button", { name: "Share" }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Boolean((window as Window & { __sharedToday?: unknown }).__sharedToday),
+        ),
+      )
+      .toBe(true);
+
+    const shared = await page.evaluate(
+      () =>
+        (window as Window & { __sharedToday?: { title?: string; text?: string } }).__sharedToday,
+    );
+    expect(shared).toMatchObject({
+      title: "Today's AstroSaathi signal",
+      text: "A calm pace creates room for what matters.",
+    });
+  });
+
+  test("Today empty daily signal stays compact and actionable on mobile", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "First-viewport geometry is mobile-only.");
+
+    await page.route("**/functions/v1/daily-horoscope", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          incomplete: false,
+          date: "2026-09-09",
+          summary: "",
+          focus: null,
+          areas: [],
+          lucky: null,
+          reasons: { summary: [], areas: {} },
+        }),
+      });
+    });
+
+    await page.goto("/today");
+    const signal = page.locator('section[aria-labelledby="daily-signal-heading"]');
+    await expect(signal).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Your daily signal is still taking shape" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ask about this" })).toBeVisible();
+
+    const box = await signal.boundingBox();
+    expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(220);
+  });
+
+  test("Today timing empty state stays compact on mobile", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "Recovery geometry is mobile-only.");
+
+    await page.goto("/today");
+    const timing = page.locator('section[aria-labelledby="today-heading"]');
+    await expect(timing).toBeVisible();
+    const recovery = timing.locator("div.border-dashed");
+    await expect(recovery).toBeVisible();
+
+    const box = await recovery.boundingBox();
+    expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(80);
   });
 
   test("daily horoscope detail preserves every reading and evidence group", async ({ page }) => {
@@ -1280,7 +1515,7 @@ test.describe("authenticated critical journeys", () => {
 
   test("Kundli keeps provider SVG styles and synchronizes its accessible house selection", async ({
     page,
-  }) => {
+  }, testInfo) => {
     const requestedStyles: string[] = [];
     await page.route("**/functions/v1/chart-gateway", async (route) => {
       const body = route.request().postDataJSON() as { resource?: string; chart_style?: string };
@@ -1326,10 +1561,21 @@ test.describe("authenticated critical journeys", () => {
       selection.getByRole("heading", { name: "House 3 · Gemini", level: 3 }),
     ).toBeVisible();
 
-    const chartStyle = page.getByLabel("Chart style");
-    await chartStyle.selectOption("south");
+    const isMobile = testInfo.project.name === "mobile-chrome";
+    const chartStyle = page.getByLabel("Chart style", { exact: true });
+    if (isMobile) {
+      await page.getByRole("button", { name: "Chart style" }).click();
+      await page.getByRole("option", { name: "South Indian" }).click();
+    } else {
+      await chartStyle.selectOption("south");
+    }
     await expect(page.locator('svg[data-provider-style="south_indian"]')).toBeVisible();
-    await chartStyle.selectOption("east");
+    if (isMobile) {
+      await page.getByRole("button", { name: "Chart style" }).click();
+      await page.getByRole("option", { name: "East Indian" }).click();
+    } else {
+      await chartStyle.selectOption("east");
+    }
     await expect(page.locator('svg[data-provider-style="east_indian"]')).toBeVisible();
     expect(requestedStyles).toEqual(
       expect.arrayContaining(["north_indian", "south_indian", "east_indian"]),
@@ -1386,7 +1632,7 @@ test.describe("authenticated critical journeys", () => {
     );
   });
 
-  test("Varga explorer retains every supported mapping and label", async ({ page }) => {
+  test("Varga explorer retains every supported mapping and label", async ({ page }, testInfo) => {
     const requestedChartTypes: string[] = [];
     await page.route("**/functions/v1/chart-gateway", async (route) => {
       const body = route.request().postDataJSON() as { resource?: string; chart_type?: string };
@@ -1421,14 +1667,25 @@ test.describe("authenticated critical journeys", () => {
 
     await page.goto("/home?tab=charts");
 
+    const isMobile = testInfo.project.name === "mobile-chrome";
     const picker = page.getByLabel("Divisional chart", { exact: true });
-    await expect(picker.locator("option")).toHaveCount(VARGA_KEYS.length);
+    if (!isMobile) await expect(picker.locator("option")).toHaveCount(VARGA_KEYS.length);
     await page.getByRole("button", { name: "D9 — Navamsa" }).click();
-    await expect(picker).toHaveValue("D9");
+    if (isMobile) {
+      await page.getByRole("button", { name: "Divisional chart" }).click();
+      await page.getByRole("option", { name: "D9 — Navamsa" }).click();
+    } else {
+      await expect(picker).toHaveValue("D9");
+    }
     await expect.poll(() => requestedChartTypes).toContain(EXPECTED_VARGA_ENUMS.D9);
 
     for (const varga of VARGA_KEYS) {
-      await picker.selectOption(varga);
+      if (isMobile) {
+        await page.getByRole("button", { name: /Divisional chart/ }).click();
+        await page.getByRole("option", { name: new RegExp(`^${varga} —`) }).click();
+      } else {
+        await picker.selectOption(varga);
+      }
       await expect.poll(() => requestedChartTypes).toContain(EXPECTED_VARGA_ENUMS[varga]);
     }
 
@@ -1437,10 +1694,197 @@ test.describe("authenticated critical journeys", () => {
     ).toBeVisible();
   });
 
+  test("people rows expose chart, Ask, and compatibility quick actions", async ({ page }) => {
+    await page.goto("/people");
+    const person = page.getByRole("listitem").filter({ hasText: "Vihaan Journey" });
+
+    await expect(person.getByRole("link", { name: "Chart", exact: true })).toHaveAttribute(
+      "href",
+      new RegExp(`/people/${TEST_PERSON_ID}/?$`),
+    );
+    await expect(person.getByRole("link", { name: "Ask", exact: true })).toHaveAttribute(
+      "href",
+      /\/chat\?/,
+    );
+    await expect(person.getByRole("link", { name: "Compare", exact: true })).toHaveAttribute(
+      "href",
+      new RegExp(`/people/${TEST_PERSON_ID}/compatibility/?$`),
+    );
+  });
+
+  test("people collection stays compact and grouped on mobile", async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "mobile-chrome",
+      "Mobile collection geometry is mobile-only.",
+    );
+
+    await page.goto("/people");
+    const list = page.getByRole("list").filter({ hasText: "Vihaan Journey" }).first();
+    const person = list.getByRole("listitem").filter({ hasText: "Vihaan Journey" });
+
+    await expect(list).toBeVisible();
+    await expect(person).toBeVisible();
+    const listStyle = await list.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { borderTopStyle: style.borderTopStyle, overflow: style.overflow };
+    });
+    expect(listStyle).toEqual({ borderTopStyle: "solid", overflow: "hidden" });
+
+    const box = await person.boundingBox();
+    expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(180);
+  });
+
+  test("people add and edit forms open as native mobile sheets", async ({ page }) => {
+    for (const personForm of [
+      { path: "/people/new", name: "Add a person" },
+      { path: `/people/${TEST_PERSON_ID}/edit`, name: "Edit person" },
+    ]) {
+      await page.goto(personForm.path);
+
+      const sheet = page.getByRole("dialog", { name: personForm.name });
+      await expect(sheet).toBeVisible();
+      const geometry = await sheet.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return { bottom: rect.bottom, top: rect.top, viewportHeight: window.innerHeight };
+      });
+      expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewportHeight - 12);
+      expect(geometry.top).toBeGreaterThan(geometry.viewportHeight * 0.1);
+      await expect(page.getByLabel("Full name")).toBeVisible();
+    }
+  });
+
+  test("journal reflection editor opens as a native mobile sheet", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "Native sheet geometry is mobile-only.");
+
+    await page.goto("/journal");
+    await expect(page.getByRole("heading", { name: "Reflection Journal", level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "New reflection" }).click();
+
+    const sheet = page.getByRole("dialog", { name: "New reflection" });
+    await expect(sheet).toBeVisible();
+    const geometry = await sheet.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { bottom: rect.bottom, top: rect.top, viewportHeight: window.innerHeight };
+    });
+    expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewportHeight - 12);
+    expect(geometry.top).toBeGreaterThan(geometry.viewportHeight * 0.1);
+    await expect(page.getByLabel("What happened, what shifted")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save" })).toBeVisible();
+  });
+
+  test("Journey to Ask context opens as a native mobile sheet", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "Native sheet geometry is mobile-only.");
+
+    await page.route("**/rest/v1/user_reflection_journal**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: "00000000-0000-4000-8000-000000000201",
+            user_id: "00000000-0000-4000-8000-000000000001",
+            entry_date: "2026-09-18",
+            title: "A turning point",
+            content: "I chose a calmer response today.",
+            mood: "calm",
+            tags: ["reflection"],
+            astro_context: {},
+            context_status: "pending",
+            created_at: "2026-09-18T08:00:00.000Z",
+            updated_at: "2026-09-18T08:00:00.000Z",
+          },
+        ]),
+      });
+    });
+
+    await page.goto("/journal");
+    await page.getByRole("button", { name: "Ask about this reflection" }).click();
+
+    const sheet = page.getByRole("dialog", { name: "Ask with this context?" });
+    await expect(sheet).toBeVisible();
+    const geometry = await sheet.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { bottom: rect.bottom, top: rect.top, viewportHeight: window.innerHeight };
+    });
+    expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewportHeight - 12);
+    expect(geometry.top).toBeGreaterThan(geometry.viewportHeight * 0.1);
+    await expect(page.getByRole("button", { name: "Continue to Ask" })).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+  });
+
+  test("Journey empty timeline offers a first milestone action on mobile", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "mobile-chrome",
+      "Journey first-action geometry is mobile-only.",
+    );
+
+    await page.goto("/journey");
+    const timeline = page.getByRole("article").filter({ hasText: "Life timeline" }).first();
+    await expect(timeline).toBeVisible();
+    await expect(timeline.getByRole("link", { name: "Add milestone" })).toBeVisible();
+    await expect(timeline.getByText(/Start with a milestone like a job/)).toBeVisible();
+
+    const box = await timeline.boundingBox();
+    expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(280);
+  });
+
+  test("life timeline templates prefill a new milestone without changing the form flow", async ({
+    page,
+  }) => {
+    await page.goto("/life");
+    await page.getByRole("button", { name: "Add milestone" }).click();
+
+    const form = page.getByRole("dialog", { name: "Add milestone" });
+    await expect(form).toBeVisible();
+    const geometry = await form.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { bottom: rect.bottom, top: rect.top, viewportHeight: window.innerHeight };
+    });
+    expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewportHeight - 12);
+    expect(geometry.top).toBeGreaterThan(geometry.viewportHeight * 0.1);
+
+    await expect(page.getByRole("heading", { name: "Start with a template" })).toBeVisible();
+    await page.getByRole("button", { name: "Job or role" }).click();
+    await expect(page.getByLabel("Title")).toHaveValue("Started a new job or role");
+    await expect(page.getByLabel("Category")).toHaveValue("career");
+  });
+
   test("people opens a synthetic saved person and exposes compatibility", async ({ page }) => {
     await page.goto("/people");
-    await page.getByRole("link", { name: /Vihaan Journey/ }).click();
+    await page
+      .getByRole("link", { name: /Vihaan Journey/ })
+      .first()
+      .click();
     await expect(page).toHaveURL(new RegExp(`/people/${TEST_PERSON_ID}/?$`));
     await expect(page.getByRole("link", { name: /Compatibility/ })).toBeVisible();
+  });
+
+  test("person chart Varga selection opens as a native mobile sheet", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "Native sheet geometry is mobile-only.");
+
+    await page.goto(`/people/${TEST_PERSON_ID}`);
+
+    const picker = page.getByRole("button", { name: "Divisional chart" });
+    await expect(picker).toBeVisible();
+    await picker.click();
+
+    const sheet = page.getByRole("dialog", { name: "Divisional chart" });
+    await expect(sheet).toBeVisible();
+    const geometry = await sheet.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { bottom: rect.bottom, top: rect.top, viewportHeight: window.innerHeight };
+    });
+    expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewportHeight - 12);
+    expect(geometry.top).toBeGreaterThan(geometry.viewportHeight * 0.1);
+
+    await sheet.getByRole("option", { name: "D9 — Navamsa" }).click();
+    await expect(sheet).toBeHidden();
+    await expect(picker).toContainText("D9 — Navamsa");
   });
 });

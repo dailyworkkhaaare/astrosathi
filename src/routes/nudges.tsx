@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Bell,
   CalendarClock,
+  RefreshCw,
   Settings2,
   Moon,
   Orbit,
@@ -20,8 +21,15 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useActOnNudge, useDismissNudge, useSentNudges } from "@/lib/queries";
 import type { NudgePriority, ProactiveNudge } from "@/lib/proactive";
+import { triggerHaptic } from "@/lib/native-device";
+
+type NudgesSearch = { focus?: string };
 
 export const Route = createFileRoute("/nudges")({
+  validateSearch: (search: Record<string, unknown>): NudgesSearch => {
+    const focus = search.focus;
+    return typeof focus === "string" && focus.length <= 100 ? { focus } : {};
+  },
   head: () => ({
     meta: [
       { title: "Nudges — AstroSaathi" },
@@ -70,6 +78,7 @@ function relativeTime(
 function NudgesPage() {
   useRequireOnboarding();
   const { t } = useTranslation();
+  const { focus } = Route.useSearch();
   const query = useSentNudges();
   const actMutation = useActOnNudge();
   const dismissMutation = useDismissNudge();
@@ -96,6 +105,18 @@ function NudgesPage() {
     return list.filter((n) => !hiddenIds.has(n.id));
   }, [query.data, hiddenIds]);
 
+  useEffect(() => {
+    if (!focus || query.isLoading || typeof window === "undefined") return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(`nudge-${focus}`);
+      if (!target) return;
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      target.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focus, query.isLoading, visible]);
+
   const removeOptimistic = (id: string) => {
     setHiddenIds((prev) => {
       const next = new Set(prev);
@@ -113,36 +134,47 @@ function NudgesPage() {
   };
 
   const onAct = async (id: string) => {
+    void triggerHaptic("selection");
     removeOptimistic(id);
     try {
       const res = await actMutation.mutateAsync(id);
       if (res.error) throw new Error(res.error);
+      void triggerHaptic("success");
       toast.success(t("nudges.toasts.acted"));
     } catch {
       restoreOptimistic(id);
+      void triggerHaptic("error");
       toast.error(t("nudges.toasts.error"));
     }
   };
   const onDismiss = async (id: string) => {
+    void triggerHaptic("selection");
     removeOptimistic(id);
     try {
       const res = await dismissMutation.mutateAsync(id);
       if (res.error) throw new Error(res.error);
+      void triggerHaptic("success");
       toast.success(t("nudges.toasts.dismissed"));
     } catch {
       restoreOptimistic(id);
+      void triggerHaptic("error");
       toast.error(t("nudges.toasts.error"));
     }
   };
 
+  const onRefresh = () => {
+    void triggerHaptic("selection");
+    void query.refetch();
+  };
+
   return (
     <section className="mx-auto max-w-2xl space-y-6">
-      <header className="motion-fade-up rounded-[1.75rem] border border-border bg-card p-5 shadow-[0_16px_40px_-30px_hsl(var(--foreground)/0.42)] sm:p-6">
+      <header className="motion-fade-up flex items-start gap-3 px-1 pt-1">
         <div className="flex items-start gap-3">
           <Link
             to="/"
             aria-label={t("common.back")}
-            className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeft size={18} aria-hidden="true" />
           </Link>
@@ -164,13 +196,29 @@ function NudgesPage() {
                   {t("nudges.title")}
                 </h1>
               </div>
-              <Link
-                to="/settings/proactive"
-                aria-label={t("settings.proactive.title")}
-                className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Settings2 size={17} aria-hidden="true" />
-              </Link>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onRefresh}
+                  disabled={query.isFetching}
+                  aria-label={t("nudges.refresh")}
+                  title={t("nudges.refresh")}
+                  className="tap-press grid h-11 w-11 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={17}
+                    className={query.isFetching ? "animate-spin motion-reduce:animate-none" : ""}
+                    aria-hidden="true"
+                  />
+                </button>
+                <Link
+                  to="/settings/proactive"
+                  aria-label={t("settings.proactive.title")}
+                  className="tap-press grid h-11 w-11 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Settings2 size={17} aria-hidden="true" />
+                </Link>
+              </div>
             </div>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
               {t("nudges.subtitle")}
@@ -191,8 +239,8 @@ function NudgesPage() {
           <p className="text-sm text-foreground">{t("nudges.loadError")}</p>
           <button
             type="button"
-            onClick={() => query.refetch()}
-            className="tap-press mt-3 inline-flex min-h-11 items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={onRefresh}
+            className="tap-press mt-3 inline-flex min-h-11 items-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("nudges.retry")}
           </button>
@@ -200,7 +248,7 @@ function NudgesPage() {
       )}
 
       {!query.isLoading && !query.isError && visible.length === 0 && (
-        <div className="motion-fade-up rounded-[1.5rem] border border-border bg-card p-6 text-center shadow-[0_16px_40px_-30px_hsl(var(--foreground)/0.42)]">
+        <div className="motion-fade-up rounded-lg border border-border bg-card p-6 text-center shadow-[var(--shadow-soft)]">
           <p className="text-base font-semibold text-foreground">{t("nudges.empty.title")}</p>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
             {t("nudges.empty.body")}
@@ -212,7 +260,12 @@ function NudgesPage() {
         <ol className="space-y-3" aria-label={t("nudges.title")}>
           {visible.map((n) => (
             <li key={n.id}>
-              <NudgeCard nudge={n} onAct={onAct} onDismiss={onDismiss} />
+              <NudgeCard
+                nudge={n}
+                onAct={onAct}
+                onDismiss={onDismiss}
+                focused={n.id === focus}
+              />
             </li>
           ))}
         </ol>
@@ -225,10 +278,12 @@ function NudgeCard({
   nudge,
   onAct,
   onDismiss,
+  focused,
 }: {
   nudge: ProactiveNudge;
   onAct: (id: string) => void;
   onDismiss: (id: string) => void;
+  focused: boolean;
 }) {
   const { t } = useTranslation();
   const Icon = iconFor(nudge.kind);
@@ -241,9 +296,11 @@ function NudgeCard({
   return (
     <article
       aria-labelledby={cardId}
+      data-state={focused ? "targeted" : undefined}
       className={cn(
-        "motion-fade-up rounded-[1.5rem] border bg-card p-5 shadow-[0_16px_36px_-30px_hsl(var(--foreground)/0.4)]",
+        "motion-fade-up scroll-mt-6 rounded-lg border bg-card p-5 shadow-[var(--shadow-soft)]",
         isHigh ? "border-accent/50 bg-accent/[0.045]" : "border-border",
+        focused && "ring-2 ring-accent/45 ring-offset-2 ring-offset-background",
       )}
     >
       <div className="flex items-start gap-3">
@@ -279,7 +336,11 @@ function NudgeCard({
               </time>
             )}
           </div>
-          <h2 id={cardId} className="mt-2 text-base font-semibold leading-snug text-foreground">
+          <h2
+            id={cardId}
+            tabIndex={focused ? -1 : undefined}
+            className="mt-2 text-base font-semibold leading-snug text-foreground focus:outline-none"
+          >
             {nudge.title}
           </h2>
           {nudge.body && (
@@ -291,12 +352,12 @@ function NudgeCard({
             </p>
           )}
 
-          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+          <div className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4">
             <Button
               type="button"
               variant="primary"
               onClick={() => onAct(nudge.id)}
-              className="min-h-11 gap-1.5"
+              className="min-h-11 w-full gap-1.5"
             >
               <Sparkles size={14} aria-hidden="true" />
               <span>{t("nudges.act")}</span>
@@ -306,7 +367,7 @@ function NudgeCard({
               type="button"
               variant="ghost"
               onClick={() => onDismiss(nudge.id)}
-              className="min-h-11 gap-1.5 border border-border bg-background text-muted-foreground hover:text-foreground"
+              className="min-h-11 w-full gap-1.5 border border-border bg-background text-muted-foreground hover:text-foreground"
             >
               <X size={14} aria-hidden="true" />
               <span>{t("nudges.dismiss")}</span>

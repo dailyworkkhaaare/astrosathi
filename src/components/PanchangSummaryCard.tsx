@@ -7,17 +7,16 @@ import { computePanchang, computeDayTimes } from "@/lib/panchang";
 import { usePanchang } from "@/lib/queries";
 
 export function PanchangSummaryCard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data, isLoading, isError } = usePanchang();
 
   const panchang = data ? computePanchang(data.sunLon, data.moonLon) : null;
   const tz = data?.timezone ?? "Asia/Kolkata";
   const times =
-    data && data.lat != null && data.lon != null
-      ? computeDayTimes(data.lat, data.lon, tz)
-      : null;
+    data && data.lat != null && data.lon != null ? computeDayTimes(data.lat, data.lon, tz) : null;
+  const unavailable = !isLoading && (isError || !panchang);
   const fmtTime = (dt: Date) =>
-    new Intl.DateTimeFormat("en-US", {
+    new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
       timeZone: tz,
       hour: "numeric",
       minute: "2-digit",
@@ -25,8 +24,8 @@ export function PanchangSummaryCard() {
     }).format(dt);
 
   return (
-    <Card className="rounded-2xl p-0">
-      <CardHeader className="gap-1 space-y-0 p-5 pb-0">
+    <Card className={`rounded-2xl p-0 ${unavailable ? "shadow-[var(--shadow-soft)]" : ""}`}>
+      <CardHeader className={`gap-1 space-y-0 pb-0 ${unavailable ? "p-4" : "p-5"}`}>
         <div className="flex items-center gap-2.5">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
             <CalendarDays size={15} className="text-accent" aria-hidden="true" />
@@ -37,21 +36,24 @@ export function PanchangSummaryCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="pt-4">
+      <CardContent className={unavailable ? "px-4 pb-4 pt-3" : "pt-4"}>
         {isLoading ? (
           <div className="space-y-2" aria-busy="true">
             <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
             <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
           </div>
-        ) : isError ? (
-          <p className="text-sm text-muted-foreground">{t("sections.panchang.loadError")}</p>
-        ) : !panchang ? (
-          <p className="text-sm text-muted-foreground">{t("sections.panchang.empty")}</p>
+        ) : unavailable ? (
+          <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-border bg-background/60 px-3 py-3">
+            <CalendarDays size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+            <p className="min-w-0 flex-1 text-sm leading-relaxed text-muted-foreground">
+              {isError ? t("sections.panchang.loadError") : t("sections.panchang.empty")}
+            </p>
+          </div>
         ) : (
           <div className="space-y-2.5">
             <SummaryRow
               label={t("sections.panchang.tithi")}
-              value={`${t(`sections.panchang.paksha.${panchang.paksha}`)} ${panchang.tithiName}`}
+              value={`${t(`sections.panchang.paksha.${panchang!.paksha}`)} ${panchang!.tithiName}`}
             />
             {times && (
               <SummaryRow

@@ -5,6 +5,8 @@ import {
   Bell,
   BookHeart,
   CalendarClock,
+  Check,
+  ChevronDown,
   ChevronRight,
   Clock,
   Compass,
@@ -18,7 +20,16 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
+import { triggerHaptic } from "@/lib/native-device";
 import { Button } from "@/components/ui/button";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { ExpandableSection } from "@/components/ExpandableSection";
 import { ChartFrame } from "@/components/chart/ChartFrame";
 
@@ -57,6 +68,22 @@ function formatDeg(deg: number | null): string | null {
     m = 0;
   }
   return `${d}°${String(m).padStart(2, "0")}′`;
+}
+
+const PLANET_STATE_KEYS: Record<string, string> = {
+  "Exalted (deep)": "home.planetStates.exaltedDeep",
+  Exalted: "home.planetStates.exalted",
+  "Debilitated (deep)": "home.planetStates.debilitatedDeep",
+  Debilitated: "home.planetStates.debilitated",
+  Moolatrikona: "home.planetStates.moolatrikona",
+  "Own sign": "home.planetStates.ownSign",
+  Combust: "home.planetStates.combust",
+  Vargottama: "home.planetStates.vargottama",
+};
+
+function planetStateLabel(state: string, t: (key: string) => string): string {
+  const key = PLANET_STATE_KEYS[state];
+  return key ? t(key) : state;
 }
 
 // Hit-region polygons for the North-Indian chart overlay — a fixed geometric
@@ -154,7 +181,24 @@ function HomePage() {
         </h1>
       </header>
 
-      <div className="motion-fade-up grid grid-cols-2 gap-3">
+      {isProfileIncomplete && <IncompleteProfileHeroCard />}
+
+      <Tabs current={tab} onChange={setTab} />
+
+      <div key={tab} className="motion-fade-up">
+        {tab === "overview" && (
+          <CosmosOverview onSelectTab={setTab as (tab: CosmosOverviewTab) => void} />
+        )}
+        {tab === "charts" && <ChartsTab />}
+        {tab === "details" && <DashaSection />}
+        {tab === "doshas" && <DoshasSection />}
+        {tab === "remedies" && <RemediesSection />}
+        {tab === "ashtakavarga" && <AshtakavargaSection />}
+        {tab === "numerology" && <NumerologySection />}
+        {tab === "loshu" && <LoShuSection />}
+      </div>
+
+      <div className="motion-fade-up grid grid-cols-2 gap-3 border-t border-border/70 pt-5">
         <Link
           to="/life"
           className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
@@ -180,32 +224,15 @@ function HomePage() {
           )}
           <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
         </Link>
-      </div>
 
-      <Link
-        to="/journal"
-        className="motion-fade-up tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
-      >
-        <BookHeart size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate">{t("journal.entryLabel")}</span>
-        <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-      </Link>
-
-      {isProfileIncomplete && <IncompleteProfileHeroCard />}
-
-      <Tabs current={tab} onChange={setTab} />
-
-      <div key={tab} className="motion-fade-up">
-        {tab === "overview" && (
-          <CosmosOverview onSelectTab={setTab as (tab: CosmosOverviewTab) => void} />
-        )}
-        {tab === "charts" && <ChartsTab />}
-        {tab === "details" && <DashaSection />}
-        {tab === "doshas" && <DoshasSection />}
-        {tab === "remedies" && <RemediesSection />}
-        {tab === "ashtakavarga" && <AshtakavargaSection />}
-        {tab === "numerology" && <NumerologySection />}
-        {tab === "loshu" && <LoShuSection />}
+        <Link
+          to="/journal"
+          className="tap-press col-span-2 flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+        >
+          <BookHeart size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate">{t("journal.entryLabel")}</span>
+          <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+        </Link>
       </div>
     </section>
   );
@@ -255,50 +282,79 @@ const TAB_CONFIG: {
 
 function Tabs({ current, onChange }: { current: TabKey; onChange: (k: TabKey) => void }) {
   const { t } = useTranslation();
+  const currentConfig = TAB_CONFIG.find(({ key }) => key === current) ?? TAB_CONFIG[0];
+  const CurrentIcon = currentConfig.icon;
   return (
-    <div
-      role="tablist"
-      aria-label={t("home.title")}
-      className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {TAB_CONFIG.map(({ key: k, icon: Icon }) => {
-        const active = current === k;
-        return (
-          <button
-            key={k}
-            role="tab"
-            aria-selected={active}
-            tabIndex={active ? 0 : -1}
-            onClick={() => onChange(k)}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-                e.preventDefault();
-                const keys = TAB_CONFIG.map((c) => c.key);
-                const i = keys.indexOf(current);
-                const next =
-                  e.key === "ArrowRight"
-                    ? keys[(i + 1) % keys.length]
-                    : keys[(i - 1 + keys.length) % keys.length];
-                onChange(next);
+    <>
+      <div className="relative sm:hidden">
+        <CurrentIcon
+          size={17}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-primary"
+        />
+        <select
+          aria-label={t("home.title")}
+          value={current}
+          onChange={(e) => onChange(e.target.value as TabKey)}
+          className="h-12 w-full appearance-none rounded-2xl border border-primary/25 bg-card/85 pl-11 pr-11 text-sm font-semibold text-foreground shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {TAB_CONFIG.map(({ key }) => (
+            <option key={key} value={key}>
+              {t(`home.tabs.${key}`)}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={18}
+          aria-hidden="true"
+          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
+      </div>
+
+      <div
+        role="tablist"
+        aria-label={t("home.title")}
+        className="hidden gap-2 overflow-x-auto pb-1.5 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] sm:flex [&::-webkit-scrollbar]:hidden"
+      >
+        {TAB_CONFIG.map(({ key: k, icon: Icon }) => {
+          const active = current === k;
+          return (
+            <button
+              key={k}
+              role="tab"
+              aria-selected={active}
+              tabIndex={active ? 0 : -1}
+              onClick={() => onChange(k)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                  e.preventDefault();
+                  const keys = TAB_CONFIG.map((c) => c.key);
+                  const i = keys.indexOf(current);
+                  const next =
+                    e.key === "ArrowRight"
+                      ? keys[(i + 1) % keys.length]
+                      : keys[(i - 1 + keys.length) % keys.length];
+                  onChange(next);
+                }
+              }}
+              className={
+                "tap-press inline-flex items-center gap-2 rounded-full border px-4 min-h-[44px] whitespace-nowrap text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                (active
+                  ? "border-primary/60 bg-primary/10 text-primary shadow-sm"
+                  : "border-border/80 bg-card/60 text-muted-foreground hover:bg-card hover:text-foreground")
               }
-            }}
-            className={
-              "tap-press inline-flex items-center gap-2 rounded-full border px-4 min-h-[44px] whitespace-nowrap text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-              (active
-                ? "border-primary/60 bg-primary/10 text-primary shadow-sm"
-                : "border-border/80 bg-card/60 text-muted-foreground hover:bg-card hover:text-foreground")
-            }
-          >
-            <Icon
-              size={16}
-              aria-hidden="true"
-              className={active ? "text-primary" : "text-muted-foreground"}
-            />
-            <span>{t(`home.tabs.${k}`)}</span>
-          </button>
-        );
-      })}
-    </div>
+            >
+              <Icon
+                size={16}
+                aria-hidden="true"
+                className={active ? "text-primary" : "text-muted-foreground"}
+              />
+              <span>{t(`home.tabs.${k}`)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -335,6 +391,14 @@ function ChartsTab() {
 
   const onRetry = () => chartQuery.refetch();
   const onRetryPlanets = () => planetsQuery.refetch();
+  const selectVarga = (next: VargaKey) => {
+    setVarga(next);
+    void triggerHaptic("selection");
+  };
+  const selectChartStyle = (next: ChartStyle) => {
+    setStyle(next);
+    void triggerHaptic("selection");
+  };
 
   const errorMessageKey = errorCode
     ? ["not_authenticated", "birth_profile_incomplete", "place_not_resolved"].includes(errorCode)
@@ -411,13 +475,16 @@ function ChartsTab() {
   // is display-only: it never changes provider output or sends an Ask prompt.
   const handleChartHouseClick = (houseNumber: number) => {
     setSelectedHouse(houseNumber);
+    void triggerHaptic("selection");
   };
 
-  const handlePlanetAsk = (planet: DisplayPlanet) =>
+  const handlePlanetAsk = (planet: DisplayPlanet) => {
+    void triggerHaptic("selection");
     void navigate({
       to: "/chat",
       search: { seed: buildPlanetSeed(t, debounced.varga, planet) },
     });
+  };
 
   // Divisional tables are parsed from the chart SVG, so they also depend on the
   // chart query; D1 tables only need the planets query.
@@ -437,7 +504,7 @@ function ChartsTab() {
 
   return (
     <div className="space-y-6">
-      <VargaExplorer current={varga} onSelect={setVarga} />
+      <VargaExplorer current={varga} onSelect={selectVarga} />
 
       <Card>
         <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -448,21 +515,7 @@ function ChartsTab() {
             <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
           </div>
           <div className="w-full min-w-0 sm:w-auto">
-            <label htmlFor="chart-style-select" className="sr-only">
-              {t("home.chartStyle.pickerLabel")}
-            </label>
-            <select
-              id="chart-style-select"
-              value={style}
-              onChange={(e) => setStyle(e.target.value as ChartStyle)}
-              className="h-11 w-full max-w-full truncate rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
-            >
-              {CHART_STYLES.map((chartStyle) => (
-                <option key={chartStyle} value={chartStyle}>
-                  {t(`home.chartStyle.${chartStyle}`)}
-                </option>
-              ))}
-            </select>
+            <ChartStylePicker current={style} onSelect={selectChartStyle} />
           </div>
         </div>
         <div
@@ -505,17 +558,28 @@ function ChartsTab() {
                   viewBox="0 0 480 480"
                   preserveAspectRatio="none"
                   className="pointer-events-none absolute inset-0"
-                  aria-hidden="true"
+                  role="group"
+                  aria-label={t("home.chartSelection.accessibleList")}
                 >
                   {NORTH_CHART_HOUSE_REGIONS.map((r) => (
                     <polygon
                       key={r.house}
                       points={r.points}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={t("home.houseLabel", { n: r.house })}
+                      aria-pressed={selectedHouse === r.house}
                       className={
-                        "pointer-events-auto cursor-pointer transition-colors hover:fill-accent/10 " +
+                        "pointer-events-auto cursor-pointer outline-none transition-colors hover:fill-accent/10 focus:fill-accent/10 " +
                         (selectedHouse === r.house ? "fill-primary/15" : "fill-transparent")
                       }
                       onClick={() => handleChartHouseClick(r.house)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleChartHouseClick(r.house);
+                        }
+                      }}
                     />
                   ))}
                 </svg>
@@ -532,14 +596,18 @@ function ChartsTab() {
         errorCode={tablesErrorCode}
         onRetry={onRetryTables}
         selectedHouse={selectedHouse}
-        onSelectHouse={setSelectedHouse}
+        onSelectHouse={(house) => {
+          setSelectedHouse(house);
+          void triggerHaptic("selection");
+        }}
         varga={debounced.varga}
-        onAsk={(house) =>
+        onAsk={(house) => {
+          void triggerHaptic("selection");
           void navigate({
             to: "/chat",
             search: { seed: buildHouseSeed(t, debounced.varga, house) },
-          })
-        }
+          });
+        }}
       />
 
       <ExpandableSection
@@ -638,7 +706,7 @@ function ChartsTab() {
                             key={s}
                             className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-foreground"
                           >
-                            {s}
+                            {planetStateLabel(s, t)}
                           </span>
                         ))}
                       </div>
@@ -646,9 +714,10 @@ function ChartsTab() {
                   )}
                   <button
                     type="button"
-                    onClick={() =>
-                      setSelectedPlanet((current) => (current === p.key ? null : p.key))
-                    }
+                    onClick={() => {
+                      setSelectedPlanet((current) => (current === p.key ? null : p.key));
+                      void triggerHaptic("selection");
+                    }}
                     aria-pressed={selectedPlanet === p.key}
                     className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full border border-border bg-card px-3 text-xs font-semibold text-primary transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
@@ -694,6 +763,7 @@ function ChartsTab() {
                 <Link
                   to="/chat"
                   search={{ seed: buildHouseSeed(t, debounced.varga, h) }}
+                  onClick={() => void triggerHaptic("selection")}
                   className="tap-press block h-full rounded-lg border border-border bg-background px-3 py-3 text-sm transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="text-xs text-muted-foreground">
@@ -759,6 +829,110 @@ function ChartsTab() {
   );
 }
 
+function ChartStylePicker({
+  current,
+  onSelect,
+}: {
+  current: ChartStyle;
+  onSelect: (style: ChartStyle) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const currentLabel = t(`home.chartStyle.${current}`);
+
+  return (
+    <div>
+      <div className="sm:hidden">
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild>
+            <button
+              type="button"
+              aria-label={t("home.chartStyle.pickerLabel")}
+              className="tap-press flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-left text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  {t("home.chartStyle.pickerLabel")}
+                </span>
+                <span className="mt-0.5 block truncate">{currentLabel}</span>
+              </span>
+              <ChevronDown
+                size={16}
+                className="shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </button>
+          </DrawerTrigger>
+          <DrawerContent
+            aria-label={t("home.chartStyle.pickerLabel")}
+            className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+          >
+            <DrawerHeader className="px-5 pb-4 pt-5 text-left">
+              <DrawerTitle className="font-display text-xl">
+                {t("home.chartStyle.pickerLabel")}
+              </DrawerTitle>
+              <DrawerDescription className="leading-relaxed">
+                {t(`home.chartStyleCaption.${current}`)}
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
+              <div
+                role="listbox"
+                aria-label={t("home.chartStyle.pickerLabel")}
+                className="space-y-2"
+              >
+                {CHART_STYLES.map((chartStyle) => {
+                  const selected = current === chartStyle;
+                  return (
+                    <button
+                      key={chartStyle}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => {
+                        onSelect(chartStyle);
+                        setOpen(false);
+                      }}
+                      className={
+                        "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        (selected
+                          ? "border-primary/45 bg-primary/10 text-foreground"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      <span>{t(`home.chartStyle.${chartStyle}`)}</span>
+                      {selected && (
+                        <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+      <div className="hidden sm:block">
+        <label htmlFor="chart-style-select" className="sr-only">
+          {t("home.chartStyle.pickerLabel")}
+        </label>
+        <select
+          id="chart-style-select"
+          value={current}
+          onChange={(event) => onSelect(event.target.value as ChartStyle)}
+          className="h-11 w-full max-w-full truncate rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
+        >
+          {CHART_STYLES.map((chartStyle) => (
+            <option key={chartStyle} value={chartStyle}>
+              {t(`home.chartStyle.${chartStyle}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 function VargaExplorer({
   current,
   onSelect,
@@ -767,6 +941,7 @@ function VargaExplorer({
   onSelect: (varga: VargaKey) => void;
 }) {
   const { t } = useTranslation();
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const quickChoices: VargaKey[] = ["D1", "D9", "D10"];
   const currentLabel = t(`home.varga.${current.toLowerCase()}`);
 
@@ -791,24 +966,96 @@ function VargaExplorer({
           </p>
         </div>
         <div className="w-full shrink-0 sm:w-72">
-          <label
-            htmlFor="varga-select"
-            className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-          >
-            {t("home.varga.pickerLabel")}
-          </label>
-          <select
-            id="varga-select"
-            value={current}
-            onChange={(event) => onSelect(event.target.value as VargaKey)}
-            className="mt-1.5 h-11 w-full max-w-full truncate rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {VARGA_KEYS.map((key) => (
-              <option key={key} value={key}>
-                {t(`home.varga.${key.toLowerCase()}`)}
-              </option>
-            ))}
-          </select>
+          <div className="sm:hidden">
+            <Drawer open={selectorOpen} onOpenChange={setSelectorOpen}>
+              <DrawerTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t("home.varga.pickerLabel")}
+                  className="tap-press flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-left text-sm font-medium text-foreground shadow-[var(--shadow-soft)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {t("home.varga.pickerLabel")}
+                    </span>
+                    <span className="mt-0.5 block truncate">{currentLabel}</span>
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className="shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </button>
+              </DrawerTrigger>
+              <DrawerContent
+                aria-label={t("home.varga.pickerLabel")}
+                className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+              >
+                <DrawerHeader className="px-5 pb-4 pt-5 text-left">
+                  <DrawerTitle className="font-display text-xl">
+                    {t("home.varga.pickerLabel")}
+                  </DrawerTitle>
+                  <DrawerDescription className="leading-relaxed">
+                    {t("home.vargaExplorer.description")}
+                  </DrawerDescription>
+                </DrawerHeader>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
+                  <div
+                    role="listbox"
+                    aria-label={t("home.varga.pickerLabel")}
+                    className="space-y-2"
+                  >
+                    {VARGA_KEYS.map((key) => {
+                      const selected = current === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => {
+                            onSelect(key);
+                            setSelectorOpen(false);
+                          }}
+                          className={
+                            "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                            (selected
+                              ? "border-primary/45 bg-primary/10 text-foreground"
+                              : "border-border bg-background text-muted-foreground hover:text-foreground")
+                          }
+                        >
+                          <span>{t(`home.varga.${key.toLowerCase()}`)}</span>
+                          {selected && (
+                            <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </DrawerContent>
+            </Drawer>
+          </div>
+          <div className="hidden sm:block">
+            <label
+              htmlFor="varga-select"
+              className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+            >
+              {t("home.varga.pickerLabel")}
+            </label>
+            <select
+              id="varga-select"
+              value={current}
+              onChange={(event) => onSelect(event.target.value as VargaKey)}
+              className="mt-1.5 h-11 w-full max-w-full truncate rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {VARGA_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {t(`home.varga.${key.toLowerCase()}`)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

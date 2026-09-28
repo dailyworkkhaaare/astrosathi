@@ -2,13 +2,29 @@ import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 
 import { cn } from "@/lib/utils";
+import { useNativeOverlayRegistration } from "@/lib/native-overlay-stack";
+import { triggerHaptic } from "@/lib/native-device";
 
 const Drawer = ({
   shouldScaleBackground = true,
+  onOpenChange,
+  open,
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
-  <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} {...props} />
-);
+}: React.ComponentProps<typeof DrawerPrimitive.Root>) => {
+  const handleOpenChange = useNativeOverlayRegistration(open, (nextOpen) => {
+    void triggerHaptic("selection");
+    onOpenChange?.(nextOpen);
+  });
+
+  return (
+    <DrawerPrimitive.Root
+      shouldScaleBackground={shouldScaleBackground}
+      open={open}
+      onOpenChange={handleOpenChange}
+      {...props}
+    />
+  );
+};
 Drawer.displayName = "Drawer";
 
 const DrawerTrigger = DrawerPrimitive.Trigger;
@@ -38,12 +54,12 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+        "fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[min(85dvh,42rem)] flex-col overflow-hidden rounded-t-[1.75rem] border border-border bg-background shadow-[var(--shadow-elevated)] outline-none",
         className,
       )}
       {...props}
     >
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30" />
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>
@@ -51,12 +67,18 @@ const DrawerContent = React.forwardRef<
 DrawerContent.displayName = "DrawerContent";
 
 const DrawerHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)} {...props} />
+  <div className={cn("grid gap-1.5 px-5 pb-3 pt-4 text-left", className)} {...props} />
 );
 DrawerHeader.displayName = "DrawerHeader";
 
 const DrawerFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("mt-auto flex flex-col gap-2 p-4", className)} {...props} />
+  <div
+    className={cn(
+      "mt-auto flex flex-col gap-2 border-t border-border/60 bg-background px-5 pb-[calc(1rem+var(--as-safe-bottom))] pt-3",
+      className,
+    )}
+    {...props}
+  />
 );
 DrawerFooter.displayName = "DrawerFooter";
 

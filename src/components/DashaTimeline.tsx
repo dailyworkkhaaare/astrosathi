@@ -51,7 +51,8 @@ export function DashaTimeline({
   currentMahaKey: string | null;
   onSelectMaha: (key: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const nowMarkerRef = useRef<HTMLDivElement>(null);
   const [selectedMahaKey, setSelectedMahaKey] = useState<string | null>(currentMahaKey);
   const [selectedAntarKey, setSelectedAntarKey] = useState<string | null>(null);
@@ -104,7 +105,7 @@ export function DashaTimeline({
           <div className="relative flex flex-col">
             <div
               ref={nowMarkerRef}
-              aria-label={t("sections.dasha.nowMarkerAria", { date: fmtDateMs(now) })}
+              aria-label={t("sections.dasha.nowMarkerAria", { date: fmtDateMs(now, locale) })}
               className="pointer-events-none absolute top-0 z-10 -translate-x-1/2"
               style={{ left: `${nowPct}%` }}
             >
@@ -112,7 +113,7 @@ export function DashaTimeline({
                 {t("sections.dasha.youAreHere")}
               </span>
               <span className="ml-1 whitespace-nowrap text-[9px] font-medium tabular-nums text-muted-foreground">
-                {fmtDateMs(now)}
+                {fmtDateMs(now, locale)}
               </span>
             </div>
 
@@ -146,8 +147,8 @@ export function DashaTimeline({
                       aria-pressed={mahaKey(m) === selectedMahaKey}
                       aria-label={t("sections.dasha.segmentAria", {
                         planet: l.primary,
-                        start: fmtDateMs(m.startMs),
-                        end: fmtDateMs(m.endMs),
+                        start: fmtDateMs(m.startMs, locale),
+                        end: fmtDateMs(m.endMs, locale),
                         years,
                       })}
                       className={cn(
@@ -164,8 +165,8 @@ export function DashaTimeline({
               </div>
 
               <div className="mt-1.5 flex justify-between text-[10px] tabular-nums text-muted-foreground">
-                <span>{fmtDateMs(birthMs)}</span>
-                <span>{fmtDateMs(cutoffMs)}</span>
+                <span>{fmtDateMs(birthMs, locale)}</span>
+                <span>{fmtDateMs(cutoffMs, locale)}</span>
               </div>
 
               {selectedMaha && selectedMaha.antardasha.length > 0 && (
@@ -195,8 +196,8 @@ export function DashaTimeline({
                           aria-pressed={active}
                           aria-label={t("sections.dasha.antarSegmentAria", {
                             planet: l.primary,
-                            start: fmtDateMs(a.startMs),
-                            end: fmtDateMs(a.endMs),
+                            start: fmtDateMs(a.startMs, locale),
+                            end: fmtDateMs(a.endMs, locale),
                           })}
                           className={cn(
                             "shrink-0 grow-0 border-r border-background/40 text-[9px] font-medium text-foreground last:border-r-0 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -236,8 +237,8 @@ export function DashaTimeline({
                           style={{ flexBasis: `${pct}%` }}
                           aria-label={t("sections.dasha.pratyantarSegmentAria", {
                             planet: l.primary,
-                            start: fmtDateMs(p.startMs),
-                            end: fmtDateMs(p.endMs),
+                            start: fmtDateMs(p.startMs, locale),
+                            end: fmtDateMs(p.endMs, locale),
                           })}
                           className={cn(
                             "shrink-0 grow-0 border-r border-background/40 last:border-r-0",

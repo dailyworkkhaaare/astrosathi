@@ -3,6 +3,7 @@
 // browser-local preference kept in localStorage.
 
 import { supabase } from "@/integrations/supabase/client";
+import { HAPTICS_STORAGE_KEY } from "./native-device";
 
 export type Theme = "light" | "dark" | "system";
 export type Tone = "calm" | "direct" | "supportive";
@@ -10,6 +11,7 @@ export type AnswerLength = "concise" | "balanced" | "detailed";
 
 export type Preferences = {
   theme: Theme;
+  haptics_enabled: boolean;
   tone: Tone;
   answer_length: AnswerLength;
   memory_opt_in: boolean; // maps to profiles.memory_enabled
@@ -21,6 +23,7 @@ const THEME_KEY = "astrosaathi.theme";
 
 const DEFAULTS: Preferences = {
   theme: "light",
+  haptics_enabled: true,
   tone: "calm",
   answer_length: "balanced",
   memory_opt_in: false,
@@ -50,7 +53,29 @@ function writeStoredTheme(t: Theme) {
   }
 }
 
+function readStoredHaptics() {
+  if (typeof window === "undefined") return DEFAULTS.haptics_enabled;
+  try {
+    const raw = window.localStorage.getItem(HAPTICS_STORAGE_KEY);
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULTS.haptics_enabled;
+}
+
+function writeStoredHaptics(enabled: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(HAPTICS_STORAGE_KEY, String(enabled));
+  } catch {
+    /* ignore */
+  }
+}
+
 cache.theme = readStoredTheme();
+cache.haptics_enabled = readStoredHaptics();
 
 export function getPreferences(): Preferences {
   return cache;
@@ -58,6 +83,7 @@ export function getPreferences(): Preferences {
 
 export async function loadPreferencesFromProfile(): Promise<Preferences> {
   cache.theme = readStoredTheme();
+  cache.haptics_enabled = readStoredHaptics();
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
   if (!userId) return cache;
@@ -82,6 +108,7 @@ export async function loadPreferencesFromProfile(): Promise<Preferences> {
 export function updatePreferences(patch: Partial<Preferences>): Preferences {
   cache = { ...cache, ...patch };
   if (patch.theme) writeStoredTheme(patch.theme);
+  if (patch.haptics_enabled !== undefined) writeStoredHaptics(patch.haptics_enabled);
 
   // Fire-and-forget persistence for profile-backed fields.
   const profilePatch: Record<string, unknown> = {};

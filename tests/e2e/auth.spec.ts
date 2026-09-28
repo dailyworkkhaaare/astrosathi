@@ -7,6 +7,13 @@ test("sign-in and sign-up retain their validation contract", async ({ page }) =>
 
   await expect(page.getByRole("heading", { level: 1, name: "Welcome back" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toHaveAttribute("autocomplete", "email");
+  await expect(page.getByLabel("Email")).toHaveAttribute("enterkeyhint", "next");
+  await expect(page.getByLabel("Email")).toHaveAttribute("autocapitalize", "none");
+  await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute(
+    "enterkeyhint",
+    "done",
+  );
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByText("Email is required.", { exact: true })).toBeVisible();
   await expect(page.getByText("Password is required.", { exact: true })).toBeVisible();

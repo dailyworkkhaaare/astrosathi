@@ -4,12 +4,14 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSbc, type SbcDay, type SbcValue } from "@/lib/queries";
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function fmtTick(d: string): string {
-  const parts = d.split("-").map(Number);
-  const mon = MONTHS[(parts[1] ?? 1) - 1] ?? "";
-  return `${parts[2] ?? ""} ${mon}`;
+function fmtTick(d: string, locale: string): string {
+  const date = new Date(`${d}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(locale === "en" ? "en-IN" : locale, {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(date);
 }
 
 type CellKind = "empty" | "none" | "zero" | "score";
@@ -39,6 +41,7 @@ function HeatRow({
   byDate,
   today,
   maxAbs,
+  formatTitle,
 }: {
   label: string;
   isSelected: boolean;
@@ -46,6 +49,7 @@ function HeatRow({
   byDate: Record<string, SbcDay>;
   today: string;
   maxAbs: number;
+  formatTitle: (date: string, day: SbcDay | undefined) => string;
 }) {
   return (
     <div
@@ -75,11 +79,7 @@ function HeatRow({
           return (
             <div
               key={date}
-              title={`${fmtTick(date)} · ${
-                day
-                  ? `${day.vedhaCount} signal${day.vedhaCount === 1 ? "" : "s"} · net ${day.netScore}`
-                  : "not calculated yet"
-              }`}
+              title={formatTitle(date, day)}
               className={`relative h-3.5 w-2 rounded-[2px] ${base} ${
                 isToday ? "ring-1 ring-accent" : ""
               }`}
@@ -97,7 +97,7 @@ function HeatRow({
 }
 
 export function SbcSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data, isLoading, isError } = useSbc();
   const [selected, setSelected] = useState<string>("nifty50");
 
@@ -106,6 +106,18 @@ export function SbcSection() {
   const isEmpty = !isLoading && !isError && assets.every((a) => Object.keys(a.byDate).length === 0);
   const selectedAsset = assets.find((a) => a.assetKey === selected) ?? assets[0];
   const todayDay = selectedAsset?.byDate[value?.today ?? ""];
+  const locale = i18n.language;
+  const formatTitle = (date: string, day: SbcDay | undefined) =>
+    `${fmtTick(date, locale)} · ${
+      day
+        ? `${t(
+            day.vedhaCount === 1 ? "sections.sbc.signalCountOne" : "sections.sbc.signalCountMany",
+            {
+              count: day.vedhaCount,
+            },
+          )} · ${t("sections.sbc.netScore", { score: day.netScore })}`
+        : t("sections.sbc.notComputed")
+    }`;
   const assetLabel = (assetKey: string) =>
     assetKey === "mcxgold"
       ? t("sections.barometer.assets.bullion")
@@ -163,14 +175,17 @@ export function SbcSection() {
                       byDate={asset.byDate}
                       today={value.today}
                       maxAbs={value.maxAbs}
+                      formatTitle={formatTitle}
                     />
                   </div>
                 ))}
                 <div className="ml-20 mt-1 flex justify-between text-[9px] text-muted-foreground">
-                  <span>{fmtTick(value.dates[0] ?? "")}</span>
-                  <span>{fmtTick(value.dates[Math.floor(value.dates.length / 2)] ?? "")}</span>
+                  <span>{fmtTick(value.dates[0] ?? "", locale)}</span>
                   <span>
-                    {t("sections.sbc.today")} · {fmtTick(value.today)}
+                    {fmtTick(value.dates[Math.floor(value.dates.length / 2)] ?? "", locale)}
+                  </span>
+                  <span>
+                    {t("sections.sbc.today")} · {fmtTick(value.today, locale)}
                   </span>
                 </div>
               </div>

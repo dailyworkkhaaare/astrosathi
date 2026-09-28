@@ -182,7 +182,7 @@ export function CosmosOverview({ onSelectTab }: { onSelectTab: (tab: CosmosOverv
             <ChevronRight size={16} aria-hidden="true" />
           </button>
         </div>
-        <DashaSection />
+        <DashaSection compact />
       </section>
 
       <section aria-labelledby="cosmos-gateways-heading">

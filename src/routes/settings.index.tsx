@@ -27,6 +27,7 @@ import {
   getPreferences,
   loadPreferencesFromProfile,
   updatePreferences,
+  APP_VERSION,
   type Preferences,
 } from "@/lib/preferences";
 
@@ -294,11 +295,18 @@ function SettingsPage() {
         <Divider />
         <LegalRow to="/privacy" label={t("settings.legal.privacy")} icon={<ShieldIcon />} />
         <Divider />
-        <div className="px-4 py-2.5 text-center">
-          <p className="text-xs font-medium text-foreground">{t("settings.about")}</p>
-          <p className="mt-0.5 font-display italic text-xs text-muted-foreground">
+        <div className="px-4 py-3">
+          <p className="text-sm font-medium text-foreground">{t("settings.about")}</p>
+          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
             {t("settings.aboutBody")}
           </p>
+        </div>
+        <Divider />
+        <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-3">
+          <span className="text-sm font-medium text-foreground">{t("settings.versionLabel")}</span>
+          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            {t("settings.version", { v: APP_VERSION })}
+          </span>
         </div>
       </Group>
 

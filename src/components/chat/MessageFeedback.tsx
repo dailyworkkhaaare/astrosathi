@@ -7,9 +7,27 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { CalendarCheck, Check, Copy, Loader2, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+  CalendarCheck,
+  Check,
+  Copy,
+  Loader2,
+  Share2,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { shareNative, triggerHaptic } from "@/lib/native-device";
 import {
   submitOutcome,
   submitRating,
@@ -111,9 +129,9 @@ function RowIconButton({
   );
 }
 
-// Shared shape for the outcome / remedy popover controls: an icon-only
-// trigger (gold when answered, with a truncated micro-label of the choice)
-// that opens a small single-select chip popover.
+// Shared shape for the outcome / remedy controls. Desktop keeps a compact
+// chip popover; mobile uses a sheet with larger rows that are easier to scan
+// and select with a thumb.
 function FollowUpControl<TValue extends string>({
   icon,
   triggerLabel,
@@ -132,7 +150,8 @@ function FollowUpControl<TValue extends string>({
   onSelect: (value: TValue) => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [desktopOpen, setDesktopOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const selected = options.find((o) => o.value === value);
   const isNegative = selected ? negativeValues.includes(selected.value) : false;
@@ -142,81 +161,130 @@ function FollowUpControl<TValue extends string>({
     setPending(true);
     try {
       await onSelect(v);
-      window.setTimeout(() => setOpen(false), 250);
+      window.setTimeout(() => {
+        setDesktopOpen(false);
+        setMobileOpen(false);
+      }, 250);
     } finally {
       setPending(false);
     }
   };
 
+  const renderTrigger = (expanded: boolean) => (
+    <button
+      type="button"
+      aria-label={triggerLabel}
+      aria-expanded={expanded}
+      aria-busy={pending}
+      title={triggerLabel}
+      disabled={pending}
+      className={cn(
+        "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70",
+        selected ? triggerWithLabel : triggerIconOnly,
+        selected
+          ? isNegative
+            ? "bg-destructive/10 text-destructive-strong"
+            : "bg-accent/10 text-accent"
+          : triggerIdle,
+      )}
+    >
+      {pending ? (
+        <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+      ) : (
+        icon
+      )}
+      {selected && (
+        <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-none">
+          {t(selected.labelKey)}
+        </span>
+      )}
+    </button>
+  );
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={triggerLabel}
-          aria-expanded={open}
-          aria-busy={pending}
-          title={triggerLabel}
-          disabled={pending}
-          className={cn(
-            "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70",
-            selected ? triggerWithLabel : triggerIconOnly,
-            selected
-              ? isNegative
-                ? "bg-destructive/10 text-destructive-strong"
-                : "bg-accent/10 text-accent"
-              : triggerIdle,
-          )}
-        >
-          {pending ? (
-            <Loader2
-              size={16}
-              className="animate-spin motion-reduce:animate-none"
-              aria-hidden="true"
-            />
-          ) : (
-            icon
-          )}
-          {selected && (
-            <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-none">
-              {t(selected.labelKey)}
-            </span>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={10}
-        className="motion-pop w-auto max-w-[15rem] rounded-2xl border-border/60 bg-popover p-3 text-popover-foreground shadow-lg duration-[220ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
-      >
-        <p className="mb-2 text-[11px] font-medium text-muted-foreground">{popoverTitle}</p>
-        <div className="flex max-w-[13rem] flex-wrap gap-1.5">
-          {options.map((opt) => {
-            const isSelected = opt.value === value;
-            const negative = negativeValues.includes(opt.value);
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => void handleSelect(opt.value)}
-                disabled={pending}
-                aria-pressed={isSelected}
-                className={cn(
-                  "tap-press min-h-9 rounded-full border px-2.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60",
-                  isSelected
-                    ? negative
-                      ? "border-destructive/40 bg-destructive/10 text-destructive-strong"
-                      : "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {t(opt.labelKey)}
-              </button>
-            );
-          })}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <>
+      <div className="hidden md:block">
+        <Popover open={desktopOpen} onOpenChange={setDesktopOpen}>
+          <PopoverTrigger asChild>{renderTrigger(desktopOpen)}</PopoverTrigger>
+          <PopoverContent
+            align="start"
+            sideOffset={10}
+            className="motion-pop w-auto max-w-[15rem] rounded-2xl border-border/60 bg-popover p-3 text-popover-foreground shadow-lg duration-[220ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+          >
+            <p className="mb-2 text-[11px] font-medium text-muted-foreground">{popoverTitle}</p>
+            <div className="flex max-w-[13rem] flex-wrap gap-1.5">
+              {options.map((opt) => {
+                const isSelected = opt.value === value;
+                const negative = negativeValues.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => void handleSelect(opt.value)}
+                    disabled={pending}
+                    aria-pressed={isSelected}
+                    className={cn(
+                      "tap-press min-h-9 rounded-full border px-2.5 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60",
+                      isSelected
+                        ? negative
+                          ? "border-destructive/40 bg-destructive/10 text-destructive-strong"
+                          : "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {t(opt.labelKey)}
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="md:hidden">
+        <Drawer open={mobileOpen} onOpenChange={setMobileOpen}>
+          <DrawerTrigger asChild>{renderTrigger(mobileOpen)}</DrawerTrigger>
+          <DrawerContent
+            aria-label={popoverTitle}
+            className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+          >
+            <DrawerHeader className="px-5 pb-4 pt-5 text-left">
+              <DrawerTitle className="font-display text-xl">{popoverTitle}</DrawerTitle>
+              <DrawerDescription className="leading-relaxed">{triggerLabel}</DrawerDescription>
+            </DrawerHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
+              <div role="listbox" aria-label={popoverTitle} className="space-y-2">
+                {options.map((opt) => {
+                  const isSelected = opt.value === value;
+                  const negative = negativeValues.includes(opt.value);
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => void handleSelect(opt.value)}
+                      disabled={pending}
+                      className={cn(
+                        "tap-press flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60",
+                        isSelected
+                          ? negative
+                            ? "border-destructive/40 bg-destructive/10 text-destructive-strong"
+                            : "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {t(opt.labelKey)}
+                      {isSelected && <Check size={16} aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+    </>
   );
 }
 
@@ -251,6 +319,12 @@ export function MessageActionRow({
   const [ratingBusy, setRatingBusy] = useState(false);
   const predictionSummary = summarize(content);
 
+  const handleShare = async () => {
+    const result = await shareNative({ title: t("chat.assistantName"), text: content });
+    if (result === "copied") toast.success(t("chat.sharedCopied"));
+    if (result === "shared") void triggerHaptic("success");
+  };
+
   const handleRate = async (rating: Rating) => {
     if (ratingBusy || !messageId) return;
     setRatingBusy(true);
@@ -259,6 +333,7 @@ export function MessageActionRow({
     const prevRating = feedback?.rating;
     const willClear = prevRating === rating;
     onFeedbackChange(messageId, { rating: willClear ? undefined : rating });
+    void triggerHaptic(rating === "up" ? "success" : "warning");
     const res = await submitRating({
       messageId,
       conversationId: conversationId ?? undefined,
@@ -280,6 +355,7 @@ export function MessageActionRow({
     if (!messageId) return;
     const prev = feedback?.outcome;
     onFeedbackChange(messageId, { outcome });
+    void triggerHaptic(outcome === "did_not" ? "warning" : "success");
     const res = await submitOutcome({
       messageId,
       conversationId: conversationId ?? undefined,
@@ -298,6 +374,7 @@ export function MessageActionRow({
     if (!messageId) return;
     const prev = feedback?.remedyHelped;
     onFeedbackChange(messageId, { remedyHelped });
+    void triggerHaptic(remedyHelped === "no" ? "warning" : "success");
     const res = await submitRemedyFeedback({
       messageId,
       conversationId: conversationId ?? undefined,
@@ -320,6 +397,9 @@ export function MessageActionRow({
     >
       <RowIconButton label={copied ? t("chat.copied") : t("chat.copy")} onClick={onCopy}>
         {copied ? <Check size={16} className="text-accent" /> : <Copy size={16} />}
+      </RowIconButton>
+      <RowIconButton label={t("chat.share")} onClick={() => void handleShare()}>
+        <Share2 size={16} />
       </RowIconButton>
 
       {messageId && (

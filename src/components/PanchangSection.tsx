@@ -1,4 +1,4 @@
-import { CalendarDays, Clock3, MapPin, Sunrise, Sunset } from "lucide-react";
+import { CalendarDays, Clock3, Sunrise, Sunset } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { NAKSHATRAS } from "@/lib/charts";
@@ -27,7 +27,7 @@ export function PanchangSection() {
     timeZone: tz,
   }).format(new Date());
   const fmtTime = (dt: Date) =>
-    new Intl.DateTimeFormat("en-US", {
+    new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
       timeZone: tz,
       hour: "numeric",
       minute: "2-digit",
@@ -71,10 +71,6 @@ export function PanchangSection() {
               <span className="inline-flex items-center gap-1.5">
                 <CalendarDays size={15} className="text-accent" aria-hidden="true" />
                 {dayLabel}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin size={15} className="text-accent" aria-hidden="true" />
-                {tz}
               </span>
             </div>
 

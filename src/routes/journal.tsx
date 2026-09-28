@@ -5,10 +5,20 @@ import { ArrowLeft, BookHeart, Plus, RefreshCw, Tag, Trash2, X } from "lucide-re
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { Button } from "@/components/ui/button";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { JourneyAskDialog, type JourneyAskSource } from "@/components/journey/JourneyAskDialog";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { cn } from "@/lib/utils";
+import { triggerHaptic } from "@/lib/native-device";
 import { ConfirmDialog } from "@/components/settings/primitives";
 import {
   useCreateJournalEntry,
@@ -299,10 +309,12 @@ function JournalPage() {
           onClose={() => setFormTarget(null)}
           onCreate={async (input) => {
             await createMutation.mutateAsync(input);
+            void triggerHaptic("success");
             setFormTarget(null);
           }}
           onUpdate={async (id, patch) => {
             await updateMutation.mutateAsync({ id, patch });
+            void triggerHaptic("success");
             setFormTarget(null);
           }}
         />
@@ -317,6 +329,7 @@ function JournalPage() {
           onCancel={() => setDeleteTarget(null)}
           onConfirm={async () => {
             await deleteMutation.mutateAsync(deleteTarget.id);
+            void triggerHaptic("warning");
             setDeleteTarget(null);
           }}
         />
@@ -542,19 +555,12 @@ function JournalEntryFormDialog({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="journal-entry-form-title"
-      aria-describedby="journal-entry-form-note"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[1.75rem] border border-border bg-card p-5 shadow-[var(--shadow-elevated)] sm:p-6"
-        onClick={(e) => e.stopPropagation()}
+    <Drawer open onOpenChange={(open) => !open && onClose()} shouldScaleBackground={false}>
+      <DrawerContent
+        aria-describedby="journal-entry-form-note"
+        className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
       >
-        <div className="mb-6 flex items-start justify-between gap-4">
+        <DrawerHeader className="flex flex-row items-start justify-between gap-4 px-5 pb-4 pt-5 text-left sm:px-6">
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-accent/12 text-accent ring-1 ring-accent/25">
               <BookHeart size={19} aria-hidden="true" />
@@ -563,32 +569,35 @@ function JournalEntryFormDialog({
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 {t("journal.form.eyebrow")}
               </p>
-              <h3
-                id="journal-entry-form-title"
-                className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground"
-              >
+              <DrawerTitle className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground">
                 {isNew ? t("journal.addEntry") : t("journal.editEntry")}
-              </h3>
+              </DrawerTitle>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("journal.cancel")}
-            className="tap-press flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
-        </div>
+          <DrawerClose asChild>
+            <button
+              type="button"
+              aria-label={t("journal.cancel")}
+              className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          </DrawerClose>
+        </DrawerHeader>
 
-        <p
-          id="journal-entry-form-note"
-          className="mb-6 text-sm leading-relaxed text-muted-foreground"
+        <form
+          id="journal-entry-form"
+          className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 pb-5 sm:px-6"
+          onSubmit={onSubmit}
+          noValidate
         >
-          {t("journal.form.intro")}
-        </p>
+          <DrawerDescription
+            id="journal-entry-form-note"
+            className="mb-6 text-sm leading-relaxed text-muted-foreground"
+          >
+            {t("journal.form.intro")}
+          </DrawerDescription>
 
-        <form className="space-y-6" onSubmit={onSubmit} noValidate>
           <section aria-labelledby="journal-reflection-title" className="space-y-4">
             <div>
               <h4 id="journal-reflection-title" className="text-sm font-semibold text-foreground">
@@ -611,6 +620,10 @@ function JournalEntryFormDialog({
                 onChange={(e) => setContent(e.target.value)}
                 rows={7}
                 placeholder={t("journal.fields.contentPlaceholder")}
+                enterKeyHint="enter"
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                spellCheck
                 aria-invalid={!!errors.content}
                 aria-describedby={errors.content ? "journal-content-error" : undefined}
                 className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -637,6 +650,9 @@ function JournalEntryFormDialog({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={t("journal.fields.titlePlaceholder")}
+                enterKeyHint="next"
+                autoCapitalize="sentences"
+                autoCorrect="on"
                 className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -664,6 +680,7 @@ function JournalEntryFormDialog({
                 value={entryDate}
                 max={todayStr()}
                 onChange={(e) => setEntryDate(e.target.value)}
+                enterKeyHint="next"
                 aria-invalid={!!errors.date}
                 aria-describedby={errors.date ? "journal-date-error" : undefined}
                 className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -762,6 +779,9 @@ function JournalEntryFormDialog({
                 onKeyDown={onTagKeyDown}
                 onBlur={() => tagDraft.trim() && commitTag(tagDraft)}
                 placeholder={t("journal.fields.tagsPlaceholder")}
+                enterKeyHint="done"
+                autoCapitalize="none"
+                autoCorrect="off"
                 className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -770,22 +790,28 @@ function JournalEntryFormDialog({
           <div className="rounded-2xl border border-accent/20 bg-accent/[0.06] px-4 py-3 text-sm leading-relaxed text-muted-foreground">
             {t("journal.form.contextNote")}
           </div>
-
-          <div className="flex gap-2 border-t border-border pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              className="flex-1 border border-border bg-background"
-            >
-              {t("journal.cancel")}
-            </Button>
-            <Button type="submit" variant="primary" disabled={submitting} className="flex-1">
-              {submitting ? t("journal.saving") : t("journal.save")}
-            </Button>
-          </div>
         </form>
-      </div>
-    </div>
+
+        <DrawerFooter className="flex-row gap-2 px-5 sm:px-6">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            className="flex-1 border border-border bg-background"
+          >
+            {t("journal.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form="journal-entry-form"
+            variant="primary"
+            disabled={submitting}
+            className="flex-1"
+          >
+            {submitting ? t("journal.saving") : t("journal.save")}
+          </Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

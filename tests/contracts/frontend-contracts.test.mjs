@@ -10,6 +10,13 @@ import {
 } from "../../src/lib/todayTransits.ts";
 import { DOSHA_REMEDIES, PLANET_REMEDIES } from "../../src/lib/remedies.ts";
 import { isJourneyAskToken } from "../../src/lib/journey-ask.ts";
+import {
+  clearAllChatDrafts,
+  clearChatDraft,
+  readChatDraft,
+  saveChatDraft,
+} from "../../src/lib/chat-draft.ts";
+import { supportedDeepLinkPath } from "../../src/lib/native-device.ts";
 
 const ROOT = new URL("../../", import.meta.url);
 const readProjectFile = (path) => readFile(new URL(path, ROOT), "utf8");
@@ -178,6 +185,150 @@ test("Journey-to-Ask accepts opaque handoff tokens, never prompt text", () => {
   assert.equal(isJourneyAskToken("8c8f3c63-46f2-3a68-a0b2-49d284c77c67"), false);
 });
 
+test("Ask drafts are private, thread-scoped, and retained until a reply succeeds", async () => {
+  const [draftSource, chatSource] = await Promise.all([
+    readProjectFile("src/lib/chat-draft.ts"),
+    readProjectFile("src/routes/chat.tsx"),
+  ]);
+
+  assert.equal(typeof readChatDraft, "function");
+  assert.equal(typeof saveChatDraft, "function");
+  assert.equal(typeof clearChatDraft, "function");
+  assert.equal(typeof clearAllChatDrafts, "function");
+  assert.match(draftSource, /window\.sessionStorage/);
+  assert.match(draftSource, /encodeURIComponent\(userId\)/);
+  assert.match(chatSource, /setInput\(readChatDraft\(userId, id\)\)/);
+  assert.match(chatSource, /onChange=\{updateInput\}/);
+  assert.match(chatSource, /sendToBackend\(text, subjectRelatedChartId, conversationId\)/);
+  assert.equal((chatSource.match(/clearChatDraft\(userId, draftConversationId\)/g) ?? []).length, 2);
+});
+
+test("Ask protects typed questions across offline and sign-out boundaries", async () => {
+  const [chatSource, rootSource, draftSource, ...localeSources] = await Promise.all([
+    readProjectFile("src/routes/chat.tsx"),
+    readProjectFile("src/routes/__root.tsx"),
+    readProjectFile("src/lib/chat-draft.ts"),
+    ...["en", "hi", "mr"].map((locale) => readProjectFile(`src/i18n/locales/${locale}.json`)),
+  ]);
+
+  assert.match(chatSource, /!navigator\.onLine/);
+  assert.match(chatSource, /setError\(t\("chat\.errorOffline"\)\)/);
+  assert.match(rootSource, /clearAllChatDrafts\(\)/);
+  assert.match(draftSource, /export function clearAllChatDrafts/);
+
+  const localeNames = ["en", "hi", "mr"];
+  const locales = Object.fromEntries(
+    localeSources.map((source, index) => [localeNames[index], JSON.parse(source)]),
+  );
+  for (const locale of localeNames) {
+    assert.equal(typeof atPath(locales[locale], "chat.errorOffline"), "string");
+  }
+});
+
+test("native deep links normalize supported worlds and reject unknown destinations", () => {
+  assert.equal(supportedDeepLinkPath("astrosaathi://chat?seed=today"), "/chat?seed=today");
+  assert.equal(supportedDeepLinkPath("astrosaathi://ask?seed=today"), "/chat?seed=today");
+  assert.equal(supportedDeepLinkPath("astrosaathi://cosmos?tab=charts"), "/home?tab=charts");
+  assert.equal(supportedDeepLinkPath("astrosaathi://connections"), "/people");
+  assert.equal(supportedDeepLinkPath("astrosaathi://nudges"), "/nudges");
+  assert.equal(
+    supportedDeepLinkPath("astrosaathi://nudges/8c8f3c63-46f2-4a68-a0b2-49d284c77c67"),
+    "/nudges?focus=8c8f3c63-46f2-4a68-a0b2-49d284c77c67",
+  );
+  assert.equal(supportedDeepLinkPath("astrosaathi://life"), "/life");
+  assert.equal(supportedDeepLinkPath("astrosaathi://journal"), "/journal");
+  assert.equal(supportedDeepLinkPath("https://astrosathi.app/people/abc-123"), "/people/abc-123");
+  assert.equal(
+    supportedDeepLinkPath("https://astrosathi.app/people/abc-123/compatibility"),
+    "/people/abc-123/compatibility",
+  );
+  assert.equal(supportedDeepLinkPath("/today#panchang"), "/today#panchang");
+  assert.equal(supportedDeepLinkPath("https://astrosathi.app/settings"), null);
+  assert.equal(supportedDeepLinkPath("astrosaathi://nudges/not-a-nudge"), null);
+  assert.equal(supportedDeepLinkPath("https://astrosathi.app/people/abc-123/unexpected"), null);
+  assert.equal(supportedDeepLinkPath("not a url"), null);
+});
+
+test("Nudge notification targets focus their matching card with native controls", async () => {
+  const [routeSource, ...localeSources] = await Promise.all([
+    readProjectFile("src/routes/nudges.tsx"),
+    ...["en", "hi", "mr"].map((locale) => readProjectFile(`src/i18n/locales/${locale}.json`)),
+  ]);
+
+  assert.match(routeSource, /validateSearch/);
+  assert.match(routeSource, /Route\.useSearch\(\)/);
+  assert.match(routeSource, /scrollIntoView/);
+  assert.match(routeSource, /data-state=\{focused \? "targeted"/);
+  assert.match(routeSource, /triggerHaptic\("success"\)/);
+  assert.match(routeSource, /onClick=\{onRefresh\}/);
+
+  for (const source of localeSources) {
+    const locale = JSON.parse(source);
+    assert.equal(typeof atPath(locale, "nudges.refresh"), "string");
+  }
+});
+
+test("native resume refreshes the complete Today reading set", async () => {
+  const rootSource = await readProjectFile("src/routes/__root.tsx");
+
+  assert.match(rootSource, /onAppResume\(\(\) =>/);
+  for (const key of ["today-transits", "daily-horoscope", "panchang", "barometer"]) {
+    assert.match(rootSource, new RegExp(`\\"${key}\\"`));
+  }
+});
+
+test("native back behavior delegates to browser history without root exits", async () => {
+  const [nativeSource, rootSource, drawerSource] = await Promise.all([
+    readProjectFile("src/lib/native-device.ts"),
+    readProjectFile("src/routes/__root.tsx"),
+    readProjectFile("src/components/ui/drawer.tsx"),
+  ]);
+
+  assert.match(nativeSource, /onNativeBack/);
+  assert.match(nativeSource, /backButton/);
+  assert.match(rootSource, /<NativeBackSync \/>/);
+  assert.match(rootSource, /if \(closeTopNativeOverlay\(\)\) return;/);
+  assert.match(rootSource, /window\.history\.back\(\)/);
+  assert.match(rootSource, /window\.history\.length > 1/);
+  assert.match(drawerSource, /useNativeOverlayRegistration/);
+  const overlaySource = await readProjectFile("src/lib/native-overlay-stack.ts");
+  assert.match(overlaySource, /export function closeTopNativeOverlay/);
+  assert.match(overlaySource, /openOverlays\.pop\(\)/);
+});
+
+test("shared native overlays provide safe open and close feedback", async () => {
+  const [drawerSource, sheetSource] = await Promise.all([
+    readProjectFile("src/components/ui/drawer.tsx"),
+    readProjectFile("src/components/ui/sheet.tsx"),
+  ]);
+
+  for (const source of [drawerSource, sheetSource]) {
+    assert.match(source, /triggerHaptic/);
+    assert.match(source, /useNativeOverlayRegistration/);
+    assert.match(source, /triggerHaptic\("selection"\)/);
+    assert.match(source, /onOpenChange\?\.\(nextOpen\)/);
+  }
+});
+
+test("all destructive confirmations use the shared native drawer and back policy", async () => {
+  const [primitivesSource, ...callerSources] = await Promise.all([
+    readProjectFile("src/components/settings/primitives.tsx"),
+    ...[
+      "src/routes/life.tsx",
+      "src/routes/journal.tsx",
+      "src/routes/settings.index.tsx",
+      "src/routes/settings.memory.tsx",
+    ].map(readProjectFile),
+  ]);
+
+  assert.match(primitivesSource, /<Drawer open onOpenChange=\{\(open\) => !open && onCancel\(\)\}/);
+  assert.match(primitivesSource, /<DrawerFooter/);
+  assert.match(primitivesSource, /<DrawerClose asChild>/);
+  assert.match(primitivesSource, /shouldScaleBackground=\{false\}/);
+  assert.doesNotMatch(primitivesSource, /fixed inset-0 z-50 flex items-end/);
+  for (const source of callerSources) assert.match(source, /<ConfirmDialog/);
+});
+
 test("Journey-to-Ask copy exists in every locale with safe interpolation", async () => {
   const localeNames = ["en", "hi", "mr"];
   const locales = Object.fromEntries(
@@ -223,6 +374,73 @@ test("Journey-to-Ask copy exists in every locale with safe interpolation", async
   }
 });
 
+test("Ask chart status stays localized with safe profile interpolation", async () => {
+  const localeNames = ["en", "hi", "mr"];
+  const locales = Object.fromEntries(
+    await Promise.all(
+      localeNames.map(async (locale) => [
+        locale,
+        JSON.parse(await readProjectFile(`src/i18n/locales/${locale}.json`)),
+      ]),
+    ),
+  );
+
+  for (const path of ["chat.chartActive", "chat.profileChart"]) {
+    const english = atPath(locales.en, path);
+    assert.equal(typeof english, "string", `English key missing: ${path}`);
+    for (const locale of localeNames.slice(1)) {
+      const translated = atPath(locales[locale], path);
+      assert.equal(typeof translated, "string", `${locale} key missing: ${path}`);
+      assert.deepEqual(
+        placeholders(translated),
+        placeholders(english),
+        `${locale} placeholders differ: ${path}`,
+      );
+    }
+  }
+});
+
+test("life event templates preserve the existing save contract and stay localized", async () => {
+  const [routeSource, ...localeSources] = await Promise.all([
+    readProjectFile("src/routes/life.tsx"),
+    ...["en", "hi", "mr"].map((locale) => readProjectFile(`src/i18n/locales/${locale}.json`)),
+  ]);
+
+  assert.match(routeSource, /const EVENT_TEMPLATES/);
+  assert.match(routeSource, /<Drawer open/);
+  assert.match(routeSource, /<DrawerFooter/);
+  assert.doesNotMatch(routeSource, /className="fixed inset-0 z-50 flex items-end/);
+  assert.match(routeSource, /setTitle\(t\(`life\.form\.templates\.\$\{id\}\.title`\)\)/);
+  assert.match(routeSource, /setCategory\(category\)/);
+  assert.match(routeSource, /onCreate\(\{/);
+
+  const locales = Object.fromEntries(
+    localeSources.map((source, index) => [["en", "hi", "mr"][index], JSON.parse(source)]),
+  );
+  for (const path of [
+    "life.form.templatesTitle",
+    "life.form.templatesHint",
+    "life.form.templates.job.label",
+    "life.form.templates.job.title",
+    "life.form.templates.move.label",
+    "life.form.templates.move.title",
+    "life.form.templates.relationship.label",
+    "life.form.templates.relationship.title",
+    "life.form.templates.health.label",
+    "life.form.templates.health.title",
+  ]) {
+    const english = atPath(locales.en, path);
+    assert.equal(typeof english, "string", `English key missing: ${path}`);
+    for (const locale of ["hi", "mr"]) {
+      assert.equal(
+        typeof atPath(locales[locale], path),
+        "string",
+        `${locale} key missing: ${path}`,
+      );
+    }
+  }
+});
+
 test("Connections list preserves owner-scoped navigation and truthful birth-time precision", async () => {
   const [routeSource, ...localeSources] = await Promise.all([
     readProjectFile("src/routes/people.index.tsx"),
@@ -231,7 +449,13 @@ test("Connections list preserves owner-scoped navigation and truthful birth-time
   assert.match(routeSource, /useRelatedCharts\(\)/);
   assert.doesNotMatch(routeSource, /usePersonCharts|useCompatibility/);
   assert.match(routeSource, /to="\/people\/\$id"/);
+  assert.match(routeSource, /COMPAT_RELATIONS/);
+  assert.match(routeSource, /people\.quickActions\.ask/);
+  assert.match(routeSource, /subjectRelatedChartId: p\.id/);
   assert.match(routeSource, /p\.birth_time_known\s*\?\s*t\("people\.birthTimeKnown"\)/);
+  assert.match(routeSource, /sm:grid-cols-2/);
+  assert.match(routeSource, /last:border-b-0/);
+  assert.match(routeSource, /min-h-\[4\.75rem\]/);
 
   const localeNames = ["en", "hi", "mr"];
   const locales = Object.fromEntries(
@@ -243,6 +467,10 @@ test("Connections list preserves owner-scoped navigation and truthful birth-time
     "people.count",
     "people.birthTimeKnown",
     "people.birthTimeUnknown",
+    "people.quickActions.label",
+    "people.quickActions.chart",
+    "people.quickActions.ask",
+    "people.quickActions.compatibility",
     "people.loading",
     "people.emptyTitle",
   ];
@@ -299,6 +527,319 @@ test("add-person flow preserves validation, known-time handling, and the saved-p
       );
     }
   }
+});
+
+test("people add and edit forms use native drawer shells", async () => {
+  const [newSource, editSource] = await Promise.all([
+    readProjectFile("src/routes/people.new.tsx"),
+    readProjectFile("src/routes/people.$id.edit.tsx"),
+  ]);
+
+  for (const source of [newSource, editSource]) {
+    assert.match(source, /<Drawer\s+open/);
+    assert.match(source, /<DrawerContent/);
+    assert.match(source, /shouldScaleBackground=\{false\}/);
+    assert.match(source, /overflow-y-auto/);
+  }
+});
+
+test("journal reflection editor uses a native drawer shell and external action footer", async () => {
+  const routeSource = await readProjectFile("src/routes/journal.tsx");
+
+  assert.match(routeSource, /<Drawer\s+open/);
+  assert.match(routeSource, /<DrawerContent/);
+  assert.match(routeSource, /<DrawerFooter/);
+  assert.match(routeSource, /id="journal-entry-form"/);
+  assert.match(routeSource, /form="journal-entry-form"/);
+  assert.match(routeSource, /overflow-y-auto/);
+  assert.doesNotMatch(routeSource, /className="fixed inset-0 z-50 flex items-end/);
+});
+
+test("Cosmos Varga selector keeps desktop selection and adds a mobile chart sheet", async () => {
+  const routeSource = await readProjectFile("src/routes/home.tsx");
+
+  assert.match(routeSource, /function VargaExplorer/);
+  assert.match(routeSource, /<Drawer open=\{selectorOpen\}/);
+  assert.match(routeSource, /role="listbox"/);
+  assert.match(routeSource, /role="option"/);
+  assert.match(routeSource, /id="varga-select"/);
+  assert.match(routeSource, /setSelectorOpen\(false\)/);
+});
+
+test("Cosmos planet dignity states stay localized with a safe provider fallback", async () => {
+  const [routeSource, ...localeSources] = await Promise.all([
+    readProjectFile("src/routes/home.tsx"),
+    ...["en", "hi", "mr"].map((locale) => readProjectFile(`src/i18n/locales/${locale}.json`)),
+  ]);
+
+  assert.match(routeSource, /const PLANET_STATE_KEYS/);
+  assert.match(routeSource, /return key \? t\(key\) : state/);
+  assert.match(routeSource, /planetStateLabel\(s, t\)/);
+
+  for (const source of localeSources) {
+    const locale = JSON.parse(source);
+    for (const key of [
+      "exaltedDeep",
+      "exalted",
+      "debilitatedDeep",
+      "debilitated",
+      "moolatrikona",
+      "ownSign",
+      "combust",
+      "vargottama",
+    ]) {
+      assert.equal(typeof locale.home.planetStates[key], "string");
+    }
+  }
+});
+
+test("Cosmos selections provide safe native feedback", async () => {
+  const source = await readProjectFile("src/routes/home.tsx");
+
+  assert.match(source, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
+  assert.match(source, /const selectVarga =/);
+  assert.match(source, /const selectChartStyle =/);
+  assert.match(source, /handleChartHouseClick/);
+  assert.match(source, /onSelectHouse=\{\(house\) =>/);
+  assert.match(source, /setSelectedPlanet\(\(current\) =>/);
+  assert.match(source, /triggerHaptic\("selection"\)/);
+});
+
+test("Cosmos chart house regions remain keyboard and assistive-technology reachable", async () => {
+  const source = await readProjectFile("src/routes/home.tsx");
+
+  assert.match(source, /role="group"/);
+  assert.match(source, /aria-label=\{t\("home\.chartSelection\.accessibleList"\)\}/);
+  assert.match(source, /role="button"/);
+  assert.match(source, /tabIndex=\{0\}/);
+  assert.match(source, /aria-pressed=\{selectedHouse === r\.house\}/);
+  assert.match(source, /event\.key === "Enter" \|\| event\.key === " "/);
+});
+
+test("shared expandable sections provide safe native toggle feedback", async () => {
+  const source = await readProjectFile("src/components/ExpandableSection.tsx");
+
+  assert.match(source, /triggerHaptic/);
+  assert.match(source, /const setOpen = \(next: boolean\) =>/);
+  assert.match(source, /triggerHaptic\("selection"\)/);
+  assert.match(source, /aria-expanded=\{open\}/);
+  assert.match(source, /aria-controls=\{contentId\}/);
+});
+
+test("Journey-to-Ask confirmation uses the shared native drawer anatomy", async () => {
+  const routeSource = await readProjectFile("src/components/journey/JourneyAskDialog.tsx");
+
+  assert.match(routeSource, /<Drawer/);
+  assert.match(routeSource, /<DrawerContent/);
+  assert.match(routeSource, /<DrawerFooter/);
+  assert.match(routeSource, /<DrawerClose asChild/);
+  assert.match(routeSource, /overflow-y-auto/);
+  assert.doesNotMatch(routeSource, /<Dialog/);
+});
+
+test("Journey empty summaries keep their first actions actionable", async () => {
+  const routeSource = await readProjectFile("src/routes/journey.tsx");
+
+  assert.match(routeSource, /emptyDescription=\{t\("journey\.timeline\.emptyHint"\)\}/);
+  assert.match(
+    routeSource,
+    /latestEvent \? t\("journey\.viewTimeline"\) : t\("journey\.actions\.addEvent"\)/,
+  );
+  assert.match(
+    routeSource,
+    /latestEntry \? t\("journey\.viewJournal"\) : t\("journey\.actions\.writeReflection"\)/,
+  );
+  assert.match(routeSource, /description=\{emptyDescription\}/);
+});
+
+test("mobile Today, People and Journey actions keep native interaction affordances", async () => {
+  const [todaySource, peopleSource, journeySource, ...localeSources] = await Promise.all([
+    readProjectFile("src/routes/today.index.tsx"),
+    readProjectFile("src/routes/people.index.tsx"),
+    readProjectFile("src/routes/journey.tsx"),
+    ...["en", "hi", "mr"].map((locale) => readProjectFile(`src/i18n/locales/${locale}.json`)),
+  ]);
+
+  assert.match(todaySource, /onTouchStart=\{handleTouchStart\}/);
+  assert.match(todaySource, /onTouchEnd=\{handleTouchEnd\}/);
+  assert.match(todaySource, /today\.releaseToRefresh/);
+  assert.match(todaySource, /aria-live="polite"/);
+  assert.match(peopleSource, /people\.quickActions\.chartFor/);
+  assert.match(peopleSource, /people\.quickActions\.askAbout/);
+  assert.match(peopleSource, /people\.quickActions\.compatibilityWith/);
+  assert.match(peopleSource, /triggerHaptic\("selection"\)/);
+  assert.match(journeySource, /action=\{/);
+  assert.match(journeySource, /!empty \?/);
+
+  const locales = Object.fromEntries(
+    localeSources.map((source, index) => [ ["en", "hi", "mr"][index], JSON.parse(source) ]),
+  );
+  for (const path of [
+    "today.refreshing",
+    "today.pullToRefresh",
+    "today.releaseToRefresh",
+    "people.quickActions.chartFor",
+    "people.quickActions.askAbout",
+    "people.quickActions.compatibilityWith",
+  ]) {
+    const english = atPath(locales.en, path);
+    assert.equal(typeof english, "string", `English key missing: ${path}`);
+    for (const locale of ["hi", "mr"]) {
+      const translated = atPath(locales[locale], path);
+      assert.equal(typeof translated, "string", `${locale} key missing: ${path}`);
+      assert.deepEqual(
+        placeholders(translated),
+        placeholders(english),
+        `${locale} placeholders differ: ${path}`,
+      );
+    }
+  }
+});
+
+test("chat feedback keeps desktop popovers and adds mobile follow-up sheets", async () => {
+  const routeSource = await readProjectFile("src/components/chat/MessageFeedback.tsx");
+
+  assert.match(routeSource, /function FollowUpControl/);
+  assert.match(routeSource, /<Popover/);
+  assert.match(routeSource, /<Drawer/);
+  assert.match(routeSource, /role="listbox"/);
+  assert.match(routeSource, /role="option"/);
+  assert.match(routeSource, /setMobileOpen\(false\)/);
+});
+
+test("Ask composer exposes a native send keyboard action", async () => {
+  const routeSource = await readProjectFile("src/routes/chat.tsx");
+
+  assert.match(routeSource, /enterKeyHint="send"/);
+  assert.match(routeSource, /autoCapitalize="sentences"/);
+  assert.match(routeSource, /autoCorrect="on"/);
+  assert.match(routeSource, /e\.key === "Enter" && !e\.shiftKey/);
+});
+
+test("Journey writing forms expose native keyboard actions", async () => {
+  const [journalSource, lifeSource] = await Promise.all([
+    readProjectFile("src/routes/journal.tsx"),
+    readProjectFile("src/routes/life.tsx"),
+  ]);
+
+  assert.match(journalSource, /id="journal-content"[\s\S]*enterKeyHint="enter"/);
+  assert.match(journalSource, /id="journal-title"[\s\S]*enterKeyHint="next"/);
+  assert.match(journalSource, /id="journal-tags"[\s\S]*enterKeyHint="done"/);
+  assert.match(lifeSource, /id="life-title"[\s\S]*enterKeyHint="next"/);
+  assert.match(lifeSource, /id="life-description"[\s\S]*enterKeyHint="enter"/);
+  assert.match(lifeSource, /id="life-date"[\s\S]*enterKeyHint="done"/);
+});
+
+test("native form completion feedback covers People, Life and Journal", async () => {
+  const sources = await Promise.all([
+    readProjectFile("src/routes/people.new.tsx"),
+    readProjectFile("src/routes/people.$id.edit.tsx"),
+    readProjectFile("src/routes/life.tsx"),
+    readProjectFile("src/routes/journal.tsx"),
+  ]);
+
+  for (const source of sources) {
+    assert.match(source, /triggerHaptic/);
+  }
+  assert.match(sources[0], /triggerHaptic\("success"\)/);
+  assert.match(sources[1], /triggerHaptic\("success"\)/);
+  assert.match(sources[1], /triggerHaptic\("warning"\)/);
+  assert.match(sources[2], /triggerHaptic\("success"\)/);
+  assert.match(sources[2], /triggerHaptic\("warning"\)/);
+  assert.match(sources[3], /triggerHaptic\("success"\)/);
+  assert.match(sources[3], /triggerHaptic\("warning"\)/);
+});
+
+test("native theme chrome follows the active light or dark surface", async () => {
+  const [shellSource, nativeSource, preferencesSource, settingsSource] = await Promise.all([
+    readProjectFile("src/components/layout/AppShell.tsx"),
+    readProjectFile("src/lib/native-device.ts"),
+    readProjectFile("src/lib/preferences.ts"),
+    readProjectFile("src/routes/settings.preferences.tsx"),
+  ]);
+
+  assert.match(shellSource, /meta\[name="theme-color"\]/);
+  assert.match(shellSource, /--as-color-surface-canvas/);
+  assert.match(shellSource, /syncNativeSystemBars\(root\.classList\.contains\("dark"\)\)/);
+  assert.match(shellSource, /new MutationObserver\(syncThemeColor\)/);
+  assert.match(shellSource, /attributeFilter: \["class"\]/);
+  assert.match(nativeSource, /StatusBar/);
+  assert.match(nativeSource, /NavigationBar/);
+  assert.match(nativeSource, /export function syncNativeSystemBars/);
+  assert.match(nativeSource, /HAPTICS_STORAGE_KEY/);
+  assert.match(nativeSource, /hapticsEnabled\(\)/);
+  assert.match(preferencesSource, /haptics_enabled: boolean/);
+  assert.match(preferencesSource, /HAPTICS_STORAGE_KEY/);
+  assert.match(settingsSource, /id="pref-haptics"/);
+  assert.match(settingsSource, /haptics_enabled/);
+});
+
+test("Cosmos chart style selector keeps desktop select and adds a mobile sheet", async () => {
+  const routeSource = await readProjectFile("src/routes/home.tsx");
+
+  assert.match(routeSource, /function ChartStylePicker/);
+  assert.match(routeSource, /<Drawer open=\{open\}/);
+  assert.match(routeSource, /id="chart-style-select"/);
+  assert.match(routeSource, /role="listbox"/);
+  assert.match(routeSource, /role="option"/);
+  assert.match(routeSource, /setOpen\(false\)/);
+});
+
+test("person chart Varga selector uses the same native mobile sheet", async () => {
+  const routeSource = await readProjectFile("src/routes/people.$id.index.tsx");
+
+  assert.match(routeSource, /function PersonVargaPicker/);
+  assert.match(routeSource, /<Drawer open=\{open\}/);
+  assert.match(routeSource, /id="person-varga-select"/);
+  assert.match(routeSource, /role="listbox"/);
+  assert.match(routeSource, /role="option"/);
+  assert.match(routeSource, /setOpen\(false\)/);
+});
+
+test("Today daily signal keeps compact mobile space for recovery states", async () => {
+  const source = await readProjectFile("src/components/DailySignalHero.tsx");
+
+  assert.match(source, /compactMobileState/);
+  assert.match(source, /query\.isError \|\| data\?\.incomplete \|\| !signal/);
+  assert.match(source, /compactMobileState \? "min-h-0 py-4" : "min-h-\[14rem\] py-5"/);
+  assert.match(source, /todayOverview\.ask/);
+});
+
+test("Today daily signal keeps native sharing and clipboard fallback", async () => {
+  const source = await readProjectFile("src/components/DailySignalHero.tsx");
+
+  assert.match(source, /shareNative/);
+  assert.match(source, /todayOverview\.shareTitle/);
+  assert.match(source, /todayOverview\.sharedCopied/);
+  assert.match(source, /todayOverview\.share/);
+});
+
+test("Today timing recovery states stay compact and actionable", async () => {
+  const source = await readProjectFile("src/components/TodaySection.tsx");
+
+  assert.match(source, /flex flex-wrap items-center justify-between gap-3 rounded-xl/);
+  assert.match(source, /sections\.today\.loadError/);
+  assert.match(source, /border-dashed border-border bg-background\/60/);
+  assert.match(source, /sections\.today\.empty/);
+});
+
+test("Today secondary modules keep compact recovery rows and native Ask feedback", async () => {
+  const [panchang, barometer, glance, signal, home] = await Promise.all([
+    readProjectFile("src/components/PanchangSummaryCard.tsx"),
+    readProjectFile("src/components/BarometerSummaryCard.tsx"),
+    readProjectFile("src/components/TodayAtAGlance.tsx"),
+    readProjectFile("src/components/DailySignalHero.tsx"),
+    readProjectFile("src/routes/home.tsx"),
+  ]);
+
+  assert.match(panchang, /const unavailable = !isLoading/);
+  assert.match(panchang, /border-dashed border-border bg-background\/60/);
+  assert.match(barometer, /const unavailable = !loading/);
+  assert.match(barometer, /to="\/today\/markets"/);
+  assert.match(glance, /triggerHaptic\("selection"\)/);
+  assert.match(signal, /triggerHaptic\("selection"\)/);
+  assert.match(home, /const handlePlanetAsk = \(planet: DisplayPlanet\) => \{/);
+  assert.match(home, /onAsk=\{\(house\) => \{/);
 });
 
 test("remedy lookup covers every graha and preserves canonical day relationships", () => {
@@ -509,14 +1050,14 @@ test("compatibility overview keeps the selected pair and leads with returned rel
   assert.match(routeSource, /const partnerName = bundle\?\.partner\.name \?\? personBundle/);
   assert.match(
     routeSource,
-    /<CompatibilityOverview bundle=\{bundle\} partnerName=\{partnerName\} \/>/,
+    /<CompatibilityOverview bundle=\{bundle\} partnerName=\{partnerName\} onAsk=\{askAboutCompatibility\} \/>/,
   );
   assert.match(routeSource, /const \{ highlights \} = bundle\.synastry/);
   assert.match(routeSource, /const \{ total, max \} = bundle\.guna_milan/);
   assert.match(routeSource, /BENEFIC_PLANETS\.has\(match\[1\]\)/);
   assert.match(routeSource, /CONVERSATION_PLANETS\.has\(match\[1\]\)/);
   assert.ok(
-    routeSource.indexOf("<CompatibilityOverview bundle={bundle} partnerName={partnerName} />") <
+    routeSource.indexOf("<CompatibilityOverview bundle={bundle} partnerName={partnerName} onAsk={askAboutCompatibility} />") <
       routeSource.indexOf("<GunaMilanCard bundle={bundle} />"),
     "relationship patterns must precede the named traditional score",
   );
@@ -606,10 +1147,52 @@ test("compatibility details retain returned measures and offer retry without ala
   }
 });
 
+test("compatibility readings support native sharing and a contextual Ask handoff", async () => {
+  const [routeSource, nativeSource, ...localeSources] = await Promise.all([
+    readProjectFile("src/routes/people.$id.compatibility.tsx"),
+    readProjectFile("src/lib/native-device.ts"),
+    ...["en", "hi", "mr"].map((locale) => readProjectFile(`src/i18n/locales/${locale}.json`)),
+  ]);
+
+  assert.match(routeSource, /shareNative/);
+  assert.match(routeSource, /people\.compatibility\.shareTitle/);
+  assert.match(routeSource, /people\.compatibility\.shareScore/);
+  assert.match(routeSource, /people\.compatibility\.askSeed/);
+  assert.match(routeSource, /subjectRelatedChartId: id/);
+  assert.match(routeSource, /triggerHaptic\("success"\)/);
+  assert.match(nativeSource, /clipboard\.writeText/);
+  assert.match(nativeSource, /A denied clipboard permission should never interrupt the current reading/);
+
+  const locales = Object.fromEntries(
+    localeSources.map((source, index) => [["en", "hi", "mr"][index], JSON.parse(source)]),
+  );
+  for (const path of [
+    "people.compatibility.share",
+    "people.compatibility.shareTitle",
+    "people.compatibility.shareScore",
+    "people.compatibility.sharedCopied",
+    "people.compatibility.ask",
+    "people.compatibility.askSeed",
+  ]) {
+    const english = atPath(locales.en, path);
+    assert.equal(typeof english, "string", `English key missing: ${path}`);
+    for (const locale of ["hi", "mr"]) {
+      const translated = atPath(locales[locale], path);
+      assert.equal(typeof translated, "string", `${locale} key missing: ${path}`);
+      assert.deepEqual(
+        placeholders(translated),
+        placeholders(english),
+        `${locale} placeholders differ: ${path}`,
+      );
+    }
+  }
+});
+
 test("settings overview groups utility controls and keeps every destination reachable", async () => {
-  const [settingsSource, shellSource, ...localeSources] = await Promise.all([
+  const [settingsSource, shellSource, primitivesSource, ...localeSources] = await Promise.all([
     readProjectFile("src/routes/settings.index.tsx"),
     readProjectFile("src/components/layout/AppShell.tsx"),
+    readProjectFile("src/components/settings/primitives.tsx"),
     ...["en", "hi", "mr"].map((locale) => readProjectFile(`src/i18n/locales/${locale}.json`)),
   ]);
 
@@ -625,11 +1208,15 @@ test("settings overview groups utility controls and keeps every destination reac
   }
   assert.match(settingsSource, /to="\/settings\/preferences"/);
   assert.match(settingsSource, /updatePreferences\(\{ memory_opt_in \}\)/);
+  assert.match(settingsSource, /APP_VERSION/);
+  assert.match(settingsSource, /t\("settings\.version", \{ v: APP_VERSION \}\)/);
   assert.match(settingsSource, /await mockAuth\.signOut\(\)/);
   assert.match(settingsSource, /clearSession\(\)/);
   assert.doesNotMatch(settingsSource, /navigate\(\{ to: "\/(people|journal|life)" \}\)/);
   assert.match(shellSource, /to: "\/journey"/);
   assert.match(shellSource, /to: "\/people"/);
+  assert.match(primitivesSource, /rounded-2xl/);
+  assert.match(primitivesSource, /ml-4 h-px/);
 
   const localeNames = ["en", "hi", "mr"];
   const locales = Object.fromEntries(
@@ -642,6 +1229,8 @@ test("settings overview groups utility controls and keeps every destination reac
     "settings.guidance.title",
     "settings.voice.title",
     "settings.governance.title",
+    "settings.versionLabel",
+    "settings.version",
   ]) {
     const english = atPath(locales.en, path);
     assert.equal(typeof english, "string", `English key missing: ${path}`);
@@ -654,6 +1243,25 @@ test("settings overview groups utility controls and keeps every destination reac
         `${locale} placeholders differ: ${path}`,
       );
     }
+  }
+});
+
+test("settings subpages share one native back header", async () => {
+  const [primitivesSource, ...subpageSources] = await Promise.all([
+    readProjectFile("src/components/settings/primitives.tsx"),
+    ...[
+      "src/routes/settings.preferences.tsx",
+      "src/routes/settings.memory.tsx",
+      "src/routes/settings.proactive.tsx",
+      "src/routes/settings.voice.tsx",
+    ].map(readProjectFile),
+  ]);
+
+  assert.match(primitivesSource, /export function SettingsBackHeader/);
+  assert.match(primitivesSource, /h-11 w-11/);
+  for (const source of subpageSources) {
+    assert.match(source, /SettingsBackHeader/);
+    assert.doesNotMatch(source, /ArrowLeft/);
   }
 });
 
@@ -846,6 +1454,43 @@ test("experience preferences retain locale and theme persistence contracts", asy
         `${locale} placeholders differ: ${path}`,
       );
     }
+  }
+});
+
+test("native readiness copy exists in every locale", async () => {
+  const localeNames = ["en", "hi", "mr"];
+  const locales = Object.fromEntries(
+    await Promise.all(
+      localeNames.map(async (locale) => [
+        locale,
+        JSON.parse(await readProjectFile(`src/i18n/locales/${locale}.json`)),
+      ]),
+    ),
+  );
+
+  const english = atPath(locales.en, "states.offlineBanner");
+  assert.equal(typeof english, "string", "English key missing: states.offlineBanner");
+  assert.ok(english.trim(), "English offline banner copy should not be empty");
+  const englishOnline = atPath(locales.en, "states.onlineBanner");
+  assert.equal(typeof englishOnline, "string", "English key missing: states.onlineBanner");
+  assert.ok(englishOnline.trim(), "English online banner copy should not be empty");
+  for (const locale of localeNames.slice(1)) {
+    const translated = atPath(locales[locale], "states.offlineBanner");
+    assert.equal(typeof translated, "string", `${locale} key missing: states.offlineBanner`);
+    assert.ok(translated.trim(), `${locale} offline banner copy should not be empty`);
+    assert.deepEqual(
+      placeholders(translated),
+      placeholders(english),
+      `${locale} placeholders differ: states.offlineBanner`,
+    );
+    const translatedOnline = atPath(locales[locale], "states.onlineBanner");
+    assert.equal(typeof translatedOnline, "string", `${locale} key missing: states.onlineBanner`);
+    assert.ok(translatedOnline.trim(), `${locale} online banner copy should not be empty`);
+    assert.deepEqual(
+      placeholders(translatedOnline),
+      placeholders(englishOnline),
+      `${locale} placeholders differ: states.onlineBanner`,
+    );
   }
 });
 

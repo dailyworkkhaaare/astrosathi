@@ -36,6 +36,7 @@ import {
 import { readStoredLanguage, setLanguage } from "@/i18n";
 import { mockAuth, useAuthSession, type MockUser } from "@/lib/auth";
 import type { SignKey } from "@/lib/chart-types";
+import { syncNativeSystemBars, triggerHaptic } from "@/lib/native-device";
 import { applyTheme, bindSystemThemeListener, getPreferences } from "@/lib/preferences";
 import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
 
@@ -75,6 +76,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     bindSystemThemeListener();
     setHydrated(true);
   }, []);
+  useEffect(() => {
+    const root = document.documentElement;
+    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (!themeColor) return;
+
+    const syncThemeColor = () => {
+      const color = getComputedStyle(root).getPropertyValue("--as-color-surface-canvas").trim();
+      if (color) themeColor.content = color;
+      syncNativeSystemBars(root.classList.contains("dark"));
+    };
+
+    syncThemeColor();
+    const observer = new MutationObserver(syncThemeColor);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user } = useAuthSession();
   const logoTo = user ? "/home" : "/";
@@ -90,7 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/reset-password"
   ) {
     return (
-      <div className="as-atmosphere min-h-screen bg-background text-foreground">
+      <div className="as-atmosphere min-h-dvh bg-background text-foreground">
         {hydrated ? children : <HydrationSkeleton />}
       </div>
     );
@@ -98,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isChat = pathname === "/chat";
   const isLanding = pathname === "/";
   return (
-    <div className="as-atmosphere min-h-screen bg-background text-foreground md:flex">
+    <div className="as-atmosphere min-h-dvh bg-background text-foreground md:flex">
       {showNav && <DesktopRail pathname={pathname} />}
       <div className="flex min-w-0 flex-1 flex-col">
         {!isChat && !showNav && (
@@ -131,8 +148,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               ? "flex min-h-0 flex-1 flex-col"
               : "relative mx-auto w-full px-4 pb-8 sm:px-6 " +
                 (isLanding ? "max-w-[94rem] " : "max-w-4xl ") +
-                "pt-[calc(2.5rem+env(safe-area-inset-top))] md:pt-12 " +
-                (showNav ? "pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8" : "")
+                "pt-[calc(2.5rem+var(--as-safe-top))] md:pt-12 " +
+                (showNav
+                  ? "pb-[calc(var(--mobile-tabbar-h)+var(--as-safe-bottom)+1rem)] md:pb-8"
+                  : "")
           }
         >
           {hydrated ? (
@@ -445,7 +464,7 @@ function MobileProfileLauncher({ user }: { user: MockUser }) {
   };
 
   return (
-    <div className="absolute right-4 top-[calc(env(safe-area-inset-top)+2.5rem)] z-40 sm:right-6 md:hidden">
+    <div className="absolute right-[calc(1rem+var(--as-safe-right))] top-[calc(var(--as-safe-top)+2.5rem)] z-40 sm:right-6 md:hidden">
       <Drawer>
         <DrawerTrigger asChild>
           <button
@@ -457,7 +476,7 @@ function MobileProfileLauncher({ user }: { user: MockUser }) {
             <MoonSignAvatar avatar={avatar} size="mobile" />
           </button>
         </DrawerTrigger>
-        <DrawerContent className="rounded-t-[1.75rem] border-border bg-background px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <DrawerContent className="rounded-t-[1.75rem] border-border bg-background px-4 pb-[calc(1rem+var(--as-safe-bottom))]">
           <DrawerHeader className="px-1 pb-4 pt-6 text-left">
             <DrawerTitle>{t("nav.profileSettings")}</DrawerTitle>
             <DrawerDescription asChild>
@@ -507,7 +526,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
     <nav
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ paddingBottom: "var(--as-safe-bottom)" }}
     >
       <ul className="mx-auto flex max-w-md items-stretch justify-around px-2 pt-1.5 pb-1.5">
         {MOBILE_WORLD_ITEMS.map(({ to, labelKey, accessibleLabelKey, icon: Icon, emphasis }) => {
@@ -521,6 +540,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
                 to={to}
                 aria-current={active ? "page" : undefined}
                 aria-label={accessibleLabel}
+                onClick={() => void triggerHaptic(active ? "light" : "selection")}
                 className={
                   "tap-press flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                   (active

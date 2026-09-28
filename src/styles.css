@@ -389,6 +389,11 @@
      rather than baking it in here, to avoid double-counting it. Keep this
      in sync if MobileTabBar's padding/min-height ever changes. */
   --mobile-tabbar-h: 4.5rem;
+  --as-safe-top: env(safe-area-inset-top, 0px);
+  --as-safe-right: env(safe-area-inset-right, 0px);
+  --as-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --as-safe-left: env(safe-area-inset-left, 0px);
+  --as-native-touch-target: 44px;
   /* Compatibility aliases keep every current component operational. */
   --radius: var(--as-radius-technical);
   --background: var(--as-color-surface-canvas);
@@ -575,11 +580,18 @@
 }
 
 @layer base {
+  html {
+    min-height: 100%;
+    background-color: var(--color-background);
+    -webkit-text-size-adjust: 100%;
+  }
+
   * {
     border-color: var(--color-border);
   }
 
   body {
+    min-height: 100dvh;
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);

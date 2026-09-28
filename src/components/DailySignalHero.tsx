@@ -1,9 +1,12 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Check, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowRight, Check, MessageCircle, Share2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { useDailyHoroscope, type DailyHoroscopeReason } from "@/lib/queries";
+import { shareNative, triggerHaptic } from "@/lib/native-device";
+import { cn } from "@/lib/utils";
 
 export function DailySignalHero() {
   const { t, i18n } = useTranslation();
@@ -13,18 +16,34 @@ export function DailySignalHero() {
   const data = query.data;
   const reasons = data?.reasons?.summary.slice(0, 2) ?? [];
   const signal = data?.summary ? splitDailySummary(data.summary) : null;
+  const compactMobileState = !query.isPending && (query.isError || data?.incomplete || !signal);
 
   const askAboutToday = () => {
+    void triggerHaptic("selection");
     void navigate({
       to: "/chat",
       search: { seed: t("todayOverview.askSeed") },
     });
   };
 
+  const shareToday = async () => {
+    if (!signal) return;
+    const result = await shareNative({
+      title: t("todayOverview.shareTitle"),
+      text: [signal.theme, signal.context].filter(Boolean).join("\n\n"),
+      url: typeof window !== "undefined" ? window.location.href : undefined,
+    });
+    if (result === "shared") void triggerHaptic("success");
+    if (result === "copied") toast.success(t("todayOverview.sharedCopied"));
+  };
+
   return (
     <section
       aria-labelledby="daily-signal-heading"
-      className="relative isolate min-h-72 overflow-hidden rounded-[1.75rem] border border-accent/20 bg-card px-5 py-6 shadow-[var(--shadow-elevated)] sm:px-7 sm:py-8"
+      className={cn(
+        "relative isolate overflow-hidden rounded-[1.5rem] border border-accent/20 bg-card px-4 shadow-[var(--shadow-elevated)] sm:min-h-72 sm:rounded-[1.75rem] sm:px-7 sm:py-8",
+        compactMobileState ? "min-h-0 py-4" : "min-h-[14rem] py-5",
+      )}
     >
       <div
         aria-hidden="true"
@@ -37,47 +56,77 @@ export function DailySignalHero() {
           </span>
           {t("todayOverview.personalized")}
         </p>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-          <Check size={13} className="text-accent" aria-hidden="true" />
-          {t("todayOverview.chartGrounded")}
-        </span>
+        {!compactMobileState && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            <Check size={13} className="text-accent" aria-hidden="true" />
+            {t("todayOverview.chartGrounded")}
+          </span>
+        )}
       </div>
 
       {query.isPending ? (
         <DailySignalSkeleton label={t("todayOverview.loading")} />
       ) : query.isError ? (
-        <div className="mt-7 max-w-xl">
-          <h2 id="daily-signal-heading" className="font-display text-2xl text-foreground">
+        <div className="mt-5 max-w-xl sm:mt-7">
+          <h2
+            id="daily-signal-heading"
+            className={cn(
+              "font-display text-2xl text-foreground",
+              compactMobileState && "text-xl leading-tight",
+            )}
+          >
             {t("todayOverview.unavailableTitle")}
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {t("sections.horoscope.loadError")}
           </p>
-          <Button type="button" variant="outline" className="mt-5" onClick={() => query.refetch()}>
-            {t("states.retry")}
-          </Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => query.refetch()}>
+              {t("states.retry")}
+            </Button>
+            <Button type="button" variant="ghost" className="gap-2" onClick={askAboutToday}>
+              <MessageCircle size={16} aria-hidden="true" />
+              {t("todayOverview.ask")}
+            </Button>
+          </div>
         </div>
       ) : data?.incomplete ? (
-        <div className="mt-7 max-w-xl">
-          <h2 id="daily-signal-heading" className="font-display text-2xl text-foreground">
+        <div className="mt-5 max-w-xl sm:mt-7">
+          <h2
+            id="daily-signal-heading"
+            className={cn(
+              "font-display text-2xl text-foreground",
+              compactMobileState && "text-xl leading-tight",
+            )}
+          >
             {t("todayOverview.completeTitle")}
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {t("sections.horoscope.completeProfile")}
           </p>
           <Link
             to="/onboarding/birth"
-            className="tap-press mt-5 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("sections.horoscope.completeCta")}
           </Link>
         </div>
       ) : !signal ? (
-        <div className="mt-7 max-w-xl">
-          <h2 id="daily-signal-heading" className="font-display text-2xl text-foreground">
+        <div className="mt-5 max-w-xl sm:mt-7">
+          <h2
+            id="daily-signal-heading"
+            className={cn(
+              "font-display text-2xl text-foreground",
+              compactMobileState && "text-xl leading-tight",
+            )}
+          >
             {t("todayOverview.emptyTitle")}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">{t("sections.horoscope.empty")}</p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{t("sections.horoscope.empty")}</p>
+          <Button type="button" className="mt-4 gap-2 rounded-full px-5" onClick={askAboutToday}>
+            <MessageCircle size={16} aria-hidden="true" />
+            {t("todayOverview.ask")}
+          </Button>
         </div>
       ) : (
         <div className="mt-7">
@@ -117,10 +166,19 @@ export function DailySignalHero() {
             </div>
           ) : null}
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <div className="mt-6 flex flex-wrap items-center gap-2 sm:mt-7 sm:gap-3">
             <Button type="button" onClick={askAboutToday} className="gap-2 rounded-full px-5">
               <MessageCircle size={16} aria-hidden="true" />
               {t("todayOverview.ask")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void shareToday()}
+              className="gap-2 rounded-full px-4"
+            >
+              <Share2 size={16} aria-hidden="true" />
+              {t("todayOverview.share")}
             </Button>
             <Link
               to="/today/horoscope"
@@ -160,13 +218,19 @@ function EvidenceItem({ reason }: { reason: DailyHoroscopeReason }) {
 
 function DailySignalSkeleton({ label }: { label: string }) {
   return (
-    <div className="mt-7 space-y-4" aria-busy="true">
+    <div className="mt-6 space-y-3 sm:mt-7 sm:space-y-4" aria-busy="true" role="status">
       <h2 id="daily-signal-heading" className="sr-only">
         {label}
       </h2>
-      <div className="h-8 w-11/12 animate-pulse rounded-lg bg-muted" />
-      <div className="h-8 w-3/4 animate-pulse rounded-lg bg-muted" />
-      <div className="h-20 max-w-2xl animate-pulse rounded-2xl bg-muted" />
+      <div
+        className="h-8 w-11/12 motion-safe:animate-pulse rounded-lg bg-muted"
+        aria-hidden="true"
+      />
+      <div className="h-8 w-3/4 motion-safe:animate-pulse rounded-lg bg-muted" aria-hidden="true" />
+      <div
+        className="h-14 max-w-2xl motion-safe:animate-pulse rounded-2xl bg-muted sm:h-20"
+        aria-hidden="true"
+      />
     </div>
   );
 }

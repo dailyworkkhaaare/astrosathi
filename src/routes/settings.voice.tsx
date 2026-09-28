@@ -1,10 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, AudioLines, Loader2, Square, Volume2 } from "lucide-react";
+import { AudioLines, Loader2, Square, Volume2 } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
-import { Divider, Group, SegmentedGroup, Toggle } from "@/components/settings/primitives";
+import {
+  Divider,
+  Group,
+  SegmentedGroup,
+  SettingsBackHeader,
+  Toggle,
+} from "@/components/settings/primitives";
 import {
   Select,
   SelectContent,
@@ -53,18 +59,7 @@ function VoiceSettingsPage() {
 
   return (
     <section className="mx-auto max-w-2xl space-y-6">
-      <div className="motion-fade-up flex items-center gap-2">
-        <Link
-          to="/settings"
-          aria-label={t("settings.memory.back")}
-          className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <h1 className="font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl">
-          {t("voice.settingsTitle")}
-        </h1>
-      </div>
+      <SettingsBackHeader title={t("voice.settingsTitle")} backLabel={t("settings.memory.back")} />
 
       <Group
         title={t("voice.settingsTitle")}

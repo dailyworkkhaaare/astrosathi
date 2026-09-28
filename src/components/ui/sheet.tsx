@@ -6,8 +6,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useNativeOverlayRegistration } from "@/lib/native-overlay-stack";
+import { triggerHaptic } from "@/lib/native-device";
 
-const Sheet = SheetPrimitive.Root;
+const Sheet = ({
+  open,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Root>) => {
+  const handleOpenChange = useNativeOverlayRegistration(open, (nextOpen) => {
+    void triggerHaptic("selection");
+    onOpenChange?.(nextOpen);
+  });
+  return <SheetPrimitive.Root open={open} onOpenChange={handleOpenChange} {...props} />;
+};
 
 const SheetTrigger = SheetPrimitive.Trigger;
 

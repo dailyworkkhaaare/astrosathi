@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RefreshCw } from "lucide-react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { DailySignalHero } from "@/components/DailySignalHero";
@@ -7,8 +10,10 @@ import { DailyMantraSection } from "@/components/DailyMantraSection";
 import { PanchangSummaryCard } from "@/components/PanchangSummaryCard";
 import { BarometerSummaryCard } from "@/components/BarometerSummaryCard";
 import { TodaySection } from "@/components/TodaySection";
+import { TodayAtAGlance } from "@/components/TodayAtAGlance";
 import { TransitHighlightBand } from "@/components/TransitHighlightBand";
 import { useTodayTransits } from "@/lib/queries";
+import { triggerHaptic } from "@/lib/native-device";
 
 export const Route = createFileRoute("/today/")({
   head: () => ({
@@ -32,7 +37,11 @@ export const Route = createFileRoute("/today/")({
 function TodayPage() {
   useRequireOnboarding();
   const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
   const transitsQuery = useTodayTransits();
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartYRef = useRef<number | null>(null);
   const timezone = transitsQuery.data?.timezone;
 
   const dateLabel = new Intl.DateTimeFormat(i18n.language, {
@@ -43,21 +52,101 @@ function TodayPage() {
     ...(timezone ? { timeZone: timezone } : {}),
   }).format(new Date());
 
+  const refreshToday = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await queryClient.invalidateQueries({
+        predicate: (query) => {
+          if (query.queryKey[0] !== "chart-gateway") return false;
+          return ["today-transits", "daily-horoscope", "panchang", "barometer"].includes(
+            String(query.queryKey[1] ?? ""),
+          );
+        },
+      });
+      void triggerHaptic("selection");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+    if (refreshing || event.touches.length !== 1 || window.scrollY > 0) return;
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLElement>) => {
+    if (touchStartYRef.current === null || refreshing) return;
+    const currentY = event.touches[0]?.clientY;
+    if (currentY === undefined) return;
+    const distance = currentY - touchStartYRef.current;
+    setPullDistance(distance > 0 ? Math.min(72, Math.round(distance * 0.6)) : 0);
+  };
+
+  const resetPullGesture = () => {
+    touchStartYRef.current = null;
+    setPullDistance(0);
+  };
+
+  const handleTouchEnd = () => {
+    const shouldRefresh = pullDistance >= 52;
+    resetPullGesture();
+    if (shouldRefresh) void refreshToday();
+  };
+
   return (
-    <section className="space-y-8">
-      <header className="motion-fade-up">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-          <span>{dateLabel}</span>
-          {timezone ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{timezone}</span>
-            </>
-          ) : null}
+    <section
+      className="space-y-8 overscroll-y-contain"
+      aria-busy={refreshing}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={resetPullGesture}
+    >
+      <div
+        aria-hidden={pullDistance === 0 && !refreshing}
+        className="grid overflow-hidden text-xs font-medium text-muted-foreground transition-[height,opacity] duration-200"
+        style={{
+          height: refreshing ? 36 : pullDistance,
+          opacity: pullDistance > 0 || refreshing ? 1 : 0,
+        }}
+      >
+        <div className="flex items-center justify-center gap-2">
+          <RefreshCw
+            size={14}
+            aria-hidden="true"
+            className={refreshing ? "animate-spin" : pullDistance >= 52 ? "rotate-180" : ""}
+          />
+          {refreshing
+            ? t("today.refreshing")
+            : pullDistance >= 52
+              ? t("today.releaseToRefresh")
+              : t("today.pullToRefresh")}
         </div>
-        <h1 className="mt-1 font-display text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-          {t("today.title")}
-        </h1>
+      </div>
+      <p className="sr-only" role="status" aria-live="polite">
+        {refreshing ? t("today.refreshing") : ""}
+      </p>
+      <header className="motion-fade-up flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span>{dateLabel}</span>
+          </div>
+          <h1 className="mt-1 font-display text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
+            {t("today.title")}
+          </h1>
+        </div>
+        <button
+          type="button"
+          onClick={() => void refreshToday()}
+          disabled={refreshing}
+          aria-label={t("today.refresh")}
+          aria-busy={refreshing}
+          title={t("today.refresh")}
+          className="tap-press mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70"
+        >
+          <RefreshCw size={17} aria-hidden="true" className={refreshing ? "animate-spin" : ""} />
+        </button>
       </header>
 
       <div className="motion-fade-up motion-delay-1">
@@ -65,6 +154,7 @@ function TodayPage() {
       </div>
 
       <div className="motion-fade-up motion-delay-2 space-y-4">
+        <TodayAtAGlance />
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {t("todayOverview.currentTiming")}
         </p>

@@ -1,11 +1,14 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ChevronDown, Heart, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronDown, Heart, MessageCircle, Share2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { useCompatibility, usePersonCharts } from "@/lib/queries";
 import type { CompatibilityBundle, CompatibilityKuta } from "@/lib/related-charts";
+import { shareNative, triggerHaptic } from "@/lib/native-device";
 import { cn } from "@/lib/utils";
 import { ErrorState } from "@/components/states/ErrorState";
 
@@ -40,6 +43,7 @@ const KNOWN_ERROR_CODES = new Set([
 function CompatibilityPage() {
   useRequireOnboarding();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { id } = useParams({ from: "/people/$id/compatibility" });
   const personQuery = usePersonCharts(id);
   const query = useCompatibility(id);
@@ -50,6 +54,36 @@ function CompatibilityPage() {
   const partnerName = bundle?.partner.name ?? personBundle;
   const errorCode = query.isError ? "provider_error" : (query.data?.error?.code ?? null);
   const loading = query.isPending;
+
+  const askAboutCompatibility = () => {
+    if (!bundle) return;
+    void triggerHaptic("selection");
+    void navigate({
+      to: "/chat",
+      search: {
+        seed: t("people.compatibility.askSeed", {
+          partner: partnerName || t("people.compatibility.partnerFallback"),
+        }),
+        subjectRelatedChartId: id,
+      },
+    });
+  };
+
+  const shareCompatibility = async () => {
+    if (!bundle) return;
+    const partner = partnerName || t("people.compatibility.partnerFallback");
+    const { total, max, verdict } = bundle.guna_milan;
+    const result = await shareNative({
+      title: t("people.compatibility.shareTitle", { partner }),
+      text: [
+        t("people.compatibility.shareScore", { partner, got: total, max }),
+        t(`people.compatibility.gunaMilan.verdicts.${verdict}`),
+      ].join("\n\n"),
+      url: typeof window !== "undefined" ? window.location.href : undefined,
+    });
+    if (result === "shared") void triggerHaptic("success");
+    if (result === "copied") toast.success(t("people.compatibility.sharedCopied"));
+  };
 
   return (
     <section className="mx-auto max-w-2xl space-y-6">
@@ -62,7 +96,7 @@ function CompatibilityPage() {
         >
           <ArrowLeft size={18} aria-hidden="true" />
         </Link>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="as-micro text-primary">{t("people.compatibility.eyebrow")}</p>
           <h1 className="truncate font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl">
             {t("people.compatibility.title")}
@@ -73,6 +107,19 @@ function CompatibilityPage() {
             </p>
           ) : null}
         </div>
+        {bundle ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("people.compatibility.share")}
+            title={t("people.compatibility.share")}
+            onClick={() => void shareCompatibility()}
+            className="tap-press h-11 w-11 shrink-0 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Share2 size={18} aria-hidden="true" />
+          </Button>
+        ) : null}
       </header>
 
       {loading && (
@@ -98,7 +145,7 @@ function CompatibilityPage() {
 
       {!loading && bundle && (
         <>
-          <CompatibilityOverview bundle={bundle} partnerName={partnerName} />
+          <CompatibilityOverview bundle={bundle} partnerName={partnerName} onAsk={askAboutCompatibility} />
           <GunaMilanCard bundle={bundle} />
           <MangalCard bundle={bundle} partnerName={partnerName} />
           <SynastryCard bundle={bundle} partnerName={partnerName} />
@@ -111,9 +158,11 @@ function CompatibilityPage() {
 function CompatibilityOverview({
   bundle,
   partnerName,
+  onAsk,
 }: {
   bundle: CompatibilityBundle;
   partnerName: string;
+  onAsk: () => void;
 }) {
   const { t } = useTranslation();
   const displayPartner = partnerName || t("people.compatibility.partnerFallback");
@@ -145,6 +194,10 @@ function CompatibilityOverview({
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
             {t("people.compatibility.pairNote")}
           </p>
+          <Button type="button" variant="outline" onClick={onAsk} className="mt-4 gap-2 rounded-full">
+            <MessageCircle size={16} aria-hidden="true" />
+            {t("people.compatibility.ask")}
+          </Button>
         </div>
       </section>
 

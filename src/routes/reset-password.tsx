@@ -126,6 +126,7 @@ function ResetPasswordPage() {
                 id="new-password"
                 type="password"
                 autoComplete="new-password"
+                enterKeyHint="next"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1.5 h-12 w-full rounded-xl border border-input bg-background/80 px-3.5 text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -142,6 +143,7 @@ function ResetPasswordPage() {
                 id="confirm-password"
                 type="password"
                 autoComplete="new-password"
+                enterKeyHint="done"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 className="mt-1.5 h-12 w-full rounded-xl border border-input bg-background/80 px-3.5 text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"

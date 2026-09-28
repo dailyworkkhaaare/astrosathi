@@ -17,12 +17,15 @@ export const VEDIC_BY_ID: Record<number, string> = {
   102: "Ketu",
 };
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-export function fmtDateMs(ms: number): string {
+export function fmtDateMs(ms: number, locale = "en-IN"): string {
   const d = new Date(ms);
   if (Number.isNaN(d.getTime())) return "";
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return new Intl.DateTimeFormat(locale === "en" ? "en-IN" : locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
 }
 
 // Parse an ISO-8601 duration like "P10Y1M9DT22H1M41S".
@@ -181,8 +184,14 @@ export function RunningBadge() {
   );
 }
 
-export function DashaSection() {
-  const { t } = useTranslation();
+type CurrentDasha = {
+  maha: ClampedMaha;
+  antar: ClampedAntar | null;
+  pratyantar: ClampedPratyantar | null;
+};
+
+export function DashaSection({ compact = false }: { compact?: boolean }) {
+  const { t, i18n } = useTranslation();
   const query = useDasha();
   const loading = query.isPending;
   const errorMessage = query.isError
@@ -198,10 +207,14 @@ export function DashaSection() {
   return (
     <section
       aria-labelledby="dasha-heading"
-      className="rounded-2xl border border-border bg-card p-4 sm:p-6"
+      className={
+        compact
+          ? "rounded-[1.35rem] border border-border bg-card p-4"
+          : "rounded-2xl border border-border bg-card p-4 sm:p-6"
+      }
       style={{ boxShadow: "var(--shadow-soft)" }}
     >
-      <div className="mb-6 border-b border-border/70 pb-5">
+      <div className={compact ? "mb-4" : "mb-6 border-b border-border/70 pb-5"}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
           {t("sections.dasha.eyebrow")}
         </p>
@@ -214,12 +227,16 @@ export function DashaSection() {
           </h2>
           <p className="text-xs text-muted-foreground">{t("sections.dasha.subtitle")}</p>
         </div>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          {t("sections.dasha.description")}
-        </p>
-        <p className="mt-3 max-w-2xl border-l-2 border-primary/35 pl-3 text-xs leading-relaxed text-muted-foreground">
-          {t("sections.dasha.scope")}
-        </p>
+        {!compact && (
+          <>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              {t("sections.dasha.description")}
+            </p>
+            <p className="mt-3 max-w-2xl border-l-2 border-primary/35 pl-3 text-xs leading-relaxed text-muted-foreground">
+              {t("sections.dasha.scope")}
+            </p>
+          </>
+        )}
       </div>
 
       {loading && <DashaSkeleton />}
@@ -242,7 +259,13 @@ export function DashaSection() {
       )}
 
       {!loading && !errorMessage && periods && periods.length > 0 && (
-        <DashaBody periods={periods} balance={balance} now={now} />
+        <DashaBody
+          periods={periods}
+          balance={balance}
+          now={now}
+          compact={compact}
+          locale={i18n.language}
+        />
       )}
     </section>
   );
@@ -252,10 +275,14 @@ function DashaBody({
   periods,
   balance,
   now,
+  compact,
+  locale,
 }: {
   periods: DashaMaha[];
   balance: DashaBalance | null;
   now: number;
+  compact: boolean;
+  locale: string;
 }) {
   const { t } = useTranslation();
   // Derive birth instant from the API's own numbers: the end of the first
@@ -277,7 +304,7 @@ function DashaBody({
     return clampPeriods(periods, birthMs, cutoffMs);
   }, [periods, birthMs, cutoffMs]);
 
-  const current = useMemo(() => {
+  const current = useMemo<CurrentDasha | null>(() => {
     const maha = clamped.find((m) => isRunningMs(m.startMs, m.endMs, now)) ?? null;
     if (!maha) return null;
     const antar = maha.antardasha.find((a) => isRunningMs(a.startMs, a.endMs, now)) ?? null;
@@ -288,6 +315,11 @@ function DashaBody({
   }, [clamped, now]);
 
   const mahaRefs = useRef(new Map<string, HTMLLIElement>());
+
+  if (compact) {
+    return current ? <CurrentTimingCard current={current} compact locale={locale} /> : null;
+  }
+
   const registerMahaRef = (key: string, el: HTMLLIElement | null) => {
     if (el) mahaRefs.current.set(key, el);
     else mahaRefs.current.delete(key);
@@ -307,44 +339,7 @@ function DashaBody({
 
   return (
     <div className="space-y-5">
-      {current && (
-        <div
-          aria-labelledby="current-timing-heading"
-          className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-accent/10 to-transparent p-4 sm:p-5"
-          style={{ boxShadow: "var(--shadow-soft)" }}
-        >
-          <div className="mb-4 flex items-center gap-2">
-            <Sparkles size={16} aria-hidden="true" className="text-accent" />
-            <h3
-              id="current-timing-heading"
-              className="text-base font-semibold text-foreground sm:text-lg"
-            >
-              {t("sections.dasha.currentTiming")}
-            </h3>
-          </div>
-          <p className="mb-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            {current.antar
-              ? t("sections.dasha.currentSummaryWithAntar", {
-                  maha: label(current.maha).primary,
-                  antar: label(current.antar).primary,
-                })
-              : t("sections.dasha.currentSummary", { maha: label(current.maha).primary })}
-          </p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <CurrentCell label={t("sections.dasha.mahadasha")} p={current.maha} />
-            {current.antar && (
-              <CurrentCell label={t("sections.dasha.antardasha")} p={current.antar} />
-            )}
-            {current.pratyantar && (
-              <CurrentCell
-                label={t("sections.dasha.pratyantardasha")}
-                p={current.pratyantar}
-                sub={t("sections.dasha.untilDate", { date: fmtDateMs(current.pratyantar.endMs) })}
-              />
-            )}
-          </div>
-        </div>
-      )}
+      {current && <CurrentTimingCard current={current} locale={locale} />}
 
       {birthMs != null && cutoffMs != null && (
         <DashaTimeline
@@ -396,10 +391,65 @@ function DashaBody({
               key={mahaKey(m)}
               maha={m}
               now={now}
+              locale={locale}
               registerRef={(el) => registerMahaRef(mahaKey(m), el)}
             />
           ))}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+function CurrentTimingCard({
+  current,
+  compact = false,
+  locale,
+}: {
+  current: CurrentDasha;
+  compact?: boolean;
+  locale: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div
+      aria-labelledby="current-timing-heading"
+      className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-accent/10 to-transparent p-4 sm:p-5"
+      style={{ boxShadow: "var(--shadow-soft)" }}
+    >
+      <div className="mb-4 flex items-center gap-2">
+        <Sparkles size={16} aria-hidden="true" className="text-accent" />
+        <h3
+          id="current-timing-heading"
+          className={
+            compact
+              ? "text-base font-semibold text-foreground"
+              : "text-base font-semibold text-foreground sm:text-lg"
+          }
+        >
+          {t("sections.dasha.currentTiming")}
+        </h3>
+      </div>
+      <p className="mb-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        {current.antar
+          ? t("sections.dasha.currentSummaryWithAntar", {
+              maha: label(current.maha).primary,
+              antar: label(current.antar).primary,
+            })
+          : t("sections.dasha.currentSummary", { maha: label(current.maha).primary })}
+      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <CurrentCell label={t("sections.dasha.mahadasha")} p={current.maha} />
+        {current.antar && <CurrentCell label={t("sections.dasha.antardasha")} p={current.antar} />}
+        {current.pratyantar && (
+          <CurrentCell
+            label={t("sections.dasha.pratyantardasha")}
+            p={current.pratyantar}
+            sub={t("sections.dasha.untilDate", {
+              date: fmtDateMs(current.pratyantar.endMs, locale),
+            })}
+          />
+        )}
       </div>
     </div>
   );
@@ -439,10 +489,12 @@ function CurrentCell({
 function MahaRow({
   maha,
   now,
+  locale,
   registerRef,
 }: {
   maha: ClampedMaha;
   now: number;
+  locale: string;
   registerRef?: (el: HTMLLIElement | null) => void;
 }) {
   const { t } = useTranslation();
@@ -472,7 +524,7 @@ function MahaRow({
             </div>
             <div className="shrink-0 text-left text-xs text-muted-foreground sm:text-right">
               <div className="whitespace-nowrap tabular-nums">
-                {fmtDateMs(maha.startMs)} – {fmtDateMs(maha.endMs)}
+                {fmtDateMs(maha.startMs, locale)} – {fmtDateMs(maha.endMs, locale)}
               </div>
               <div className="tabular-nums text-muted-foreground/80">
                 {t("sections.dasha.yearsShort", { n: yearsBetweenMs(maha.startMs, maha.endMs) })}
@@ -491,7 +543,7 @@ function MahaRow({
           ) : (
             <ul className="divide-y divide-border/40">
               {maha.antardasha.map((a) => (
-                <AntarRow key={`${a.id}-${a.startMs}`} antar={a} now={now} />
+                <AntarRow key={`${a.id}-${a.startMs}`} antar={a} now={now} locale={locale} />
               ))}
             </ul>
           )}
@@ -501,7 +553,7 @@ function MahaRow({
   );
 }
 
-function AntarRow({ antar, now }: { antar: ClampedAntar; now: number }) {
+function AntarRow({ antar, now, locale }: { antar: ClampedAntar; now: number; locale: string }) {
   const { t } = useTranslation();
   const running = isRunningMs(antar.startMs, antar.endMs, now);
   return (
@@ -520,7 +572,7 @@ function AntarRow({ antar, now }: { antar: ClampedAntar; now: number }) {
               {running && <RunningBadge />}
             </div>
             <div className="shrink-0 whitespace-nowrap text-left text-xs tabular-nums text-muted-foreground sm:text-right">
-              {fmtDateMs(antar.startMs)} – {fmtDateMs(antar.endMs)}
+              {fmtDateMs(antar.startMs, locale)} – {fmtDateMs(antar.endMs, locale)}
             </div>
           </div>
           <ChevronDown
@@ -537,7 +589,12 @@ function AntarRow({ antar, now }: { antar: ClampedAntar; now: number }) {
           ) : (
             <ul className="divide-y divide-border/40">
               {antar.pratyantardasha.map((p) => (
-                <PratyantarRow key={`${p.id}-${p.startMs}`} pratyantar={p} now={now} />
+                <PratyantarRow
+                  key={`${p.id}-${p.startMs}`}
+                  pratyantar={p}
+                  now={now}
+                  locale={locale}
+                />
               ))}
             </ul>
           )}
@@ -547,7 +604,15 @@ function AntarRow({ antar, now }: { antar: ClampedAntar; now: number }) {
   );
 }
 
-function PratyantarRow({ pratyantar, now }: { pratyantar: ClampedPratyantar; now: number }) {
+function PratyantarRow({
+  pratyantar,
+  now,
+  locale,
+}: {
+  pratyantar: ClampedPratyantar;
+  now: number;
+  locale: string;
+}) {
   const running = isRunningMs(pratyantar.startMs, pratyantar.endMs, now);
   return (
     <li
@@ -564,7 +629,7 @@ function PratyantarRow({ pratyantar, now }: { pratyantar: ClampedPratyantar; now
         {running && <RunningBadge />}
       </div>
       <div className="shrink-0 whitespace-nowrap text-left tabular-nums sm:text-right">
-        {fmtDateMs(pratyantar.startMs)} – {fmtDateMs(pratyantar.endMs)}
+        {fmtDateMs(pratyantar.startMs, locale)} – {fmtDateMs(pratyantar.endMs, locale)}
       </div>
     </li>
   );

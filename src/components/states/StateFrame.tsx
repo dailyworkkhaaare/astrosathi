@@ -84,7 +84,7 @@ export function StateFrame({
       >
         {icon}
       </div>
-      <div className={cn("min-w-0", inline ? "flex-1" : "max-w-md")}>
+      <div className={cn("min-w-0", inline ? "min-w-[10rem] flex-1" : "max-w-md")}>
         <h2
           id={titleId}
           className={cn(
@@ -106,7 +106,11 @@ export function StateFrame({
           </p>
         )}
       </div>
-      {action && <div className={cn("shrink-0", inline ? "ml-auto" : "mt-1")}>{action}</div>}
+      {action && (
+        <div className={cn("shrink-0", inline ? "ml-auto max-sm:ml-0 max-sm:basis-full" : "mt-1")}>
+          {action}
+        </div>
+      )}
     </div>
   );
 }

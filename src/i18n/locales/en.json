@@ -2,6 +2,7 @@
   "common": {
     "continue": "Continue",
     "back": "Back",
+    "stepOf": "Step {{current}} of {{total}}",
     "language": "Language",
     "terms": "Terms",
     "privacy": "Privacy"

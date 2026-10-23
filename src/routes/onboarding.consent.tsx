@@ -71,7 +71,8 @@ function ConsentPage() {
 
   return (
     <OnboardingShell
-      step={1}
+      step={3}
+      showBack={false}
       eyebrow={t("consent.eyebrow")}
       title={t("consent.title")}
       subtitle={t("consent.body")}

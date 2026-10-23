@@ -2,6 +2,7 @@
   "common": {
     "continue": "पुढे जा",
     "back": "मागे",
+    "stepOf": "टप्पा {{current}} पैकी {{total}}",
     "language": "भाषा",
     "terms": "अटी व शर्ती",
     "privacy": "गोपनीयता"

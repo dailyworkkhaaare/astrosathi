@@ -2,6 +2,7 @@
   "common": {
     "continue": "आगे बढ़ें",
     "back": "वापस",
+    "stepOf": "चरण {{current}} / {{total}}",
     "language": "भाषा",
     "terms": "नियम व शर्ते",
     "privacy": "गोपनीयता"

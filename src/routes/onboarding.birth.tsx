@@ -176,7 +176,8 @@ function BirthPage() {
   if (submitting) {
     return (
       <OnboardingShell
-        step={2}
+        step={5}
+        showBack={false}
         eyebrow={t("birth.title")}
         title={t("birth.castingTitle")}
         subtitle={t("birth.castingSubtitle", { place: form.place.trim(), date: form.dob })}
@@ -188,34 +189,14 @@ function BirthPage() {
 
   return (
     <OnboardingShell
-      step={2}
-      eyebrow={t("birth.title")}
+      step={stage === "identity" ? 4 : 5}
+      eyebrow={stage === "identity" ? t("birth.stageIdentity") : t("birth.stageBirth")}
       title={t("birth.title")}
+      showBack={stage === "birth"}
+      onBack={() => setStage("identity")}
       subtitle={stage === "identity" ? t("birth.identitySubtitle") : t("birth.subtitle")}
     >
       <form className="space-y-6" onSubmit={onSubmit} noValidate>
-        <div
-          className="flex items-center gap-2"
-          aria-label={t("birth.stageProgress", { current: stage === "identity" ? 1 : 2, total: 2 })}
-        >
-          {["identity", "birth"].map((item) => {
-            const active = item === stage;
-            const complete = stage === "birth" && item === "identity";
-            return (
-              <span
-                key={item}
-                className={`h-1.5 rounded-full transition-all ${
-                  active ? "w-10 bg-accent" : complete ? "w-6 bg-accent/60" : "w-6 bg-border"
-                }`}
-                aria-hidden="true"
-              />
-            );
-          })}
-          <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {stage === "identity" ? t("birth.stageIdentity") : t("birth.stageBirth")}
-          </span>
-        </div>
-
         {stage === "identity" ? (
           <>
             <div className="rounded-2xl border border-border bg-card/60 p-4">

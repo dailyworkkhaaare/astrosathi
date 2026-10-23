@@ -55,7 +55,7 @@ export function OnboardingShell({
 
       <div className="motion-fade-up flex flex-1 flex-col px-1 pt-3">
         {eyebrow ? (
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
             {eyebrow}
           </p>
         ) : null}

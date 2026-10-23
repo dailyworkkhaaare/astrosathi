@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, CalendarDays, Clock3, MapPin, ShieldCheck, Sparkles } from "lucide-react";
+import { ShieldCheck, Sparkles } from "lucide-react";
 import { useRequireAuth } from "@/lib/require-auth";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { Button } from "@/components/ui/button";
@@ -175,95 +175,104 @@ function BirthPage() {
 
   if (submitting) {
     return (
-      <OnboardingShell
-        step={5}
-        showBack={false}
-        eyebrow={t("birth.title")}
-        title={t("birth.castingTitle")}
-        subtitle={t("birth.castingSubtitle", { place: form.place.trim(), date: form.dob })}
-      >
-        <CastingCeremony />
-      </OnboardingShell>
+      <main className={MAIN_CLASS}>
+        <OnboardingShell
+          step={5}
+          showBack={false}
+          eyebrow={t("birth.title")}
+          title={t("birth.castingTitle")}
+          subtitle={t("birth.castingSubtitle", { place: form.place.trim(), date: form.dob })}
+        >
+          <CastingCeremony />
+        </OnboardingShell>
+      </main>
     );
   }
 
+  const identity = stage === "identity";
+
   return (
-    <OnboardingShell
-      step={stage === "identity" ? 4 : 5}
-      eyebrow={stage === "identity" ? t("birth.stageIdentity") : t("birth.stageBirth")}
-      title={t("birth.title")}
-      showBack={stage === "birth"}
-      onBack={() => setStage("identity")}
-      subtitle={stage === "identity" ? t("birth.identitySubtitle") : t("birth.subtitle")}
-    >
-      <form className="space-y-6" onSubmit={onSubmit} noValidate>
-        {stage === "identity" ? (
-          <>
-            <div className="rounded-2xl border border-border bg-card/60 p-4">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {t("birth.identityWhy")}
-              </p>
-            </div>
+    <main className={MAIN_CLASS}>
+      <OnboardingShell
+        step={identity ? 4 : 5}
+        eyebrow={identity ? t("birth.stageIdentity") : t("birth.stageBirth")}
+        title={t("birth.title")}
+        // From identity, back leaves the page (consent, or Settings when editing).
+        onBack={identity ? undefined : () => setStage("identity")}
+        subtitle={identity ? t("birth.identitySubtitle") : t("birth.subtitle")}
+        footer={
+          identity ? (
+            <Button
+              type="submit"
+              form="birth-identity-form"
+              variant="primary"
+              className="min-h-[3.375rem] w-full rounded-full text-[1.0625rem] font-semibold"
+            >
+              {t("birth.continueToBirth")}
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              form="birth-form"
+              variant="primary"
+              disabled={submitting}
+              className="min-h-[3.375rem] w-full rounded-full border border-[var(--as-color-solar-saffron-600)] bg-[var(--as-color-action-warm)] px-6 text-[1.0625rem] font-semibold text-[var(--as-color-action-warm-text)] shadow-[var(--as-elevation-glow)] hover:brightness-100 hover:saturate-[1.08]"
+            >
+              <Sparkles size={18} aria-hidden="true" />
+              {submitting ? t("auth.loading") : t("birth.calculateChart")}
+            </Button>
+          )
+        }
+      >
+        {identity ? (
+          <form
+            id="birth-identity-form"
+            onSubmit={(ev) => {
+              ev.preventDefault();
+              continueToBirthDetails();
+            }}
+            noValidate
+          >
             <BirthDetailsForm
               value={form}
               onChange={updateForm}
               errors={errors}
               todayMax={today}
               section="identity"
+              variant="grouped"
             />
-            <Button
-              type="button"
-              variant="primary"
-              onClick={continueToBirthDetails}
-              className="mt-2 h-12 w-full"
-            >
-              {t("birth.continueToBirth")}
-            </Button>
-          </>
+            <p className="px-4 pt-4 text-xs leading-relaxed text-muted-foreground">
+              {t("birth.identityWhy")}
+            </p>
+          </form>
         ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <BirthDetailReason icon={CalendarDays} text={t("birth.dateWhy")} />
-              <BirthDetailReason icon={Clock3} text={t("birth.timeWhy")} />
-              <BirthDetailReason icon={MapPin} text={t("birth.placeWhy")} />
-            </div>
+          <form id="birth-form" onSubmit={onSubmit} noValidate>
             <BirthDetailsForm
               value={form}
               onChange={updateForm}
               errors={errors}
               todayMax={today}
               section="birth"
+              variant="grouped"
             />
-            <p className="flex gap-2 text-xs leading-relaxed text-muted-foreground">
-              <ShieldCheck size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
+            {errors.name ? (
+              <p role="alert" className="px-4 pt-3 text-[0.8125rem] text-destructive-strong">
+                {errors.name}
+              </p>
+            ) : null}
+            <p className="mt-6 flex gap-2 px-4 text-xs leading-relaxed text-muted-foreground">
+              <ShieldCheck size={15} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
               {t("birth.privacyNote")}
             </p>
-            <div className="flex flex-col-reverse gap-3 pb-[calc(var(--mobile-tabbar-h)+5.5rem+env(safe-area-inset-bottom))] sm:flex-row sm:pb-0">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setStage("identity")}
-                className="h-11 border-transparent bg-transparent text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground sm:w-auto"
-              >
-                <ArrowLeft size={16} aria-hidden="true" />
-                {t("birth.back")}
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={submitting}
-                className="h-16 min-h-16 flex-1 rounded-2xl border border-[var(--as-color-solar-saffron-600)] bg-[var(--as-color-action-warm)] px-6 text-base font-semibold text-[var(--as-color-action-warm-text)] shadow-[var(--as-elevation-glow)] hover:brightness-100 hover:saturate-[1.08]"
-              >
-                <Sparkles size={18} aria-hidden="true" />
-                {submitting ? t("auth.loading") : t("birth.calculateChart")}
-              </Button>
-            </div>
-          </>
+          </form>
         )}
-      </form>
-    </OnboardingShell>
+      </OnboardingShell>
+    </main>
   );
 }
+
+const MAIN_CLASS =
+  "min-h-dvh w-full bg-background px-4 pt-[calc(var(--as-safe-top)+0.75rem)] text-foreground sm:px-6 md:pt-12";
 
 function CastingCeremony() {
   const { t } = useTranslation();
@@ -302,15 +311,6 @@ function CastingCeremony() {
         <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
         {t("birth.castingStatus")}
       </div>
-    </div>
-  );
-}
-
-function BirthDetailReason({ icon: Icon, text }: { icon: typeof CalendarDays; text: string }) {
-  return (
-    <div className="flex min-h-11 items-start gap-2 rounded-xl border border-border bg-card/60 p-3 text-xs leading-relaxed text-muted-foreground">
-      <Icon size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
-      <span>{text}</span>
     </div>
   );
 }

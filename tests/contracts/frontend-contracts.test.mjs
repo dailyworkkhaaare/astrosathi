@@ -17,6 +17,13 @@ import {
   saveChatDraft,
 } from "../../src/lib/chat-draft.ts";
 import { supportedDeepLinkPath } from "../../src/lib/native-device.ts";
+import {
+  astroArtSrc,
+  GRAHA_ART,
+  grahaArtByName,
+  SIGN_ART,
+  signArtByIndex,
+} from "../../src/lib/astro-art.ts";
 
 const ROOT = new URL("../../", import.meta.url);
 const readProjectFile = (path) => readFile(new URL(path, ROOT), "utf8");
@@ -200,7 +207,10 @@ test("Ask drafts are private, thread-scoped, and retained until a reply succeeds
   assert.match(chatSource, /setInput\(readChatDraft\(userId, id\)\)/);
   assert.match(chatSource, /onChange=\{updateInput\}/);
   assert.match(chatSource, /sendToBackend\(text, subjectRelatedChartId, conversationId\)/);
-  assert.equal((chatSource.match(/clearChatDraft\(userId, draftConversationId\)/g) ?? []).length, 2);
+  assert.equal(
+    (chatSource.match(/clearChatDraft\(userId, draftConversationId\)/g) ?? []).length,
+    2,
+  );
 });
 
 test("Ask protects typed questions across offline and sign-out boundaries", async () => {
@@ -672,7 +682,7 @@ test("mobile Today, People and Journey actions keep native interaction affordanc
   assert.match(journeySource, /!empty \?/);
 
   const locales = Object.fromEntries(
-    localeSources.map((source, index) => [ ["en", "hi", "mr"][index], JSON.parse(source) ]),
+    localeSources.map((source, index) => [["en", "hi", "mr"][index], JSON.parse(source)]),
   );
   for (const path of [
     "today.refreshing",
@@ -1057,8 +1067,9 @@ test("compatibility overview keeps the selected pair and leads with returned rel
   assert.match(routeSource, /BENEFIC_PLANETS\.has\(match\[1\]\)/);
   assert.match(routeSource, /CONVERSATION_PLANETS\.has\(match\[1\]\)/);
   assert.ok(
-    routeSource.indexOf("<CompatibilityOverview bundle={bundle} partnerName={partnerName} onAsk={askAboutCompatibility} />") <
-      routeSource.indexOf("<GunaMilanCard bundle={bundle} />"),
+    routeSource.indexOf(
+      "<CompatibilityOverview bundle={bundle} partnerName={partnerName} onAsk={askAboutCompatibility} />",
+    ) < routeSource.indexOf("<GunaMilanCard bundle={bundle} />"),
     "relationship patterns must precede the named traditional score",
   );
 
@@ -1161,7 +1172,10 @@ test("compatibility readings support native sharing and a contextual Ask handoff
   assert.match(routeSource, /subjectRelatedChartId: id/);
   assert.match(routeSource, /triggerHaptic\("success"\)/);
   assert.match(nativeSource, /clipboard\.writeText/);
-  assert.match(nativeSource, /A denied clipboard permission should never interrupt the current reading/);
+  assert.match(
+    nativeSource,
+    /A denied clipboard permission should never interrupt the current reading/,
+  );
 
   const locales = Object.fromEntries(
     localeSources.map((source, index) => [["en", "hi", "mr"][index], JSON.parse(source)]),
@@ -1628,4 +1642,30 @@ test("memory settings disclose lifecycle boundaries without changing privacy con
     atPath(locales.en, "settings.memory.deleteAllBody1"),
     /preferences aren't affected/i,
   );
+});
+
+test("astro artwork maps every rashi and graha to a shipped file", async () => {
+  assert.equal(SIGN_ART.length, 12);
+  assert.equal(signArtByIndex(0), "aries");
+  assert.equal(signArtByIndex(1), "taurus");
+  assert.equal(signArtByIndex(11), "pisces");
+  assert.equal(signArtByIndex(12), "aries");
+  assert.equal(signArtByIndex(null), null);
+  assert.equal(signArtByIndex(1.5), null);
+  assert.deepEqual([...GRAHA_ART], PLANETS);
+  assert.equal(grahaArtByName("Jupiter"), "jupiter");
+  assert.equal(grahaArtByName(" RAHU "), "rahu");
+  assert.equal(grahaArtByName("Ascendant"), null);
+  for (const [kind, names] of [
+    ["sign", SIGN_ART],
+    ["graha", GRAHA_ART],
+  ]) {
+    for (const name of names) {
+      for (const px of [256, 512]) {
+        const src = astroArtSrc(kind, name, px);
+        const bytes = await readFile(new URL(`public${src}`, ROOT));
+        assert.equal(bytes.subarray(8, 12).toString("ascii"), "WEBP", src);
+      }
+    }
+  }
 });

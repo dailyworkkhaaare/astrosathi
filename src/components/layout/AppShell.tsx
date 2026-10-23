@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { AstroArt } from "@/components/AstroArt";
 import { BrandMark } from "@/components/BrandMark";
 import { ContextDock } from "@/components/layout/ContextDock";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -351,6 +352,7 @@ function useMoonSignAvatar(user: MockUser) {
     label: moonLabel ? `${t("nav.profileSettings")} · ${moonLabel}` : t("nav.profileSettings"),
     title: moonLabel ?? t("nav.profileSettings"),
     value: moonSignKey ? SIGN_GLYPHS[moonSignKey] : avatarFallback(user),
+    moonSignKey,
     hasMoonSign: !!moonSignKey,
   };
 }
@@ -362,6 +364,20 @@ function MoonSignAvatar({
   avatar: ReturnType<typeof useMoonSignAvatar>;
   size?: "default" | "mobile";
 }) {
+  if (avatar.moonSignKey) {
+    // The gold Moon-sign coin replaces the text glyph, which some platforms
+    // render as a colour emoji.
+    return (
+      <span className="relative shrink-0" aria-hidden="true" title={avatar.title}>
+        <AstroArt
+          kind="sign"
+          name={avatar.moonSignKey}
+          size={size === "mobile" ? 40 : 32}
+          priority
+        />
+      </span>
+    );
+  }
   return (
     <span
       className={
@@ -476,7 +492,12 @@ function MobileProfileLauncher({ user }: { user: MockUser }) {
             type="button"
             aria-label={avatar.label}
             title={avatar.title}
-            className="tap-press grid h-11 w-11 place-items-center rounded-full border border-border/70 bg-card/85 shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={
+              "tap-press grid h-11 w-11 place-items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              (avatar.hasMoonSign
+                ? ""
+                : "border border-border/70 bg-card/85 shadow-[var(--shadow-soft)] backdrop-blur")
+            }
           >
             <MoonSignAvatar avatar={avatar} size="mobile" />
           </button>

@@ -110,6 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/auth" ||
     pathname === "/auth/callback" ||
     pathname === "/language" ||
+    pathname === "/onboarding/consent" ||
     pathname === "/reset-password"
   ) {
     return (

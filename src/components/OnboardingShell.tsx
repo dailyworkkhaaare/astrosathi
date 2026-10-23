@@ -69,7 +69,7 @@ export function OnboardingShell({
       </div>
 
       {footer ? (
-        <div className="sticky bottom-0 z-10 -mx-4 mt-6 bg-gradient-to-t from-background via-background/95 to-background/0 px-4 pb-[calc(0.75rem+var(--as-safe-bottom))] pt-4 sm:mx-0 sm:px-1 md:static md:bg-none md:pb-0">
+        <div className="sticky bottom-0 z-10 -mx-4 mt-6 bg-gradient-to-t from-background from-85% to-background/0 px-4 pb-[calc(0.75rem+var(--as-safe-bottom))] pt-4 sm:mx-0 sm:px-1 md:static md:bg-none md:pb-0">
           {footer}
         </div>
       ) : null}

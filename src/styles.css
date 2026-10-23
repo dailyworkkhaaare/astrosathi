@@ -200,6 +200,7 @@
   --as-color-action-warm: var(--as-color-solar-saffron-450);
   --as-color-action-warm-text: var(--as-color-ink-950);
   --as-color-action-intelligence: var(--as-color-aurora-cobalt-600);
+  --as-color-action-ask: var(--as-color-aurora-violet-600);
   --as-color-accent-context: var(--as-color-solar-saffron-600);
   --as-color-focus-inner: var(--as-color-dawn-0);
   --as-color-focus-outer: var(--as-color-aurora-cobalt-600);
@@ -472,6 +473,7 @@
   --as-color-action-warm: var(--as-color-solar-saffron-450);
   --as-color-action-warm-text: var(--as-color-ink-950);
   --as-color-action-intelligence: var(--as-color-aurora-violet-450);
+  --as-color-action-ask: var(--as-color-aurora-violet-450);
   --as-color-accent-context: var(--as-color-solar-saffron-450);
   --as-color-focus-inner: var(--as-color-night-950);
   --as-color-focus-outer: var(--as-color-solar-saffron-450);

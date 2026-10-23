@@ -32,6 +32,23 @@ function plugins(): CapacitorPlugins {
   return root.Capacitor?.Plugins ?? {};
 }
 
+export type AppPlatform = "ios" | "android" | "web";
+
+/**
+ * Which native conventions the shell should follow. Capacitor knows for sure;
+ * in a browser, Android user agents get Material chrome and everything else
+ * (iOS Safari, desktop) gets the iOS-style chrome, reported as "web".
+ */
+export function getAppPlatform(): AppPlatform {
+  const root = globalThis as typeof globalThis & {
+    Capacitor?: { getPlatform?: () => string };
+  };
+  const native = root.Capacitor?.getPlatform?.();
+  if (native === "ios" || native === "android") return native;
+  const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
+  return /Android/i.test(userAgent) ? "android" : "web";
+}
+
 function reducedMotion() {
   return (
     typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches

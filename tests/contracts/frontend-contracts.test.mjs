@@ -16,7 +16,7 @@ import {
   readChatDraft,
   saveChatDraft,
 } from "../../src/lib/chat-draft.ts";
-import { supportedDeepLinkPath } from "../../src/lib/native-device.ts";
+import { getAppPlatform, supportedDeepLinkPath } from "../../src/lib/native-device.ts";
 import {
   astroArtSrc,
   GRAHA_ART,
@@ -1667,5 +1667,27 @@ test("astro artwork maps every rashi and graha to a shipped file", async () => {
         assert.equal(bytes.subarray(8, 12).toString("ascii"), "WEBP", src);
       }
     }
+  }
+});
+
+test("shell platform follows Capacitor first, then the browser user agent", () => {
+  const root = globalThis;
+  const originalNavigator = Object.getOwnPropertyDescriptor(root, "navigator");
+  const setAgent = (userAgent) =>
+    Object.defineProperty(root, "navigator", { configurable: true, value: { userAgent } });
+  try {
+    setAgent("Mozilla/5.0 (Linux; Android 15; Pixel 9) Chrome/141");
+    assert.equal(getAppPlatform(), "android");
+    setAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) Safari/604.1");
+    assert.equal(getAppPlatform(), "web");
+    root.Capacitor = { getPlatform: () => "ios" };
+    setAgent("Mozilla/5.0 (Linux; Android 15)");
+    assert.equal(getAppPlatform(), "ios");
+    root.Capacitor = { getPlatform: () => "web" };
+    assert.equal(getAppPlatform(), "android");
+  } finally {
+    delete root.Capacitor;
+    if (originalNavigator) Object.defineProperty(root, "navigator", originalNavigator);
+    else delete root.navigator;
   }
 });

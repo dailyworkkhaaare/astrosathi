@@ -1,16 +1,13 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Languages, LockKeyhole, Orbit, ShieldCheck, Sparkles } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { BrandMark } from "@/components/BrandMark";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { OnboardingShell } from "@/components/OnboardingShell";
 import { LoadingState } from "@/components/states/LoadingState";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { mockAuth, useAuthSession } from "@/lib/auth";
 import { getOnboardingState, routeForOnboardingState } from "@/lib/birth-profile";
-import { APP_NAME } from "@/lib/brand";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -32,7 +29,7 @@ type Mode = "signin" | "signup" | "forgot";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INPUT_CLASS =
-  "h-12 w-full rounded-xl border border-input bg-background/80 px-3.5 text-foreground shadow-sm transition-[border-color,box-shadow,background-color] duration-[var(--motion-micro)] placeholder:text-muted-foreground/60 hover:border-primary/30 focus:border-primary/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring";
+  "h-11 w-full bg-transparent text-[1.0625rem] text-foreground placeholder:text-muted-foreground/70 focus:outline-none";
 
 function AuthRoute() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -164,88 +161,103 @@ function AuthPage() {
         ? t("auth.signUpSubtitle")
         : t("auth.forgotSubtitle");
 
+  const done = (mode === "signup" && !!confirmSent) || (mode === "forgot" && resetSent);
+
   return (
-    <main className="min-h-dvh w-full bg-background p-3 text-foreground sm:p-5 lg:p-6">
-      <div className="mx-auto grid min-h-[calc(100dvh-1.5rem)] w-full max-w-[88rem] overflow-hidden rounded-[2rem] border border-border/70 bg-card/75 shadow-[var(--shadow-elevated)] backdrop-blur sm:min-h-[calc(100dvh-2.5rem)] lg:grid-cols-[0.9fr_1.1fr]">
-        <AuthStory t={t} />
-
-        <section className="relative flex flex-col bg-background/75 px-5 pb-8 pt-5 sm:px-10 lg:px-[clamp(3rem,6vw,6rem)]">
-          <div className="flex items-center justify-end gap-2">
-            <ThemeToggle />
-            <LanguageSwitcher />
-          </div>
-          <div className="motion-fade-up mx-auto flex w-full max-w-[29rem] flex-1 flex-col justify-center py-7 sm:py-10">
-            {mode !== "forgot" && <AuthTabs mode={mode} switchMode={switchMode} t={t} />}
-
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
-              {t(mode === "forgot" ? "auth.recoveryEyebrow" : "auth.formEyebrow")}
-            </p>
-            <h1 className="font-display mt-3 text-balance text-3xl font-semibold leading-tight tracking-[-0.02em] text-foreground sm:text-4xl">
-              {t(
-                mode === "signin"
-                  ? "auth.signInTitle"
-                  : mode === "signup"
-                    ? "auth.signUpTitle"
-                    : "auth.forgotTitle",
-              )}
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{modeSubtitle}</p>
-
-            {formError && (
-              <div
-                role="alert"
-                className="mt-5 rounded-xl border border-destructive/40 bg-destructive/10 px-3.5 py-3 text-sm text-destructive-strong"
+    <main className="min-h-dvh w-full bg-background px-4 pt-[calc(var(--as-safe-top)+0.75rem)] text-foreground sm:px-6 md:pt-12">
+      <OnboardingShell
+        step={2}
+        title={t(
+          mode === "signin"
+            ? "auth.signInTitle"
+            : mode === "signup"
+              ? "auth.signUpTitle"
+              : "auth.forgotTitle",
+        )}
+        subtitle={modeSubtitle}
+        onBack={() =>
+          mode === "forgot" ? switchMode("signin") : void navigate({ to: "/language" })
+        }
+        footer={
+          done ? undefined : (
+            <>
+              <Button
+                type="submit"
+                form="auth-form"
+                variant="primary"
+                disabled={loading}
+                className="min-h-[3.375rem] w-full rounded-full text-[1.0625rem] font-semibold"
               >
-                {formError}
-              </div>
-            )}
+                {loading
+                  ? t("auth.loading")
+                  : t(
+                      mode === "signin"
+                        ? "auth.signInCta"
+                        : mode === "signup"
+                          ? "auth.signUpCta"
+                          : "auth.sendReset",
+                    )}
+              </Button>
+              <p className="mt-3 flex items-start justify-center gap-1.5 text-center text-xs leading-5 text-muted-foreground">
+                <ShieldCheck size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" />
+                <span>
+                  {t("auth.privacyNote")}{" "}
+                  <Link
+                    to="/privacy"
+                    className="font-semibold text-foreground underline-offset-2 hover:underline"
+                  >
+                    {t("common.privacy")}
+                  </Link>
+                </span>
+              </p>
+            </>
+          )
+        }
+      >
+        {mode !== "forgot" && <AuthTabs mode={mode} switchMode={switchMode} t={t} />}
 
-            {mode === "signup" && confirmSent ? (
-              <SuccessMessage
-                title={t("auth.confirmEmailTitle")}
-                body={t("auth.confirmEmailBody", { email: confirmSent })}
-              />
-            ) : mode === "forgot" && resetSent ? (
-              <SuccessMessage title={t("auth.resetSentTitle")} body={t("auth.resetSent")} />
-            ) : (
-              <AuthForm
-                mode={mode}
-                values={values}
-                errors={errors}
-                loading={loading}
-                googleLoading={googleLoading}
-                set={set}
-                switchMode={switchMode}
-                onGoogle={onGoogle}
-                onSubmit={onSubmit}
-                t={t}
-              />
-            )}
-
-            {mode === "forgot" && (
-              <div className="mt-6 text-center text-sm">
-                <button
-                  type="button"
-                  onClick={() => switchMode("signin")}
-                  className="rounded-sm font-semibold text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {t("auth.backToSignIn")}
-                </button>
-              </div>
-            )}
-
-            <div className="mt-7 flex items-start justify-center gap-2 text-center text-xs leading-5 text-muted-foreground">
-              <ShieldCheck size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" />
-              <span>
-                {t("auth.privacyNote")}{" "}
-                <Link to="/privacy" className="font-semibold text-primary hover:underline">
-                  {t("common.privacy")}
-                </Link>
-              </span>
-            </div>
+        {formError && (
+          <div
+            role="alert"
+            className="mb-4 rounded-[0.875rem] border border-destructive/40 bg-destructive/10 px-3.5 py-3 text-sm text-destructive-strong"
+          >
+            {formError}
           </div>
-        </section>
-      </div>
+        )}
+
+        {mode === "signup" && confirmSent ? (
+          <SuccessMessage
+            title={t("auth.confirmEmailTitle")}
+            body={t("auth.confirmEmailBody", { email: confirmSent })}
+          />
+        ) : mode === "forgot" && resetSent ? (
+          <SuccessMessage title={t("auth.resetSentTitle")} body={t("auth.resetSent")} />
+        ) : (
+          <AuthForm
+            mode={mode}
+            values={values}
+            errors={errors}
+            googleLoading={googleLoading}
+            set={set}
+            switchMode={switchMode}
+            onGoogle={onGoogle}
+            onSubmit={onSubmit}
+            t={t}
+          />
+        )}
+
+        {mode === "forgot" && (
+          <div className="mt-6 text-center text-[0.9375rem]">
+            <button
+              type="button"
+              onClick={() => switchMode("signin")}
+              className="tap-press inline-flex min-h-11 items-center rounded-md px-2 font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t("auth.backToSignIn")}
+            </button>
+          </div>
+        )}
+      </OnboardingShell>
     </main>
   );
 }
@@ -265,7 +277,7 @@ function AuthTabs({
     <div
       role="tablist"
       aria-label={t("auth.title")}
-      className="mb-8 grid grid-cols-2 rounded-full border border-border/80 bg-muted/70 p-1 shadow-inner"
+      className="mb-6 grid grid-cols-2 rounded-[0.625rem] bg-foreground/[0.07] p-0.5"
     >
       {(["signin", "signup"] as const).map((item) => (
         <button
@@ -274,7 +286,7 @@ function AuthTabs({
           aria-selected={mode === item}
           type="button"
           onClick={() => switchMode(item)}
-          className={`tap-press min-h-10 rounded-full px-4 text-sm font-semibold transition-[background-color,color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mode === item ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          className={`min-h-9 rounded-[0.5rem] px-4 text-[0.9375rem] font-semibold transition-[background-color,color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mode === item ? "bg-surface-raised text-foreground shadow-[var(--as-elevation-1)]" : "text-muted-foreground hover:text-foreground"}`}
         >
           {t(item === "signin" ? "auth.signInTab" : "auth.signUpTab")}
         </button>
@@ -287,7 +299,6 @@ function AuthForm({
   mode,
   values,
   errors,
-  loading,
   googleLoading,
   set,
   switchMode,
@@ -298,7 +309,6 @@ function AuthForm({
   mode: Mode;
   values: { name: string; email: string; password: string; confirm: string };
   errors: Record<string, string>;
-  loading: boolean;
   googleLoading: boolean;
   set: (
     key: "name" | "email" | "password" | "confirm",
@@ -317,210 +327,119 @@ function AuthForm({
             variant="secondary"
             onClick={onGoogle}
             disabled={googleLoading}
-            className="h-12 w-full gap-3 border-border/80 bg-background shadow-sm"
+            className="min-h-[3.375rem] w-full gap-3 rounded-full border-border/80 bg-surface-raised text-[1.0625rem] font-semibold"
           >
             <GoogleLogo />
             {googleLoading ? t("auth.loading") : t("auth.continueWithGoogle")}
           </Button>
           <div className="my-5 flex items-center gap-3" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
-            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              {t("auth.orEmail")}
-            </span>
+            <span className="text-[0.8125rem] text-muted-foreground">{t("auth.orEmail")}</span>
             <span className="h-px flex-1 bg-border" />
           </div>
         </div>
       )}
 
-      <form
-        className={mode === "forgot" ? "mt-6 space-y-4" : "space-y-4"}
-        onSubmit={onSubmit}
-        noValidate
-      >
-        {mode === "signup" && (
-          <Field
-            id="name"
-            label={t("auth.name")}
-            error={errors.name}
-            input={
-              <input
-                id="name"
-                type="text"
-                autoComplete="name"
-                enterKeyHint="next"
-                value={values.name}
-                onChange={set("name")}
-                className={INPUT_CLASS}
-              />
-            }
-          />
-        )}
-        <Field
-          id="email"
-          label={t("auth.email")}
-          error={errors.email}
-          input={
-            <input
-              id="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              enterKeyHint={mode === "forgot" ? "send" : "next"}
-              value={values.email}
-              onChange={set("email")}
-              className={INPUT_CLASS}
+      <form id="auth-form" onSubmit={onSubmit} noValidate>
+        <div className="list-hairline grid grid-cols-[auto_minmax(0,1fr)] overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]">
+          {mode === "signup" && (
+            <Field
+              id="name"
+              label={t("auth.name")}
+              error={errors.name}
+              input={
+                <input
+                  id="name"
+                  type="text"
+                  autoComplete="name"
+                  enterKeyHint="next"
+                  value={values.name}
+                  onChange={set("name")}
+                  className={INPUT_CLASS}
+                />
+              }
             />
-          }
-        />
-        {mode !== "forgot" && (
+          )}
           <Field
-            id="password"
-            label={t("auth.password")}
-            labelRight={
-              mode === "signin" ? (
-                <button
-                  type="button"
-                  onClick={() => switchMode("forgot")}
-                  className="tap-press -my-2 inline-flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-primary hover:bg-muted hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {t("auth.forgotLink")}
-                </button>
-              ) : undefined
-            }
-            error={errors.password}
+            id="email"
+            label={t("auth.email")}
+            error={errors.email}
             input={
               <input
-                id="password"
-                type="password"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                enterKeyHint={mode === "signup" ? "next" : "done"}
-                value={values.password}
-                onChange={set("password")}
+                id="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint={mode === "forgot" ? "send" : "next"}
+                value={values.email}
+                onChange={set("email")}
                 className={INPUT_CLASS}
               />
             }
           />
+          {mode !== "forgot" && (
+            <Field
+              id="password"
+              label={t("auth.password")}
+              error={errors.password}
+              input={
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  enterKeyHint={mode === "signup" ? "next" : "done"}
+                  value={values.password}
+                  onChange={set("password")}
+                  className={INPUT_CLASS}
+                />
+              }
+            />
+          )}
+          {mode === "signup" && (
+            <Field
+              id="confirm"
+              label={t("auth.confirmPassword")}
+              error={errors.confirm}
+              input={
+                <input
+                  id="confirm"
+                  type="password"
+                  autoComplete="new-password"
+                  enterKeyHint="done"
+                  value={values.confirm}
+                  onChange={set("confirm")}
+                  className={INPUT_CLASS}
+                />
+              }
+            />
+          )}
+        </div>
+        <FieldErrors errors={errors} />
+        {mode === "signin" && (
+          <div className="mt-1 flex justify-end">
+            <button
+              type="button"
+              onClick={() => switchMode("forgot")}
+              className="tap-press inline-flex min-h-11 items-center rounded-md px-2 text-[0.9375rem] font-medium text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t("auth.forgotLink")}
+            </button>
+          </div>
         )}
-        {mode === "signup" && (
-          <Field
-            id="confirm"
-            label={t("auth.confirmPassword")}
-            error={errors.confirm}
-            input={
-              <input
-                id="confirm"
-                type="password"
-                autoComplete="new-password"
-                enterKeyHint="done"
-                value={values.confirm}
-                onChange={set("confirm")}
-                className={INPUT_CLASS}
-              />
-            }
-          />
-        )}
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={loading}
-          className="h-12 w-full text-base"
-        >
-          {loading
-            ? t("auth.loading")
-            : t(
-                mode === "signin"
-                  ? "auth.signInCta"
-                  : mode === "signup"
-                    ? "auth.signUpCta"
-                    : "auth.sendReset",
-              )}
-        </Button>
       </form>
     </>
   );
 }
 
-function AuthStory({ t }: { t: Translation }) {
-  const benefits = [
-    { key: "Chart", icon: Orbit },
-    { key: "Privacy", icon: LockKeyhole },
-    { key: "Language", icon: Languages },
-  ] as const;
-  return (
-    <aside
-      className="relative isolate flex min-h-[17rem] flex-col overflow-hidden px-6 py-7 text-on-night sm:min-h-[22rem] sm:px-10 sm:py-9 lg:min-h-full lg:px-14 lg:py-12"
-      style={{ background: "var(--gradient-night)" }}
-    >
-      <AuthCosmos />
-      <Link
-        to="/"
-        className="relative inline-flex w-fit items-center gap-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={APP_NAME}
-      >
-        <BrandMark withWordmark={false} className="h-8 w-8" />
-        <span className="text-lg font-semibold tracking-tight text-on-night">{APP_NAME}</span>
-      </Link>
-      <div className="relative my-auto max-w-lg py-9 lg:py-14">
-        <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
-          <Sparkles className="h-4 w-4" aria-hidden />
-          {t("auth.heroEyebrow")}
-        </p>
-        <h2 className="font-display-hero mt-5 max-w-[10ch] text-balance text-4xl font-semibold leading-[1.02] sm:text-5xl lg:text-6xl">
-          {t("auth.heroTitle")}
-        </h2>
-        <p className="mt-5 max-w-md text-sm leading-6 text-on-night-muted sm:text-base sm:leading-7">
-          {t("auth.heroBody")}
-        </p>
-      </div>
-      <div className="relative hidden grid-cols-3 gap-3 border-t border-white/10 pt-5 sm:grid">
-        {benefits.map(({ key, icon: Icon }) => (
-          <div
-            key={key}
-            className="rounded-xl border border-white/10 bg-white/[0.045] p-3 backdrop-blur-sm"
-          >
-            <Icon className="h-4 w-4 text-accent" aria-hidden />
-            <p className="mt-3 text-xs font-semibold text-on-night">{t(`auth.benefit${key}`)}</p>
-          </div>
-        ))}
-      </div>
-    </aside>
-  );
-}
-
-function AuthCosmos() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      <div className="absolute -right-24 -top-20 h-80 w-80 rounded-full bg-[oklch(0.55_0.22_302/0.2)] blur-3xl" />
-      <div className="absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-[oklch(0.69_0.16_75/0.12)] blur-3xl" />
-      <svg
-        className="absolute -right-24 top-[13%] h-[28rem] w-[28rem] opacity-45"
-        viewBox="0 0 440 440"
-      >
-        <circle cx="220" cy="220" r="164" fill="none" stroke="white" strokeOpacity=".11" />
-        <circle cx="220" cy="220" r="112" fill="none" stroke="white" strokeOpacity=".08" />
-        <ellipse
-          cx="220"
-          cy="220"
-          rx="176"
-          ry="66"
-          fill="none"
-          stroke="white"
-          strokeOpacity=".08"
-          transform="rotate(-28 220 220)"
-        />
-        <circle cx="220" cy="56" r="4" fill="currentColor" className="text-accent" />
-        <circle cx="371" cy="279" r="3" fill="white" fillOpacity=".7" />
-      </svg>
-    </div>
-  );
-}
-
 function SuccessMessage({ title, body }: { title: string; body: string }) {
   return (
-    <div className="mt-6 rounded-2xl border border-primary/25 bg-primary/[0.06] p-5 text-sm text-foreground shadow-[var(--shadow-soft)]">
+    <div
+      className="rounded-[1.25rem] bg-card p-5 text-sm text-foreground shadow-[var(--as-elevation-1)]"
+      role="status"
+    >
       <div className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
         <ShieldCheck className="h-4 w-4" aria-hidden />
       </div>
@@ -533,30 +452,40 @@ function SuccessMessage({ title, body }: { title: string; body: string }) {
 function Field({
   id,
   label,
-  labelRight,
   error,
   input,
 }: {
   id: string;
   label: string;
-  labelRight?: ReactNode;
   error?: string;
   input: ReactNode;
 }) {
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor={id} className="block text-sm font-semibold text-foreground">
-          {label}
-        </label>
-        {labelRight}
-      </div>
-      <div className="mt-1.5">{input}</div>
-      {error && (
-        <p className="mt-1.5 text-xs text-destructive-strong" role="alert">
-          {error}
+    <div
+      className="col-span-2 grid min-h-[3.125rem] grid-cols-subgrid items-center gap-x-4 px-4 focus-within:ring-2 focus-within:ring-inset focus-within:ring-ring data-[invalid]:bg-destructive/10"
+      data-invalid={error ? "" : undefined}
+    >
+      <label htmlFor={id} className="max-w-[10rem] text-[1.0625rem] leading-tight text-foreground">
+        {label}
+      </label>
+      <div className="min-w-0">{input}</div>
+    </div>
+  );
+}
+
+/** Field errors read in form order below the grouped rows, each its own alert. */
+function FieldErrors({ errors }: { errors: Record<string, string> }) {
+  const messages = ["name", "email", "password", "confirm"]
+    .map((key) => errors[key])
+    .filter(Boolean);
+  if (messages.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1 px-4">
+      {messages.map((message) => (
+        <p key={message} className="text-[0.8125rem] text-destructive-strong" role="alert">
+          {message}
         </p>
-      )}
+      ))}
     </div>
   );
 }

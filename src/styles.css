@@ -195,6 +195,7 @@
   --as-color-text-on-inverse: var(--as-color-night-50);
   --as-color-border-subtle: oklch(0.875 0.026 80 / 0.72);
   --as-color-border-strong: oklch(0.71 0.05 282 / 0.66);
+  --as-list-separator: oklch(0.42 0.03 75 / 0.24);
   --as-color-action-primary: oklch(0.43 0.17 282);
   --as-color-action-primary-text: var(--as-color-night-50);
   --as-color-action-warm: var(--as-color-solar-saffron-450);
@@ -468,6 +469,7 @@
   --as-color-text-on-inverse: var(--as-color-ink-950);
   --as-color-border-subtle: oklch(0.965 0.012 85 / 0.1);
   --as-color-border-strong: oklch(0.865 0.022 282 / 0.28);
+  --as-list-separator: oklch(0.965 0.012 85 / 0.2);
   --as-color-action-primary: var(--as-color-solar-saffron-450);
   --as-color-action-primary-text: var(--as-color-ink-950);
   --as-color-action-warm: var(--as-color-solar-saffron-450);
@@ -530,6 +532,7 @@
   :root {
     --as-color-text-tertiary: var(--as-color-text-secondary);
     --as-color-border-subtle: var(--as-color-border-strong);
+    --as-list-separator: var(--as-color-border-strong);
     --as-texture-grain-opacity: 0;
     --as-texture-paper-opacity: 0;
     --as-texture-paper-ink: transparent;
@@ -562,6 +565,7 @@
     --as-color-text-tertiary: CanvasText;
     --as-color-border-subtle: ButtonBorder;
     --as-color-border-strong: ButtonBorder;
+    --as-list-separator: ButtonBorder;
     --as-color-action-primary: ButtonFace;
     --as-color-action-primary-text: ButtonText;
     --as-color-focus-outer: Highlight;
@@ -1028,11 +1032,18 @@
   }
 
   /* Native finish — grouped-list hairlines inset to the text (iOS) */
+  /* Border-based so it snaps to one device pixel on fractional row heights */
   .list-hairline > * + * {
-    background-image: linear-gradient(var(--as-color-border-subtle), var(--as-color-border-subtle));
-    background-repeat: no-repeat;
-    background-size: calc(100% - var(--list-inset, 1rem)) 0.5px;
-    background-position: var(--list-inset, 1rem) 0;
+    position: relative;
+  }
+  .list-hairline > * + *::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: var(--list-inset, 1rem);
+    border-top: 0.5px solid var(--as-list-separator);
+    pointer-events: none;
   }
 
   /* Liquid-glass specular edge for floating bars and orbs */

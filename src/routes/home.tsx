@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
@@ -8,15 +8,9 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Clock,
   Compass,
-  Flame,
-  Grid,
-  Grid3x3,
-  Hash,
   LayoutGrid,
   Orbit,
-  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
@@ -175,10 +169,10 @@ function HomePage() {
   return (
     <section className="space-y-6">
       <header>
-        <p className="text-sm text-muted-foreground">{t("home.greeting", { name })}</p>
-        <h1 className="mt-1 font-display text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-          {t("home.title")}
-        </h1>
+        <p className="text-[0.8125rem] font-semibold tracking-[0.04em] text-muted-foreground">
+          {t("home.greeting", { name })}
+        </p>
+        <h1 className="large-title mt-0.5 text-foreground">{t("home.title")}</h1>
       </header>
 
       {isProfileIncomplete && <IncompleteProfileHeroCard />}
@@ -266,95 +260,59 @@ function IncompleteProfileHeroCard() {
   );
 }
 
-const TAB_CONFIG: {
-  key: TabKey;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}[] = [
-  { key: "overview", icon: Sparkles },
-  { key: "charts", icon: Compass },
-  { key: "details", icon: Clock },
-  { key: "doshas", icon: ShieldAlert },
-  { key: "remedies", icon: Flame },
-  { key: "ashtakavarga", icon: Grid3x3 },
-  { key: "numerology", icon: Hash },
-  { key: "loshu", icon: Grid },
-];
-
 function Tabs({ current, onChange }: { current: TabKey; onChange: (k: TabKey) => void }) {
   const { t } = useTranslation();
-  const currentConfig = TAB_CONFIG.find(({ key }) => key === current) ?? TAB_CONFIG[0];
-  const CurrentIcon = currentConfig.icon;
-  return (
-    <>
-      <div className="relative sm:hidden">
-        <CurrentIcon
-          size={17}
-          aria-hidden="true"
-          className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-primary"
-        />
-        <select
-          aria-label={t("home.title")}
-          value={current}
-          onChange={(e) => onChange(e.target.value as TabKey)}
-          className="h-12 w-full appearance-none rounded-2xl border border-primary/25 bg-card/85 pl-11 pr-11 text-sm font-semibold text-foreground shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {TAB_CONFIG.map(({ key }) => (
-            <option key={key} value={key}>
-              {t(`home.tabs.${key}`)}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={18}
-          aria-hidden="true"
-          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-        />
-      </div>
+  const listRef = useRef<HTMLDivElement>(null);
 
-      <div
-        role="tablist"
-        aria-label={t("home.title")}
-        className="hidden gap-2 overflow-x-auto pb-1.5 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] sm:flex [&::-webkit-scrollbar]:hidden"
-      >
-        {TAB_CONFIG.map(({ key: k, icon: Icon }) => {
-          const active = current === k;
-          return (
-            <button
-              key={k}
-              role="tab"
-              aria-selected={active}
-              tabIndex={active ? 0 : -1}
-              onClick={() => onChange(k)}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-                  e.preventDefault();
-                  const keys = TAB_CONFIG.map((c) => c.key);
-                  const i = keys.indexOf(current);
-                  const next =
-                    e.key === "ArrowRight"
-                      ? keys[(i + 1) % keys.length]
-                      : keys[(i - 1 + keys.length) % keys.length];
-                  onChange(next);
-                }
-              }}
-              className={
-                "tap-press inline-flex items-center gap-2 rounded-full border px-4 min-h-[44px] whitespace-nowrap text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                (active
-                  ? "border-primary/60 bg-primary/10 text-primary shadow-sm"
-                  : "border-border/80 bg-card/60 text-muted-foreground hover:bg-card hover:text-foreground")
+  // Keep the active chip in view horizontally only, so the page never jumps.
+  useEffect(() => {
+    const list = listRef.current;
+    const active = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !active) return;
+    const left = active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollTo({ left: Math.max(0, left), behavior: reduce ? "auto" : "smooth" });
+  }, [current]);
+
+  return (
+    <div
+      ref={listRef}
+      role="tablist"
+      aria-label={t("home.title")}
+      className="-mx-4 flex gap-2 overflow-x-auto scroll-smooth px-4 py-0.5 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] [scrollbar-width:none] [-ms-overflow-style:none] sm:mx-0 sm:px-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {TAB_KEYS.map((k) => {
+        const active = current === k;
+        return (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={active}
+            tabIndex={active ? 0 : -1}
+            onClick={() => onChange(k)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                e.preventDefault();
+                const i = TAB_KEYS.indexOf(current);
+                const next =
+                  e.key === "ArrowRight"
+                    ? TAB_KEYS[(i + 1) % TAB_KEYS.length]
+                    : TAB_KEYS[(i - 1 + TAB_KEYS.length) % TAB_KEYS.length];
+                onChange(next);
               }
-            >
-              <Icon
-                size={16}
-                aria-hidden="true"
-                className={active ? "text-primary" : "text-muted-foreground"}
-              />
-              <span>{t(`home.tabs.${k}`)}</span>
-            </button>
-          );
-        })}
-      </div>
-    </>
+            }}
+            className={
+              "tap-press inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              (active
+                ? "border-accent/60 bg-accent/10 text-accent"
+                : "border-foreground/[0.14] text-muted-foreground hover:text-foreground")
+            }
+          >
+            {t(`home.tabs.${k}`)}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

@@ -272,19 +272,41 @@ test.describe("authenticated critical journeys", () => {
     }
   });
 
-  test("mobile Cosmos uses a native section picker instead of clipped tabs", async ({
+  test("mobile Cosmos sections scroll as chips and keep the active one in view", async ({
     page,
   }, testInfo) => {
-    test.skip(testInfo.project.name !== "mobile-chrome", "The mobile picker is mobile-only.");
+    test.skip(testInfo.project.name !== "mobile-chrome", "The chip scroller check is mobile-only.");
     await page.goto("/home");
 
-    const picker = page.getByRole("combobox", { name: "Your chart" });
-    await expect(picker).toBeVisible();
-    await expect(page.getByRole("tab")).toHaveCount(0);
+    const sections = page.getByRole("tablist", { name: "Your chart" });
+    await expect(sections).toBeVisible();
+    await expect(sections.getByRole("tab")).toHaveCount(8);
+    await expect(sections.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
-    await picker.selectOption("remedies");
+    const remedies = sections.getByRole("tab", { name: "Remedies" });
+    await remedies.click();
     await expect(page).toHaveURL(/\/home\?tab=remedies$/);
-    await expect(picker).toHaveValue("remedies");
+    await expect(remedies).toHaveAttribute("aria-selected", "true");
+
+    await page.getByRole("tab", { name: "Lo Shu grid" }).click();
+    await expect(page).toHaveURL(/\/home\?tab=loshu$/);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const list = document.querySelector('[role="tablist"]')!.getBoundingClientRect();
+          const tab = document.querySelector('[role="tab"][aria-selected="true"]')!;
+          const box = tab.getBoundingClientRect();
+          return box.left >= list.left - 1 && box.right <= list.right + 1;
+        }),
+      )
+      .toBe(true);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 
   test("desktop rail expands with keyboard and keeps five-world routing", async ({

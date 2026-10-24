@@ -127,14 +127,12 @@ function TodayPage() {
       <p className="sr-only" role="status" aria-live="polite">
         {refreshing ? t("today.refreshing") : ""}
       </p>
-      <header className="motion-fade-up flex items-start justify-between gap-3">
+      <header className="motion-fade-up flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            <span>{dateLabel}</span>
-          </div>
-          <h1 className="mt-1 font-display text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-            {t("today.title")}
-          </h1>
+          <p className="text-[0.8125rem] font-semibold tracking-[0.04em] text-muted-foreground">
+            {dateLabel}
+          </p>
+          <h1 className="large-title mt-0.5 text-foreground">{t("today.title")}</h1>
         </div>
         <button
           type="button"
@@ -143,13 +141,13 @@ function TodayPage() {
           aria-label={t("today.refresh")}
           aria-busy={refreshing}
           title={t("today.refresh")}
-          className="tap-press mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70"
+          className="tap-press -mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70"
         >
           <RefreshCw size={17} aria-hidden="true" className={refreshing ? "animate-spin" : ""} />
         </button>
       </header>
 
-      <div className="motion-fade-up motion-delay-1">
+      <div className="motion-fade-up motion-delay-1 -mt-3">
         <DailySignalHero />
       </div>
 

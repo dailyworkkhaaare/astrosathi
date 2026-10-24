@@ -1,13 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { useRequireAuth } from "@/lib/require-auth";
+import { AstroArt } from "@/components/AstroArt";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { Button } from "@/components/ui/button";
 import { BirthDetailsForm, type BirthDetailsValue } from "@/components/BirthDetailsForm";
 
 import { supabase } from "@/integrations/supabase/client";
+import { GRAHA_ART } from "@/lib/astro-art";
 import { getBirthProfile, saveBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import { useChartGatewayCacheControls } from "@/lib/queries";
 
@@ -32,7 +34,7 @@ export const Route = createFileRoute("/onboarding/birth")({
 
 function BirthPage() {
   useRequireAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const cache = useChartGatewayCacheControls();
   // Snapshot of the profile as loaded, so on save we can tell whether anything
@@ -175,17 +177,13 @@ function BirthPage() {
 
   if (submitting) {
     return (
-      <main className={MAIN_CLASS}>
-        <OnboardingShell
-          step={5}
-          showBack={false}
-          eyebrow={t("birth.title")}
-          title={t("birth.castingTitle")}
-          subtitle={t("birth.castingSubtitle", { place: form.place.trim(), date: form.dob })}
-        >
-          <CastingCeremony />
-        </OnboardingShell>
-      </main>
+      <CastingCeremony
+        title={t("birth.castingTitle")}
+        subtitle={t("birth.castingSubtitle", {
+          place: form.place.trim(),
+          date: formatBirthDate(form.dob, i18n.language),
+        })}
+      />
     );
   }
 
@@ -274,43 +272,112 @@ function BirthPage() {
 const MAIN_CLASS =
   "min-h-dvh w-full bg-background px-4 pt-[calc(var(--as-safe-top)+0.75rem)] text-foreground sm:px-6 md:pt-12";
 
-function CastingCeremony() {
+// Twelve house ticks between the inner (r96) and outer (r130) rings.
+const HOUSE_TICKS = Array.from({ length: 12 }, (_, i) => {
+  const a = (i * Math.PI) / 6;
+  const point = (r: number) =>
+    `${(140 + r * Math.cos(a)).toFixed(1)} ${(140 + r * Math.sin(a)).toFixed(1)}`;
+  return `M${point(104)} L${point(122)}`;
+});
+
+// Grahas sit on the outer ring, 40° apart, starting at the top.
+const GRAHA_SIZE = 40;
+const GRAHA_SLOTS = GRAHA_ART.map((name, i) => {
+  const a = (i * 2 * Math.PI) / GRAHA_ART.length;
+  return {
+    name,
+    left: 140 + 130 * Math.sin(a) - GRAHA_SIZE / 2,
+    top: 140 - 130 * Math.cos(a) - GRAHA_SIZE / 2,
+    delay: 500 + i * 160,
+  };
+});
+
+function formatBirthDate(dob: string, locale: string) {
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${dob}T00:00:00Z`));
+  } catch {
+    return dob;
+  }
+}
+
+function CastingCeremony({ title, subtitle }: { title: string; subtitle: string }) {
   const { t } = useTranslation();
 
   return (
-    <div
-      className="motion-ceremonial flex min-h-[52dvh] flex-col items-center justify-center py-10 text-center"
+    <main
+      className="motion-ceremonial relative flex min-h-dvh w-full flex-col items-center justify-center gap-9 overflow-hidden bg-background px-8 pb-[calc(var(--as-safe-bottom)+2rem)] pt-[calc(var(--as-safe-top)+2rem)] text-center text-foreground"
       role="status"
       aria-live="polite"
     >
-      <div className="relative grid h-60 w-60 place-items-center text-accent" aria-hidden="true">
-        <div className="absolute inset-5 rounded-full border border-accent/15 bg-accent/[0.04] shadow-[var(--as-elevation-glow)]" />
-        <svg viewBox="0 0 240 240" className="absolute inset-0 h-full w-full overflow-visible">
-          <circle className="as-casting-ring as-casting-ring--outer" cx="120" cy="120" r="104" />
-          <circle className="as-casting-ring as-casting-ring--middle" cx="120" cy="120" r="72" />
+      <div
+        className="pointer-events-none absolute left-1/2 top-[calc(50%-4.5rem)] h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--accent)_16%,transparent)_0%,transparent_62%)]"
+        aria-hidden="true"
+      />
+      <div className="relative h-[280px] w-[280px] text-accent" aria-hidden="true">
+        <svg viewBox="0 0 280 280" className="absolute inset-0 h-full w-full overflow-visible">
+          <circle className="as-casting-ring as-casting-ring--outer" cx="140" cy="140" r="130" />
+          <circle className="as-casting-ring as-casting-ring--middle" cx="140" cy="140" r="96" />
+          <g stroke="currentColor" strokeOpacity="0.35" strokeWidth="1">
+            {HOUSE_TICKS.map((d) => (
+              <path key={d} d={d} />
+            ))}
+          </g>
           <path
-            className="as-casting-orbit"
-            d="M34 120C66 80 174 80 206 120C174 160 66 160 34 120Z"
+            className="as-casting-line"
+            d="M90 170 L118 112 L150 138 L186 96 M150 138 L164 190"
           />
-          <path
-            className="as-casting-orbit as-casting-orbit--tilted"
-            d="M34 120C66 80 174 80 206 120C174 160 66 160 34 120Z"
-          />
-          <circle className="as-casting-star" cx="120" cy="16" r="3" />
-          <circle className="as-casting-star as-casting-star--late" cx="206" cy="120" r="3" />
-          <circle className="as-casting-star as-casting-star--last" cx="120" cy="224" r="3" />
+          <g fill="currentColor">
+            <circle cx="90" cy="170" r="3.5" />
+            <circle cx="118" cy="112" r="4.5" className="text-foreground" fill="currentColor" />
+            <circle cx="150" cy="138" r="3" />
+            <circle cx="186" cy="96" r="4" />
+            <circle cx="164" cy="190" r="3" />
+          </g>
         </svg>
-        <div className="relative grid h-16 w-16 place-items-center rounded-full border border-accent/40 bg-accent/10">
-          <Sparkles className="h-7 w-7" />
+        <div className="as-graha-ring absolute inset-0">
+          {GRAHA_SLOTS.map((slot) => (
+            <span
+              key={slot.name}
+              className="absolute"
+              style={
+                {
+                  left: slot.left,
+                  top: slot.top,
+                  width: GRAHA_SIZE,
+                  height: GRAHA_SIZE,
+                  "--as-graha-delay": `${slot.delay}ms`,
+                } as CSSProperties
+              }
+            >
+              <AstroArt
+                kind="graha"
+                name={slot.name}
+                size={GRAHA_SIZE}
+                priority
+                className="as-graha-pop block"
+              />
+            </span>
+          ))}
         </div>
       </div>
-      <p className="mt-6 max-w-xs text-sm leading-relaxed text-muted-foreground">
-        {t("birth.castingDetail")}
-      </p>
-      <div className="mt-5 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-        {t("birth.castingStatus")}
+
+      <div className="relative flex max-w-sm flex-col items-center gap-2.5">
+        <h1 className="large-title text-foreground">{title}</h1>
+        <p className="text-[0.9375rem] leading-snug text-muted-foreground">{subtitle}</p>
       </div>
-    </div>
+
+      <p className="relative flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <span
+          className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+        {t("birth.castingStatus")}
+      </p>
+    </main>
   );
 }

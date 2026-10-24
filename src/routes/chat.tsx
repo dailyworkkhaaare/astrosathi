@@ -3105,7 +3105,7 @@ function Composer({
   const ss = String(elapsedSec % 60).padStart(2, "0");
 
   return (
-    <div className="border-t border-transparent bg-gradient-to-t from-background via-background/95 to-background/0 px-3 pt-4 pb-3 md:px-8 md:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <div className="bg-gradient-to-t from-background via-background/95 to-background/0 px-4 pb-2 pt-3 md:px-8 md:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="mx-auto w-full max-w-3xl">
         {journeyDraftSource && !sending && (
           <div className="motion-fade-up mb-2 flex items-start gap-2.5 rounded-2xl border border-primary/20 bg-primary/[0.06] px-3.5 py-2.5 text-xs leading-relaxed text-muted-foreground">
@@ -3139,19 +3139,19 @@ function Composer({
               onClick={cancelMic}
               aria-label={t("voice.cancelInput")}
               title={t("voice.cancelInput")}
-              className="tap-press grid min-h-9 min-w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <X size={15} aria-hidden="true" />
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
         )}
         {voiceError && !stt.busy && !stt.recording && (
           <div
-            className="motion-fade-up mb-2 flex items-center gap-2.5 rounded-2xl border border-feedback-danger/25 bg-feedback-danger/5 px-3.5 py-2.5 text-xs text-foreground"
+            className="motion-fade-up mb-2 flex items-center gap-2.5 rounded-2xl bg-feedback-warning/10 py-1 pl-3.5 pr-1 text-xs text-foreground"
             role="alert"
             data-state="error"
           >
-            <CircleAlert size={16} className="shrink-0 text-feedback-danger" aria-hidden="true" />
+            <CircleAlert size={16} className="shrink-0 text-feedback-warning" aria-hidden="true" />
             <span className="min-w-0 flex-1 text-muted-foreground">{voiceError}</span>
             <button
               type="button"
@@ -3159,7 +3159,7 @@ function Composer({
                 setVoiceError(null);
                 startMic();
               }}
-              className="tap-press shrink-0 rounded-lg px-2 py-1 font-medium text-feedback-danger hover:bg-feedback-danger/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press inline-flex min-h-11 shrink-0 items-center rounded-full px-3 font-semibold text-feedback-warning hover:bg-feedback-warning/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {t("voice.retry")}
             </button>
@@ -3171,10 +3171,8 @@ function Composer({
             if (canSend) onSend();
           }}
           className={
-            "flex items-end gap-2 rounded-3xl border bg-card/80 p-2 shadow-[var(--shadow-elevated)] backdrop-blur-xl transition-all focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 " +
-            (stt.busy && !stt.recording
-              ? "border-accent/50 ring-2 ring-accent/25 shadow-[var(--shadow-glow-gold)]"
-              : "border-border/70")
+            "flex items-end gap-1.5 rounded-[1.625rem] bg-card/90 p-1.5 shadow-[var(--as-elevation-1)] ring-1 ring-inset backdrop-blur-xl transition-shadow " +
+            (stt.busy && !stt.recording ? "ring-accent/45" : "ring-foreground/[0.12]")
           }
         >
           {stt.recording ? (
@@ -3222,7 +3220,7 @@ function Composer({
               autoCapitalize="sentences"
               autoCorrect="on"
               spellCheck
-              className="max-h-56 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-2.5 py-2 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none md:text-sm"
+              className="max-h-56 min-h-11 min-w-0 flex-1 resize-none rounded-[1.25rem] border-0 bg-transparent px-3 py-2.5 text-[1.0625rem] leading-snug text-foreground placeholder:text-muted-foreground transition-[background-color,box-shadow] focus:outline-none focus-visible:bg-foreground/[0.03] focus-visible:shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--ring)_40%,transparent)] md:text-base"
             />
           )}
           {showMic && !stt.recording && !stt.busy && (
@@ -3232,9 +3230,9 @@ function Composer({
               disabled={micDisabled}
               aria-label={t("voice.startInput")}
               title={t("voice.startInput")}
-              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Mic size={16} aria-hidden="true" />
+              <Mic size={18} aria-hidden="true" />
             </button>
           )}
           {stt.recording && (
@@ -3243,9 +3241,9 @@ function Composer({
               onClick={cancelMic}
               aria-label={t("voice.cancelInput")}
               title={t("voice.cancelInput")}
-              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <X size={16} aria-hidden="true" />
+              <X size={18} aria-hidden="true" />
             </button>
           )}
           {stt.recording ? (
@@ -3254,7 +3252,7 @@ function Composer({
               onClick={stopMic}
               aria-label={t("voice.stopInput")}
               title={t("voice.stopInput")}
-              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground shadow-[var(--shadow-glow-gold)] transition-all hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--as-color-action-ask)] text-white transition-[opacity,background-color] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
             >
               <Square size={14} className="fill-current" aria-hidden="true" />
             </button>
@@ -3264,7 +3262,7 @@ function Composer({
               onClick={onStop}
               aria-label={t("chat.stop")}
               title={t("chat.stop")}
-              className="tap-press grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow-gold)] transition-all hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--as-color-action-ask)] text-white transition-[opacity,background-color] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
             >
               <Square size={14} className="fill-current" aria-hidden="true" />
             </button>
@@ -3274,18 +3272,13 @@ function Composer({
               disabled={!canSend}
               aria-label={t("chat.send")}
               title={t("chat.send")}
-              className={
-                "tap-press grid h-10 w-10 shrink-0 place-items-center rounded-full text-primary-foreground transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none " +
-                (canSend
-                  ? "bg-primary shadow-[var(--shadow-glow-gold)] hover:bg-primary/90"
-                  : "bg-primary/80")
-              }
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--as-color-action-ask)] text-white transition-[opacity,background-color] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <ArrowUp size={16} aria-hidden="true" />
+              <ArrowUp size={18} strokeWidth={2.4} aria-hidden="true" />
             </button>
           )}
         </form>
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground md:text-[11px]">
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
           {t("chat.disclaimerLong")}
         </p>
       </div>

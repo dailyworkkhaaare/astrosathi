@@ -253,7 +253,24 @@
     "castingTitle": "Casting your chart…",
     "castingSubtitle": "Reading the sky over {{place}}, {{date}}",
     "castingDetail": "Your birth details are becoming the coordinates for your personal chart.",
-    "castingStatus": "Saving your details securely"
+    "castingStatus": "Saving your details securely",
+    "ready": {
+      "eyebrow": "Your chart is ready",
+      "title": "Welcome, {{name}}",
+      "titleNoName": "Welcome",
+      "subtitle": "Your three key placements.",
+      "lagna": "Lagna",
+      "nakshatra": "Nakshatra",
+      "pada": "Pada {{pada}}",
+      "lagnaArt": "{{sign}}, your Lagna",
+      "tryAsking": "Try asking",
+      "askNakshatra": "What does my {{nakshatra}} Moon say about me?",
+      "askMoon": "What does my Moon sign say about me?",
+      "askDasha": "What is my current dasha about?",
+      "askWeek": "What should I watch this week?",
+      "askFirst": "Ask your first question",
+      "explore": "Explore my chart"
+    }
   },
   "today": {
     "title": "Today",

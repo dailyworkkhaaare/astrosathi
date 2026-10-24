@@ -1,7 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck, Sparkles } from "lucide-react";
 import { useRequireAuth } from "@/lib/require-auth";
 import { AstroArt } from "@/components/AstroArt";
 import { OnboardingShell } from "@/components/OnboardingShell";
@@ -10,8 +10,13 @@ import { BirthDetailsForm, type BirthDetailsValue } from "@/components/BirthDeta
 
 import { supabase } from "@/integrations/supabase/client";
 import { GRAHA_ART } from "@/lib/astro-art";
-import { getBirthProfile, saveBirthProfile, type BirthProfile } from "@/lib/birth-profile";
-import { useChartGatewayCacheControls } from "@/lib/queries";
+import {
+  getBirthProfile,
+  getOnboardingState,
+  saveBirthProfile,
+  type BirthProfile,
+} from "@/lib/birth-profile";
+import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
 
 export const Route = createFileRoute("/onboarding/birth")({
   head: () => ({
@@ -63,10 +68,16 @@ function BirthPage() {
     setForm((prev) => ({ ...prev, ...patch }));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [stage, setStage] = useState<"identity" | "birth">("identity");
+  const [stage, setStage] = useState<"identity" | "birth" | "ready">("identity");
+  // First-time onboarding ends on "Your chart is ready"; editing from Settings
+  // keeps going straight home.
+  const firstRunRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
+    void getOnboardingState().then((state) => {
+      if (!cancelled) firstRunRef.current = state === "birth_pending";
+    });
     void getBirthProfile().then((existing) => {
       if (cancelled || !existing) return;
       originalRef.current = existing;
@@ -166,6 +177,11 @@ function BirthPage() {
       // stays warm until next viewed.
       cache.invalidate();
     }
+    if (firstRunRef.current) {
+      setStage("ready");
+      setSubmitting(false);
+      return;
+    }
     navigate({ to: "/home" });
   };
 
@@ -174,6 +190,8 @@ function BirthPage() {
       setStage("birth");
     }
   };
+
+  if (stage === "ready") return <ChartReady name={form.name} />;
 
   if (submitting) {
     return (
@@ -378,6 +396,135 @@ function CastingCeremony({ title, subtitle }: { title: string; subtitle: string 
         />
         {t("birth.castingStatus")}
       </p>
+    </main>
+  );
+}
+
+function ChartReady({ name }: { name: string }) {
+  const { t } = useTranslation();
+  const planetsQuery = usePlanets();
+  const planets = planetsQuery.data?.planets ?? [];
+  const lagna = planets.find((planet) => /ascend|lagna/i.test(planet.name)) ?? null;
+  const moon = planets.find((planet) => planet.key === "moon") ?? null;
+  const nakshatra = moon?.nakshatraName.trim() ?? "";
+  const firstName = name.trim().split(/\s+/)[0] ?? "";
+  const loading = planetsQuery.isLoading;
+  const showPlacements = loading || !!(lagna?.signKey || moon?.signKey);
+  const lagnaSign = lagna?.signKey ? t(`signs.${lagna.signKey}`) : null;
+
+  const placements = [
+    { key: "lagna", label: t("birth.ready.lagna"), value: lagnaSign, detail: null },
+    {
+      key: "moon",
+      label: t("home.planets.moon"),
+      value: moon?.signKey ? t(`signs.${moon.signKey}`) : null,
+      detail: null,
+    },
+    {
+      key: "nakshatra",
+      label: t("birth.ready.nakshatra"),
+      value: nakshatra || null,
+      detail: moon?.nakshatraPada ? t("birth.ready.pada", { pada: moon.nakshatraPada }) : null,
+    },
+  ];
+  const questions = [
+    nakshatra ? t("birth.ready.askNakshatra", { nakshatra }) : t("birth.ready.askMoon"),
+    t("birth.ready.askDasha"),
+    t("birth.ready.askWeek"),
+  ];
+
+  return (
+    <main className={MAIN_CLASS}>
+      <section className="motion-fade-up mx-auto flex min-h-[calc(100dvh-var(--as-safe-top)-2.5rem)] max-w-xl flex-col md:min-h-0">
+        <header className="relative px-1 pt-6">
+          {lagna?.signKey && lagnaSign ? (
+            <AstroArt
+              kind="sign"
+              name={lagna.signKey}
+              size={96}
+              priority
+              alt={t("birth.ready.lagnaArt", { sign: lagnaSign })}
+              className="absolute -top-1 right-0"
+            />
+          ) : null}
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-feedback-success [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+            <Check size={16} strokeWidth={2.4} aria-hidden="true" />
+            {t("birth.ready.eyebrow")}
+          </p>
+          <h1 className={"large-title mt-2.5 text-foreground " + (lagnaSign ? "pr-28" : "")}>
+            {firstName ? t("birth.ready.title", { name: firstName }) : t("birth.ready.titleNoName")}
+          </h1>
+          {showPlacements ? (
+            <p className="mt-2 text-[0.9375rem] text-muted-foreground">
+              {t("birth.ready.subtitle")}
+            </p>
+          ) : null}
+        </header>
+
+        {showPlacements ? (
+          <dl
+            className="mt-6 grid grid-cols-3 divide-x divide-[color:var(--as-list-separator)] rounded-[1.25rem] bg-card shadow-[var(--as-elevation-1)]"
+            aria-busy={loading || undefined}
+          >
+            {placements.map((item) => (
+              <div key={item.key} className="flex min-w-0 flex-col gap-1.5 px-3.5 py-4">
+                <dt className="truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+                  {item.label}
+                </dt>
+                {item.value ? (
+                  <dd className="truncate text-lg font-semibold text-foreground">{item.value}</dd>
+                ) : (
+                  <dd
+                    className="h-7 w-16 animate-pulse rounded-md bg-foreground/[0.08] motion-reduce:animate-none"
+                    aria-hidden="true"
+                  />
+                )}
+                {item.detail ? (
+                  <dd className="text-[0.8125rem] text-muted-foreground">{item.detail}</dd>
+                ) : null}
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
+        <h2 className="px-4 pb-2 pt-7 text-[0.8125rem] font-semibold text-muted-foreground">
+          {t("birth.ready.tryAsking")}
+        </h2>
+        <ul className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]">
+          {questions.map((question) => (
+            <li key={question}>
+              <Link
+                to="/chat"
+                search={{ seed: question }}
+                className="tap-press flex min-h-[3.25rem] items-center gap-3 px-4 py-2.5 text-base leading-snug text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              >
+                <span className="min-w-0 flex-1">{question}</span>
+                <ArrowRight
+                  size={18}
+                  strokeWidth={2.2}
+                  className="shrink-0 text-[var(--as-color-action-ask)]"
+                  aria-hidden="true"
+                />
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex flex-col gap-1 bg-gradient-to-t from-background from-85% to-background/0 px-4 pb-[calc(0.75rem+var(--as-safe-bottom))] pt-6 sm:mx-0 sm:px-1 md:static md:mt-8 md:bg-none md:pb-0">
+          <Link
+            to="/chat"
+            className="tap-press flex min-h-[3.375rem] w-full items-center justify-center rounded-full border border-[var(--as-color-solar-saffron-600)] bg-[var(--as-color-action-warm)] px-6 text-[1.0625rem] font-semibold text-[var(--as-color-action-warm-text)] shadow-[var(--as-elevation-glow)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            {t("birth.ready.askFirst")}
+          </Link>
+          <Link
+            to="/home"
+            className="tap-press flex min-h-12 items-center justify-center rounded-full text-base font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("birth.ready.explore")}
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }

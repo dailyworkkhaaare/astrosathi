@@ -101,6 +101,8 @@ test.describe("onboarding routing", () => {
     await page.getByRole("button", { name: "Calculate my chart" }).click();
 
     await expect(page.getByRole("heading", { name: "Casting your chart…" })).toBeVisible();
+    await expect(page.getByText("Your chart is ready", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Explore my chart" }).click();
     await expect(page).toHaveURL(/\/home\/?$/);
     expect(primeCalls).toBe(0);
   });
@@ -124,8 +126,24 @@ test.describe("onboarding routing", () => {
     await page.getByRole("button", { name: "Calculate my chart" }).click();
 
     await expect(page.getByRole("heading", { name: "Casting your chart…" })).toBeVisible();
+    await expect(page.getByText("Your chart is ready", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Explore my chart" }).click();
     await expect(page).toHaveURL(/\/home\/?$/);
     await expect.poll(() => primeCalls).toBe(1);
+  });
+
+  test("editing birth details on a ready account skips the chart-ready screen", async ({
+    page,
+  }) => {
+    await installSupabaseMock(page, { onboardingState: "ready" });
+    await page.goto("/onboarding/birth");
+
+    await expect(page.getByLabel("Full name")).toHaveValue("Aarohi Journey");
+    await page.getByRole("button", { name: "Continue to birth details" }).click();
+    await page.getByRole("button", { name: "Calculate my chart" }).click();
+
+    await expect(page).toHaveURL(/\/home\/?$/);
+    await expect(page.getByText("Your chart is ready", { exact: true })).toHaveCount(0);
   });
 });
 

@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   memo,
   useCallback,
@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useRequireOnboarding } from "@/lib/require-auth";
+import { APP_NAME } from "@/lib/brand";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -19,9 +20,9 @@ import {
   Check,
   CircleAlert,
   Copy,
+  History,
   Loader2,
   Menu,
-  MessageSquarePlus,
   Mic,
   MoreHorizontal,
   Pencil,
@@ -30,6 +31,7 @@ import {
   Search,
   Sparkles,
   Square,
+  SquarePen,
   Trash2,
   Volume2,
   X,
@@ -1941,26 +1943,18 @@ function ChatPage() {
 
   // Mobile chrome stack, top to bottom: TopBar (own safe-area-top padding)
   // -> message list (flex-1 min-h-0, the only scroller) -> Composer (own
-  // padding + disclaimer) -> AppShell's fixed MobileTabBar -> iOS home
-  // indicator. AppShell renders MobileTabBar as `position: fixed`, i.e. an
-  // overlay outside this component's DOM entirely — so this root is the
-  // single owner of the space reserved for it: `--mobile-tabbar-h` (content
-  // height) + `env(safe-area-inset-bottom)` (added here, once — the tab bar
-  // applies that same env() to itself separately, so it is never
-  // double-counted). The Composer's own bottom padding below is just its
-  // internal breathing room above the reserved boundary, not more inset.
+  // padding + disclaimer) -> iOS home indicator. Chat is full-screen: AppShell
+  // hides the floating tab bar here, so this root only reserves the bottom
+  // safe area.
   //
-  // `max(--keyboard-inset-px, ...)` on top of that: when the on-screen
-  // keyboard is open, `--keyboard-inset-px` (set above) is the real
-  // occluded height and is reliably taller than the tab bar's own reserve,
-  // so `max()` picks it and the composer docks just above the keyboard —
-  // the tab bar is physically underneath the keyboard at that point, so it
-  // doesn't need (and must not get) a second stacked reserve on top. When
-  // the keyboard is closed, `--keyboard-inset-px` is 0 and this is exactly
-  // Prompt 5's tab-bar-only reserve again.
+  // `max(--keyboard-inset-px, ...)`: when the on-screen keyboard is open,
+  // `--keyboard-inset-px` (set above) is the real occluded height and is
+  // taller than the safe area, so `max()` picks it and the composer docks just
+  // above the keyboard. When the keyboard is closed it is 0 and only the safe
+  // area remains.
   return (
     <div
-      className="flex h-[100dvh] md:h-screen w-full overflow-hidden bg-background text-foreground pb-[max(var(--keyboard-inset-px,0px),calc(var(--mobile-tabbar-h)+env(safe-area-inset-bottom)))] md:pb-0"
+      className="flex h-[100dvh] md:h-screen w-full overflow-hidden bg-background text-foreground pb-[max(var(--keyboard-inset-px,0px),env(safe-area-inset-bottom))] md:pb-0"
       style={{ "--keyboard-inset-px": `${keyboardInsetPx}px` } as React.CSSProperties}
     >
       {/* Sidebar */}
@@ -1985,6 +1979,7 @@ function ChatPage() {
           sidebarOpen={sidebarOpen}
           isMobile={isMobile}
           profileName={profileName}
+          title={conversations.find((c) => c.id === conversationId)?.title ?? null}
         />
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -2480,53 +2475,92 @@ function TopBar({
   sidebarOpen,
   isMobile,
   profileName,
+  title,
 }: {
   onToggleSidebar: () => void;
   onNewChat: () => void;
   sidebarOpen: boolean;
   isMobile: boolean;
   profileName?: string | null;
+  title?: string | null;
 }) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const navigate = useNavigate();
+  const close = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) router.history.back();
+    else void navigate({ to: "/today" });
+  };
+  const iconButton =
+    "tap-press grid h-11 w-11 place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
   return (
     <div
-      className="flex items-center justify-between border-b border-border/60 bg-background/80 px-3 py-2 backdrop-blur z-10"
-      style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top))" }}
+      className="z-10 grid grid-cols-[6rem_minmax(0,1fr)_6rem] items-center border-b border-[color:var(--as-list-separator)] bg-background/85 px-2 pb-1.5 backdrop-blur-xl"
+      style={{ paddingTop: "calc(0.375rem + env(safe-area-inset-top))" }}
     >
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          aria-label={sidebarOpen ? t("chat.closeSidebar") : t("chat.openSidebar")}
-          title={sidebarOpen ? t("chat.closeSidebar") : t("chat.openSidebar")}
-          className="tap-press grid min-h-11 min-w-11 place-items-center rounded-lg text-foreground/80 hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Menu size={18} aria-hidden="true" />
-        </button>
+      <div className="flex items-center">
+        {isMobile ? (
+          <button
+            type="button"
+            onClick={close}
+            aria-label={t("chat.close")}
+            title={t("chat.close")}
+            className={iconButton}
+          >
+            <X size={22} aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label={sidebarOpen ? t("chat.closeSidebar") : t("chat.openSidebar")}
+            title={sidebarOpen ? t("chat.closeSidebar") : t("chat.openSidebar")}
+            className={iconButton}
+          >
+            <Menu size={20} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+
+      <div className="flex min-w-0 flex-col items-center gap-px text-center">
+        <span className="max-w-full truncate text-base font-semibold text-foreground">
+          {title?.trim() || APP_NAME}
+        </span>
+        <span className="flex max-w-full items-center gap-1.5 text-[0.6875rem] text-muted-foreground">
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-feedback-success"
+          />
+          <span className="truncate">
+            {profileName ? t("chat.profileChart", { name: profileName }) : t("chat.chartActive")}
+          </span>
+        </span>
+      </div>
+
+      <div className="flex items-center justify-end">
+        {isMobile ? (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label={sidebarOpen ? t("chat.closeSidebar") : t("chat.openSidebar")}
+            title={sidebarOpen ? t("chat.closeSidebar") : t("chat.openSidebar")}
+            className={iconButton}
+          >
+            <History size={20} aria-hidden="true" />
+          </button>
+        ) : null}
         {(!sidebarOpen || isMobile) && (
           <button
             type="button"
             onClick={onNewChat}
             aria-label={t("chat.newChat")}
             title={t("chat.newChat")}
-            className="tap-press inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm hover:border-accent/40 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={iconButton}
           >
-            <MessageSquarePlus size={15} className="text-accent" aria-hidden="true" />
-            <span className="hidden sm:inline">{t("chat.newChat")}</span>
+            <SquarePen size={20} aria-hidden="true" />
           </button>
         )}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-          </span>
-          <span className="truncate max-w-[160px] sm:max-w-xs">
-            {profileName ? t("chat.profileChart", { name: profileName }) : t("chat.chartActive")}
-          </span>
-        </div>
       </div>
     </div>
   );

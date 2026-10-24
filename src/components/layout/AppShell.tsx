@@ -179,7 +179,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <HydrationSkeleton />
           )}
         </main>
-        {showNav && <MobileTabBar pathname={pathname} />}
+        {/* Chat is a full-screen sheet with its own close; no tab bar there. */}
+        {showNav && !isChat && <MobileTabBar pathname={pathname} />}
       </div>
     </div>
   );

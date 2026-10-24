@@ -198,6 +198,13 @@ test.describe("authenticated critical journeys", () => {
       const link = dock.getByRole("link", { name: world.label });
       await link.click();
       await expect(page).toHaveURL(new RegExp(`${world.path}/?$`));
+      if (world.path === "/chat") {
+        // Ask opens as a full-screen sheet: no dock, its own close.
+        await expect(dock).toHaveCount(0);
+        await page.getByRole("button", { name: "Close" }).click();
+        await expect(dock).toBeVisible();
+        continue;
+      }
       await expect(link).toHaveAttribute("aria-current", "page");
     }
   });

@@ -1478,7 +1478,7 @@
     "ashtakavarga": {
       "eyebrow": "House support, at a glance",
       "sarvashtakavargaTitle": "Sarvashtakavarga",
-      "sarvashtakavargaSubtitle": "Combined benefic points (bindus) each sign receives across all planets — higher means a stronger house.",
+      "sarvashtakavargaSubtitle": "Combined benefic points (bindus) each sign receives across all planets. Higher means a stronger house.",
       "sarvashtakavargaScope": "Bindus are a traditional measure of house support; they do not predict a fixed outcome.",
       "sarvashtakavargaHeatmap": "Combined house support map",
       "planetLens": "Planet lens",

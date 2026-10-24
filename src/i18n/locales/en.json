@@ -414,6 +414,13 @@
           "title": "Strength",
           "description": "See your Ashtakavarga house support in detail."
         }
+      },
+      "ask": {
+        "label": "Ask",
+        "title": "Ask your chart anything",
+        "subtitle": "Answers grounded in your Kundli.",
+        "sample": "Why do I feel stuck in my career this year?",
+        "placeholder": "Type your question"
       }
     },
     "varga": {

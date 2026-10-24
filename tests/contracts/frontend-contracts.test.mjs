@@ -568,7 +568,7 @@ test("journal reflection editor uses a native drawer shell and external action f
 test("Cosmos Varga selector keeps desktop selection and adds a mobile chart sheet", async () => {
   const routeSource = await readProjectFile("src/routes/home.tsx");
 
-  assert.match(routeSource, /function VargaExplorer/);
+  assert.match(routeSource, /function VargaControls/);
   assert.match(routeSource, /<Drawer open=\{selectorOpen\}/);
   assert.match(routeSource, /role="listbox"/);
   assert.match(routeSource, /role="option"/);
@@ -811,7 +811,7 @@ test("Today daily signal keeps compact mobile space for recovery states", async 
 
   assert.match(source, /compactMobileState/);
   assert.match(source, /query\.isError \|\| data\?\.incomplete \|\| !signal/);
-  assert.match(source, /compactMobileState \? "min-h-0 py-4" : "min-h-\[14rem\] py-5"/);
+  assert.match(source, /compactMobileState \? "py-4" : "pb-4 pt-\[1\.125rem\] sm:py-7"/);
   assert.match(source, /todayOverview\.ask/);
 });
 
@@ -827,9 +827,9 @@ test("Today daily signal keeps native sharing and clipboard fallback", async () 
 test("Today timing recovery states stay compact and actionable", async () => {
   const source = await readProjectFile("src/components/TodaySection.tsx");
 
-  assert.match(source, /flex flex-wrap items-center justify-between gap-3 rounded-xl/);
+  assert.match(source, /flex flex-wrap items-center justify-between gap-3 rounded-\[0\.875rem\]/);
   assert.match(source, /sections\.today\.loadError/);
-  assert.match(source, /border-dashed border-border bg-background\/60/);
+  assert.match(source, /border border-dashed border-border px-4 py-3/);
   assert.match(source, /sections\.today\.empty/);
 });
 
@@ -843,7 +843,10 @@ test("Today secondary modules keep compact recovery rows and native Ask feedback
   ]);
 
   assert.match(panchang, /const unavailable = !isLoading/);
-  assert.match(panchang, /border-dashed border-border bg-background\/60/);
+  assert.match(
+    panchang,
+    /unavailable\s*\? "text-\[0\.9375rem\] leading-snug text-muted-foreground"/,
+  );
   assert.match(barometer, /const unavailable = !loading/);
   assert.match(barometer, /to="\/today\/markets"/);
   assert.match(glance, /triggerHaptic\("selection"\)/);

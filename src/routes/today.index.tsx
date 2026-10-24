@@ -170,7 +170,7 @@ function TodayPage() {
         </div>
       </div>
 
-      <div className="motion-fade-up motion-delay-4 space-y-4 border-t border-border/70 pt-8">
+      <div className="motion-fade-up motion-delay-4 space-y-2">
         <div>
           <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
             {t("todayOverview.experimental")}

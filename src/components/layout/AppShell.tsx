@@ -128,7 +128,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {!isChat && !showNav && (
           <header
-            className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur"
+            className={
+              "sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur" +
+              // Phones get a full-screen native welcome on the landing page.
+              (isLanding ? " max-md:hidden" : "")
+            }
             style={{ paddingTop: "env(safe-area-inset-top)" }}
           >
             <div
@@ -157,6 +161,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               : "relative mx-auto w-full px-4 pb-8 sm:px-6 " +
                 (isLanding ? "max-w-[94rem] " : "max-w-4xl ") +
                 "pt-[calc(2.5rem+var(--as-safe-top))] md:pt-12 " +
+                (isLanding ? "max-md:pt-[calc(1rem+var(--as-safe-top))] " : "") +
                 (showNav
                   ? "pb-[calc(var(--mobile-tabbar-h)+var(--as-safe-bottom)+1rem)] md:pb-8"
                   : "")

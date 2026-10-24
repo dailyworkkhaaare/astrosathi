@@ -96,7 +96,9 @@
     "trustNoFear": "No fear-based readings",
     "trustNoFearBody": "Guidance avoids alarming claims and leaves decisions in your hands.",
     "trustDisclaimer": "Clear in its scope",
-    "trustDisclaimerBody": "For reflection — not a substitute for professional advice."
+    "trustDisclaimerBody": "For reflection — not a substitute for professional advice.",
+    "welcomeSubtitle": "Chat with your kundli, in your language.",
+    "welcomeAnswer": "Your Moon favours patience this week. Decide slowly."
   },
   "language": {
     "title": "Choose your language",

@@ -16,6 +16,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   Check,
   CircleAlert,
@@ -46,7 +47,6 @@ import {
 import { RecordingWaveform } from "@/components/voice/RecordingWaveform";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
-import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -2019,26 +2019,12 @@ function ChatPage() {
                     </div>
                   )
                 ) : (
-                  <div className="relative flex h-full flex-col items-center justify-start overflow-y-auto px-4 py-6 pt-8 sm:justify-center sm:py-10">
-                    {/* Ambient celestial wash */}
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0"
-                      style={{
-                        background:
-                          "radial-gradient(60% 45% at 50% 20%, color-mix(in oklab, var(--glow-gold) 10%, transparent), transparent 65%), radial-gradient(50% 40% at 20% 90%, color-mix(in oklab, var(--glow-violet) 10%, transparent), transparent 70%)",
-                      }}
-                    />
-                    <div className="motion-fade-up relative flex w-full max-w-2xl flex-col items-center gap-5 sm:gap-8">
-                      <div className="flex flex-col items-center gap-3 text-center sm:gap-4">
-                        <div
-                          aria-hidden="true"
-                          className="relative grid h-12 w-12 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary shadow-[var(--shadow-glow-gold)] sm:h-16 sm:w-16"
-                        >
-                          <BrandMark withWordmark={false} />
-                        </div>
-                        <p className="as-micro text-primary">{t("chat.emptyEyebrow")}</p>
-                        <h1 className="font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
+                  <div className="flex h-full flex-col overflow-y-auto overscroll-contain px-4 pb-3 pt-4 sm:pb-6">
+                    <div className="motion-fade-up mx-auto flex w-full max-w-2xl flex-1 flex-col">
+                      <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-2 py-6 text-center">
+                        <AskSigil />
+                        <p className={ASK_EYEBROW}>{t("chat.emptyEyebrow")}</p>
+                        <h1 className="font-display text-[1.75rem] font-semibold leading-tight text-foreground sm:text-3xl md:text-4xl">
                           {t("chat.emptyGreeting")}
                         </h1>
                         <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
@@ -2046,21 +2032,29 @@ function ChatPage() {
                         </p>
                       </div>
                       {visibleSuggestions.length > 0 && (
-                        <div
-                          role="group"
-                          aria-label={t("chat.suggestionsLabel")}
-                          className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
-                        >
-                          {visibleSuggestions.map((text, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => handleSuggestionClick(text)}
-                              className="tap-press flex min-h-[3.25rem] items-center justify-center rounded-xl border border-border bg-card/60 px-5 py-3 text-center text-sm leading-snug text-foreground transition-all hover:border-primary/40 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            >
-                              {text}
-                            </button>
-                          ))}
+                        <div>
+                          <p id="chat-try-asking" className={ASK_SECTION_LABEL}>
+                            {t("chat.tryAsking")}
+                          </p>
+                          <ul aria-labelledby="chat-try-asking" className="flex flex-col gap-2">
+                            {visibleSuggestions.map((text, i) => (
+                              <li key={i}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSuggestionClick(text)}
+                                  className="tap-press flex h-full min-h-[3.25rem] w-full items-center gap-3 rounded-2xl bg-card px-3.5 py-3 text-left text-[0.9375rem] leading-snug text-foreground shadow-[var(--as-elevation-1)] transition-colors hover:bg-foreground/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                  <span className="min-w-0 flex-1">{text}</span>
+                                  <ArrowRight
+                                    size={16}
+                                    strokeWidth={2.4}
+                                    className="shrink-0 text-primary"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
                     </div>
@@ -2110,31 +2104,54 @@ function AskLoadingState() {
   const { t } = useTranslation();
   return (
     <div
-      className="relative flex flex-1 flex-col items-center justify-start px-4 py-6 pt-8 text-center sm:justify-center sm:py-10"
+      className="flex flex-1 flex-col px-4 pb-3 pt-4"
       role="status"
       aria-live="polite"
       aria-busy="true"
     >
-      <div className="motion-fade-up flex w-full max-w-md flex-col items-center gap-4">
-        <div
-          aria-hidden="true"
-          className="grid h-12 w-12 place-items-center rounded-full border border-primary/30 bg-primary/10 text-primary shadow-[var(--shadow-glow-gold)]"
-        >
-          <BrandMark withWordmark={false} />
-        </div>
-        <div>
-          <p className="as-micro text-primary">{t("chat.emptyEyebrow")}</p>
-          <h1 className="mt-2 font-display text-2xl leading-tight text-foreground">
+      <div className="motion-fade-up mx-auto flex w-full max-w-2xl flex-1 flex-col">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-2 py-6 text-center">
+          <AskSigil />
+          <p className={ASK_EYEBROW}>{t("chat.emptyEyebrow")}</p>
+          <h1 className="font-display text-[1.75rem] font-semibold leading-tight text-foreground">
             {t("chat.emptyGreeting")}
           </h1>
         </div>
         <div className="grid w-full gap-2" aria-hidden="true">
-          <div className="h-11 animate-pulse rounded-xl bg-card/70" />
-          <div className="h-11 animate-pulse rounded-xl bg-card/50" />
-          <div className="h-11 animate-pulse rounded-xl bg-card/40" />
+          <div className="h-[3.25rem] motion-safe:animate-pulse rounded-2xl bg-card" />
+          <div className="h-[3.25rem] motion-safe:animate-pulse rounded-2xl bg-card" />
+          <div className="h-[3.25rem] motion-safe:animate-pulse rounded-2xl bg-card" />
         </div>
       </div>
     </div>
+  );
+}
+
+const ASK_EYEBROW =
+  "mt-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal";
+
+const ASK_SECTION_LABEL =
+  "px-1 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal";
+
+/** The Ask sigil: a ring around a small constellation. */
+function AskSigil() {
+  return (
+    <svg viewBox="0 0 120 120" className="h-16 w-16 text-primary" fill="none" aria-hidden="true">
+      <circle cx="60" cy="60" r="56" stroke="currentColor" strokeOpacity="0.45" strokeWidth="2.4" />
+      <path
+        d="M32 74 L50 44 L66 58 L88 36 M66 58 L74 84"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <g fill="currentColor">
+        <circle cx="32" cy="74" r="4" />
+        <circle cx="50" cy="44" r="5" />
+        <circle cx="88" cy="36" r="4" />
+        <circle cx="74" cy="84" r="3.5" />
+      </g>
+    </svg>
   );
 }
 

@@ -733,8 +733,9 @@
     "evidenceNakshatra": "Nakshatra placement",
     "emptyEyebrow": "Ask AstroSaathi",
     "emptyGreeting": "How can I help with your chart today?",
-    "emptyHint": "Explore what your chart may reveal. Choose a prompt or ask in your own words.",
+    "emptyHint": "Pick a prompt or ask in your own words.",
     "suggestionsLabel": "Suggested prompts",
+    "tryAsking": "Try asking",
     "suggestions": {
       "moonSign": "The Moon is in {{sign}} ({{nakshatra}}) today — what does that mean for me?",
       "moonHouse": "How does today's Moon in my {{house}} house affect me?",

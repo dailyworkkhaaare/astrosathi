@@ -8,7 +8,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Compass,
   LayoutGrid,
   Orbit,
   Sparkles,
@@ -462,35 +461,32 @@ function ChartsTab() {
 
   return (
     <div className="space-y-6">
-      <VargaExplorer current={varga} onSelect={selectVarga} />
-
-      <Card>
-        <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
-              <Compass size={15} className="text-accent" aria-hidden="true" />
-            </span>
-            <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
-          </div>
-          <div className="w-full min-w-0 sm:w-auto">
-            <ChartStylePicker current={style} onSelect={selectChartStyle} />
-          </div>
+      <section
+        aria-labelledby="kundli-chart-heading"
+        className="rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)] sm:p-5"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="kundli-chart-heading" className="text-[1.0625rem] font-semibold text-foreground">
+            {t("home.chartTitle")}
+          </h2>
+          <ChartStylePicker current={style} onSelect={selectChartStyle} />
         </div>
+        <VargaControls current={varga} onSelect={selectVarga} />
         <div
           role="region"
           aria-live="polite"
           aria-label={t(`home.varga.${varga.toLowerCase()}`)}
-          className="relative w-full"
+          className="relative mt-3.5 w-full"
         >
           {loading && <ChartSkeleton />}
           {!loading && errorMessageKey && (
-            <div className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <div className="flex flex-col items-start gap-3 rounded-xl bg-destructive/[0.08] p-4">
               <p className="text-sm text-foreground">{t(errorMessageKey)}</p>
               <div className="flex flex-wrap items-center gap-2">
                 {errorCode === "birth_profile_incomplete" && (
                   <Link
                     to="/onboarding/birth"
-                    className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                    className="tap-press inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {t("home.chartErrors.finishBirth")}
                   </Link>
@@ -498,7 +494,7 @@ function ChartsTab() {
                 <button
                   type="button"
                   onClick={onRetry}
-                  className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                  className="tap-press inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {t("states.retry")}
                 </button>
@@ -545,7 +541,12 @@ function ChartsTab() {
             </ChartFrame>
           )}
         </div>
-      </Card>
+        <p className="mt-2.5 px-0.5 text-xs leading-relaxed text-muted-foreground">
+          {t("home.vargaExplorer.current", {
+            chart: t(`home.varga.${varga.toLowerCase()}`),
+          })}
+        </p>
+      </section>
 
       <ChartSelectionLayer
         houses={displayHouses}
@@ -805,20 +806,11 @@ function ChartStylePicker({
           <DrawerTrigger asChild>
             <button
               type="button"
-              aria-label={t("home.chartStyle.pickerLabel")}
-              className="tap-press flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-left text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`${t("home.chartStyle.pickerLabel")} · ${currentLabel}`}
+              className={PILL_TRIGGER}
             >
-              <span className="min-w-0">
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {t("home.chartStyle.pickerLabel")}
-                </span>
-                <span className="mt-0.5 block truncate">{currentLabel}</span>
-              </span>
-              <ChevronDown
-                size={16}
-                className="shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
+              <span className="truncate">{currentLabel}</span>
+              <ChevronDown size={15} className="shrink-0" aria-hidden="true" />
             </button>
           </DrawerTrigger>
           <DrawerContent
@@ -878,7 +870,7 @@ function ChartStylePicker({
           id="chart-style-select"
           value={current}
           onChange={(event) => onSelect(event.target.value as ChartStyle)}
-          className="h-11 w-full max-w-full truncate rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
+          className={PILL_SELECT}
         >
           {CHART_STYLES.map((chartStyle) => (
             <option key={chartStyle} value={chartStyle}>
@@ -891,7 +883,7 @@ function ChartStylePicker({
   );
 }
 
-function VargaExplorer({
+function VargaControls({
   current,
   onSelect,
 }: {
@@ -901,152 +893,110 @@ function VargaExplorer({
   const { t } = useTranslation();
   const [selectorOpen, setSelectorOpen] = useState(false);
   const quickChoices: VargaKey[] = ["D1", "D9", "D10"];
-  const currentLabel = t(`home.varga.${current.toLowerCase()}`);
 
   return (
-    <section
-      aria-labelledby="varga-explorer-heading"
-      className="rounded-[1.5rem] border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+    <div
+      role="group"
+      aria-label={t("home.vargaExplorer.title")}
+      className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 py-0.5 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {t("home.vargaExplorer.eyebrow")}
-          </p>
-          <h2
-            id="varga-explorer-heading"
-            className="mt-1 text-xl font-semibold tracking-tight text-foreground"
+      {quickChoices.map((key) => {
+        const selected = current === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onSelect(key)}
+            className={
+              "tap-press inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border px-3.5 text-[0.8125rem] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              (selected
+                ? "border-accent/60 bg-accent/10 text-accent"
+                : "border-foreground/[0.14] text-muted-foreground hover:text-foreground")
+            }
           >
-            {t("home.vargaExplorer.title")}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            {t("home.vargaExplorer.description")}
-          </p>
-        </div>
-        <div className="w-full shrink-0 sm:w-72">
-          <div className="sm:hidden">
-            <Drawer open={selectorOpen} onOpenChange={setSelectorOpen}>
-              <DrawerTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={t("home.varga.pickerLabel")}
-                  className="tap-press flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-left text-sm font-medium text-foreground shadow-[var(--shadow-soft)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      {t("home.varga.pickerLabel")}
-                    </span>
-                    <span className="mt-0.5 block truncate">{currentLabel}</span>
-                  </span>
-                  <ChevronDown
-                    size={16}
-                    className="shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                </button>
-              </DrawerTrigger>
-              <DrawerContent
-                aria-label={t("home.varga.pickerLabel")}
-                className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
-              >
-                <DrawerHeader className="px-5 pb-4 pt-5 text-left">
-                  <DrawerTitle className="font-display text-xl">
-                    {t("home.varga.pickerLabel")}
-                  </DrawerTitle>
-                  <DrawerDescription className="leading-relaxed">
-                    {t("home.vargaExplorer.description")}
-                  </DrawerDescription>
-                </DrawerHeader>
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
-                  <div
-                    role="listbox"
-                    aria-label={t("home.varga.pickerLabel")}
-                    className="space-y-2"
-                  >
-                    {VARGA_KEYS.map((key) => {
-                      const selected = current === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          role="option"
-                          aria-selected={selected}
-                          onClick={() => {
-                            onSelect(key);
-                            setSelectorOpen(false);
-                          }}
-                          className={
-                            "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                            (selected
-                              ? "border-primary/45 bg-primary/10 text-foreground"
-                              : "border-border bg-background text-muted-foreground hover:text-foreground")
-                          }
-                        >
-                          <span>{t(`home.varga.${key.toLowerCase()}`)}</span>
-                          {selected && (
-                            <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </DrawerContent>
-            </Drawer>
-          </div>
-          <div className="hidden sm:block">
-            <label
-              htmlFor="varga-select"
-              className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-            >
-              {t("home.varga.pickerLabel")}
-            </label>
-            <select
-              id="varga-select"
-              value={current}
-              onChange={(event) => onSelect(event.target.value as VargaKey)}
-              className="mt-1.5 h-11 w-full max-w-full truncate rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {VARGA_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {t(`home.varga.${key.toLowerCase()}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-        <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {t("home.vargaExplorer.quickChoices")}
-        </span>
-        {quickChoices.map((key) => {
-          const selected = current === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onSelect(key)}
-              className={
-                "tap-press inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                (selected
-                  ? "border-primary/50 bg-primary/10 text-foreground"
-                  : "border-border bg-background text-muted-foreground hover:text-foreground")
-              }
-            >
-              {t(`home.varga.${key.toLowerCase()}`)}
+            {t(`home.varga.${key.toLowerCase()}`)}
+          </button>
+        );
+      })}
+      <div className="shrink-0 sm:hidden">
+        <Drawer open={selectorOpen} onOpenChange={setSelectorOpen}>
+          <DrawerTrigger asChild>
+            <button type="button" className={PILL_TRIGGER}>
+              <span className="truncate">{t("home.varga.pickerLabel")}</span>
+              <ChevronDown size={15} className="shrink-0" aria-hidden="true" />
             </button>
-          );
-        })}
-        <p className="basis-full pt-2 text-xs leading-relaxed text-muted-foreground">
-          {t("home.vargaExplorer.current", { chart: currentLabel })}
-        </p>
+          </DrawerTrigger>
+          <DrawerContent
+            aria-label={t("home.varga.pickerLabel")}
+            className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+          >
+            <DrawerHeader className="px-5 pb-4 pt-5 text-left">
+              <DrawerTitle className="font-display text-xl">
+                {t("home.varga.pickerLabel")}
+              </DrawerTitle>
+              <DrawerDescription className="leading-relaxed">
+                {t("home.vargaExplorer.description")}
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
+              <div role="listbox" aria-label={t("home.varga.pickerLabel")} className="space-y-2">
+                {VARGA_KEYS.map((key) => {
+                  const selected = current === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => {
+                        onSelect(key);
+                        setSelectorOpen(false);
+                      }}
+                      className={
+                        "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        (selected
+                          ? "border-primary/45 bg-primary/10 text-foreground"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      <span>{t(`home.varga.${key.toLowerCase()}`)}</span>
+                      {selected && (
+                        <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
-    </section>
+      <div className="hidden sm:block">
+        <label htmlFor="varga-select" className="sr-only">
+          {t("home.varga.pickerLabel")}
+        </label>
+        <select
+          id="varga-select"
+          value={current}
+          onChange={(event) => onSelect(event.target.value as VargaKey)}
+          className={PILL_SELECT}
+        >
+          {VARGA_KEYS.map((key) => (
+            <option key={key} value={key}>
+              {t(`home.varga.${key.toLowerCase()}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }
+
+const PILL_TRIGGER =
+  "tap-press inline-flex min-h-11 max-w-[11rem] items-center gap-1.5 rounded-full bg-foreground/[0.07] px-3.5 text-[0.8125rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const PILL_SELECT =
+  "h-11 max-w-[14rem] truncate rounded-full border-0 bg-foreground/[0.07] pl-3.5 pr-8 text-[0.8125rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 type DisplayPlanet = {
   key: PlanetKey;

@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   LayoutGrid,
+  MessageCircle,
   Orbit,
   Sparkles,
 } from "lucide-react";
@@ -25,6 +26,8 @@ import {
 } from "@/components/ui/drawer";
 import { ExpandableSection } from "@/components/ExpandableSection";
 import { ChartFrame } from "@/components/chart/ChartFrame";
+import { AstroArt } from "@/components/AstroArt";
+import { grahaArtByName } from "@/lib/astro-art";
 
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import {
@@ -585,113 +588,95 @@ function ChartsTab() {
           <p className="text-sm text-muted-foreground">{t("home.noPlanetData")}</p>
         )}
         {!tablesLoading && !tablesErrorKey && displayPlanets.length > 0 && (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="list-hairline -mx-5 -mb-1 [--list-inset:4.5rem]">
             {displayPlanets.map((p) => {
               const statesExcludeRetro = p.states.filter((s) => s !== "Retrograde");
+              const art = grahaArtByName(p.key);
+              const sign = p.signKey ? t(`signs.${p.signKey}`) : p.signName || "—";
+              const signLord = p.signLordKey
+                ? t(`home.planets.${p.signLordKey}`)
+                : p.signLordName || "—";
+              const nakLord = p.nakshatraLordKey
+                ? t(`home.planets.${p.nakshatraLordKey}`)
+                : p.nakshatraLordName || "—";
               return (
-                <li
-                  key={p.key}
-                  className="rounded-xl border border-border bg-background p-4 transition-colors hover:border-accent/30"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">
-                        {t(`home.planets.${p.key}`)}
+                <li key={p.key} className="flex gap-3.5 px-5 py-3.5">
+                  {art ? (
+                    <AstroArt kind="graha" name={art} size={40} />
+                  ) : (
+                    <span className="h-10 w-10 shrink-0" aria-hidden="true" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="text-[1.0625rem] font-semibold text-foreground">
+                          {t(`home.planets.${p.key}`)}
+                        </span>
+                        {p.degInSign != null && (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {formatDeg(p.degInSign)}
+                          </span>
+                        )}
+                        {p.retrograde && (
+                          <span
+                            aria-label={t("home.motionRetro")}
+                            className="inline-flex items-center rounded-md bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
+                          >
+                            {t("home.retroShort")}
+                          </span>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-sm text-muted-foreground">
+                        {p.house != null ? t("home.houseLabel", { n: p.house }) : "—"}
                       </span>
-                      {p.degInSign != null && (
-                        <span className="text-xs text-muted-foreground">
-                          {formatDeg(p.degInSign)}
-                        </span>
-                      )}
-                      {p.retrograde && (
-                        <span
-                          aria-label={t("home.motionRetro")}
-                          className="inline-flex items-center rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
-                        >
-                          {t("home.retroShort")}
-                        </span>
-                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {p.house != null ? t("home.houseLabel", { n: p.house }) : "—"}
-                    </span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {t("home.colSign")}
-                      </div>
-                      <div className="text-foreground">
-                        {p.signKey ? t(`signs.${p.signKey}`) : p.signName || "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {t("home.colSignLord")}
-                      </div>
-                      <div className="text-foreground">
-                        {p.signLordKey ? t(`home.planets.${p.signLordKey}`) : p.signLordName || "—"}
-                      </div>
-                    </div>
-                    {!isDivisional && (
-                      <>
-                        <div>
-                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colNakshatra")}
-                          </div>
-                          <div className="text-foreground">{p.nakshatraName || "—"}</div>
-                        </div>
-                        <div>
-                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colNakshatraLord")}
-                          </div>
-                          <div className="text-foreground">
-                            {p.nakshatraLordKey
-                              ? t(`home.planets.${p.nakshatraLordKey}`)
-                              : p.nakshatraLordName || "—"}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {statesExcludeRetro.length > 0 && (
-                    <div className="mt-3">
-                      <div className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {t("home.colStates")}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
+                    <p className="mt-0.5 text-sm text-foreground">
+                      {sign}
+                      {!isDivisional && p.nakshatraName ? ` · ${p.nakshatraName}` : ""}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t("home.colSignLord")} {signLord}
+                      {!isDivisional ? ` · ${t("home.colNakshatraLord")} ${nakLord}` : ""}
+                    </p>
+                    {statesExcludeRetro.length > 0 && (
+                      <div
+                        className="mt-1.5 flex flex-wrap gap-1.5"
+                        aria-label={t("home.colStates")}
+                      >
                         {statesExcludeRetro.map((s) => (
                           <span
                             key={s}
-                            className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-foreground"
+                            className="inline-flex items-center rounded-full bg-foreground/[0.08] px-2 py-0.5 text-xs text-muted-foreground"
                           >
                             {planetStateLabel(s, t)}
                           </span>
                         ))}
                       </div>
+                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlanet((current) => (current === p.key ? null : p.key));
+                          void triggerHaptic("selection");
+                        }}
+                        aria-pressed={selectedPlanet === p.key}
+                        className="tap-press -ml-2 inline-flex min-h-11 items-center rounded-full px-2 text-[0.8125rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {t("home.chartInspector.inspect")}
+                      </button>
+                      {selectedPlanet === p.key && (
+                        <button
+                          type="button"
+                          onClick={() => handlePlanetAsk(p)}
+                          className="tap-press inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[0.8125rem] font-semibold text-[var(--as-color-action-ask)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <MessageCircle size={15} aria-hidden="true" />
+                          {t("home.chartInspector.askPlacementInline")}
+                        </button>
+                      )}
                     </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedPlanet((current) => (current === p.key ? null : p.key));
-                      void triggerHaptic("selection");
-                    }}
-                    aria-pressed={selectedPlanet === p.key}
-                    className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full border border-border bg-card px-3 text-xs font-semibold text-primary transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {t("home.chartInspector.inspect")}
-                  </button>
-                  {selectedPlanet === p.key && (
-                    <button
-                      type="button"
-                      onClick={() => handlePlanetAsk(p)}
-                      className="tap-press mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.08] px-3.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <Sparkles size={14} aria-hidden="true" />
-                      {t("home.chartInspector.askPlacementInline")}
-                    </button>
-                  )}
+                  </div>
                 </li>
               );
             })}
@@ -716,19 +701,19 @@ function ChartsTab() {
           <p className="text-sm text-muted-foreground">{t("home.noPlanetData")}</p>
         )}
         {!tablesLoading && !tablesErrorKey && displayHouses.length > 0 && (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <ul className="grid grid-cols-3 gap-2">
             {displayHouses.map((h) => (
               <li key={h.house}>
                 <Link
                   to="/chat"
                   search={{ seed: buildHouseSeed(t, debounced.varga, h) }}
                   onClick={() => void triggerHaptic("selection")}
-                  className="tap-press block h-full rounded-lg border border-border bg-background px-3 py-3 text-sm transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="tap-press flex h-full min-h-[5.5rem] flex-col gap-0.5 rounded-[0.875rem] bg-foreground/[0.05] px-2.5 py-2.5 text-sm transition-colors hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="text-xs text-muted-foreground">
                     {t("home.houseLabel", { n: h.house })}
                   </div>
-                  <div className="font-medium text-foreground">
+                  <div className="truncate text-base font-semibold text-foreground">
                     {h.signKey ? t(`signs.${h.signKey}`) : h.signName || "—"}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -736,7 +721,7 @@ function ChartsTab() {
                     {h.lordKey ? t(`home.planets.${h.lordKey}`) : h.lordName || "—"}
                   </div>
                   {h.planetKeys.length > 0 && (
-                    <div className="mt-1 text-xs text-primary">
+                    <div className="text-xs font-semibold text-accent">
                       {h.planetKeys.map((pk) => t(`home.planets.${pk}`)).join(", ")}
                     </div>
                   )}
@@ -747,9 +732,9 @@ function ChartsTab() {
         )}
       </ExpandableSection>
 
-      <Card>
-        <div className="flex flex-col items-center text-center">
-          <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      <section className="rounded-[1.25rem] bg-card px-5 py-6 shadow-[var(--as-elevation-1)]">
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
             {t("home.nakshatraTitle")}
           </h2>
           {planetsLoading && <NakshatraSkeleton />}
@@ -765,8 +750,10 @@ function ChartsTab() {
           )}
           {!planetsLoading && !planetsErrorKey && nakName && (
             <>
-              <p className="mt-2 font-display text-2xl text-foreground">{nakName}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="font-display text-[2rem] font-semibold leading-tight text-foreground">
+                {nakName}
+              </p>
+              <p className="text-sm text-muted-foreground">
                 {(nakLordKey || nakLordName) && (
                   <>
                     {t("home.nakshatraLordLabel")}:{" "}
@@ -783,7 +770,7 @@ function ChartsTab() {
             </>
           )}
         </div>
-      </Card>
+      </section>
     </div>
   );
 }
@@ -1053,22 +1040,20 @@ function ChartSelectionLayer({
   return (
     <section
       aria-labelledby="chart-selection-heading"
-      className="rounded-[1.5rem] border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+      className="rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)] sm:p-5"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {t("home.chartSelection.eyebrow")}
-          </p>
-          <h2 id="chart-selection-heading" className="mt-1 text-lg font-semibold text-foreground">
-            {t("home.chartSelection.title")}
-          </h2>
-        </div>
+        <h2
+          id="chart-selection-heading"
+          className="pt-2.5 text-[1.0625rem] font-semibold text-foreground"
+        >
+          {t("home.chartSelection.title")}
+        </h2>
         {selected && (
           <button
             type="button"
             onClick={() => onSelectHouse(null)}
-            className="tap-press inline-flex min-h-11 items-center rounded-full border border-border bg-background px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press -mr-2 inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("home.chartSelection.clear")}
           </button>
@@ -1088,11 +1073,11 @@ function ChartSelectionLayer({
       ) : (
         <>
           {selected ? (
-            <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.06] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            <div className="mt-3 rounded-[0.875rem] bg-accent/[0.08] px-4 py-3.5">
+              <p className="text-xs font-semibold text-accent">
                 {t("home.chartSelection.selected")}
               </p>
-              <h3 className="mt-1 text-lg font-semibold text-foreground">
+              <h3 className="mt-0.5 text-lg font-semibold text-foreground">
                 {t("home.houseLabel", { n: selected.house })} · {sign}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -1104,8 +1089,9 @@ function ChartSelectionLayer({
               <button
                 type="button"
                 onClick={() => onAsk(selected)}
-                className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="tap-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[var(--as-color-action-ask)] px-4 py-2 text-center text-sm font-semibold leading-snug text-white sm:w-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
               >
+                <MessageCircle size={16} aria-hidden="true" />
                 {t("home.chartInspector.askHouse", {
                   varga: t(`home.varga.${varga.toLowerCase()}`),
                 })}
@@ -1117,11 +1103,9 @@ function ChartSelectionLayer({
             </p>
           )}
 
-          <div className="mt-5 border-t border-border pt-4">
-            <h3 className="text-sm font-semibold text-foreground">
-              {t("home.chartSelection.accessibleList")}
-            </h3>
-            <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-4">
+            <h3 className="sr-only">{t("home.chartSelection.accessibleList")}</h3>
+            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {houses.map((house) => {
                 const houseSign = house.signKey
                   ? t(`signs.${house.signKey}`)
@@ -1134,14 +1118,18 @@ function ChartSelectionLayer({
                       aria-pressed={isSelected}
                       onClick={() => onSelectHouse(house.house)}
                       className={
-                        "tap-press flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        "tap-press flex min-h-[3.25rem] w-full flex-col items-start justify-center rounded-[0.75rem] border px-2.5 py-1.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                         (isSelected
-                          ? "border-primary/50 bg-primary/10 text-foreground"
-                          : "border-border bg-background text-foreground hover:bg-muted")
+                          ? "border-accent/60 bg-accent/10"
+                          : "border-transparent bg-foreground/[0.05] hover:bg-foreground/[0.08]")
                       }
                     >
-                      <span>{t("home.houseLabel", { n: house.house })}</span>
-                      <span className="text-xs text-muted-foreground">{houseSign}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t("home.houseLabel", { n: house.house })}
+                      </span>
+                      <span className="w-full truncate text-sm font-semibold text-foreground">
+                        {houseSign}
+                      </span>
                     </button>
                   </li>
                 );
@@ -1301,17 +1289,6 @@ function ErrorInline({
           {t("states.retry")}
         </button>
       </div>
-    </div>
-  );
-}
-
-function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <div
-      className={`rounded-2xl border border-border bg-card p-5 ${className}`}
-      style={{ boxShadow: "var(--shadow-soft)" }}
-    >
-      {children}
     </div>
   );
 }

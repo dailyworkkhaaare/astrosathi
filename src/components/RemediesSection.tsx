@@ -100,17 +100,18 @@ export function RemediesSection() {
   const [showMore, setShowMore] = useState(false);
 
   return (
-    <section
-      aria-labelledby="remedies-heading"
-      className="rounded-2xl border border-border bg-card p-5"
-    >
-      <header>
-        <p className="as-micro mb-2 text-primary">{t("sections.remedies.optionalPractice")}</p>
-        <h2 id="remedies-heading" className="text-lg font-semibold text-foreground">
+    <section aria-labelledby="remedies-heading">
+      <header className="px-1">
+        <p className="text-xs font-semibold text-accent">
+          {t("sections.remedies.optionalPractice")}
+        </p>
+        <h2
+          id="remedies-heading"
+          className="mt-0.5 text-xl font-semibold tracking-tight text-foreground"
+        >
           {t("sections.remedies.title")}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t("sections.remedies.subtitle")}</p>
-        <p className="mt-3 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-muted-foreground">
           {t("sections.remedies.practiceBoundary")}
         </p>
       </header>
@@ -120,7 +121,7 @@ export function RemediesSection() {
       {!loading && selection && selection.wellBalanced && <WellBalancedFallback />}
 
       {!loading && selection && !selection.wellBalanced && (
-        <div className="mt-5 flex flex-col gap-4">
+        <div className="mt-4 flex flex-col gap-3">
           {selection.top.map((r) => (
             <RemedyCard key={r.condition.id} ranked={r} locale={i18n.language} />
           ))}
@@ -142,7 +143,7 @@ export function RemediesSection() {
                 })}
               </button>
               {showMore && (
-                <div className="mt-4 flex flex-col gap-4">
+                <div className="mt-2 flex flex-col gap-3">
                   {selection.more.map((r) => (
                     <RemedyCard key={r.condition.id} ranked={r} locale={i18n.language} />
                   ))}
@@ -153,18 +154,18 @@ export function RemediesSection() {
         </div>
       )}
 
-      <div className="mt-5 border-t border-border/60 pt-4">
-        <p className="text-xs text-muted-foreground">{t("sections.remedies.disclaimer")}</p>
-      </div>
+      <p className="mt-4 px-1 text-xs leading-relaxed text-muted-foreground">
+        {t("sections.remedies.disclaimer")}
+      </p>
     </section>
   );
 }
 
 function RemediesSkeleton() {
   return (
-    <div className="mt-5 flex flex-col gap-3" aria-hidden="true">
-      <div className="h-24 w-full rounded-xl bg-muted motion-safe:animate-pulse" />
-      <div className="h-24 w-full rounded-xl bg-muted motion-safe:animate-pulse" />
+    <div className="mt-4 flex flex-col gap-3" aria-hidden="true">
+      <div className="h-40 w-full rounded-[1.25rem] bg-card motion-safe:animate-pulse" />
+      <div className="h-40 w-full rounded-[1.25rem] bg-card motion-safe:animate-pulse" />
     </div>
   );
 }
@@ -174,19 +175,21 @@ function WellBalancedFallback() {
   const gayatri = MANTRAS[0];
   const shanti = MANTRAS[4];
   return (
-    <div className="mt-5 flex flex-col gap-4">
-      <p className="text-sm leading-6 text-foreground">{t("sections.remedies.wellBalancedBody")}</p>
-      <div className="rounded-xl border border-border bg-background p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <div className="mt-4 flex flex-col gap-3">
+      <p className="px-1 text-sm leading-6 text-foreground">
+        {t("sections.remedies.wellBalancedBody")}
+      </p>
+      <div className="rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)]">
+        <p className="text-xs font-semibold text-muted-foreground">
           {t("sections.remedies.wellBalancedMantrasTitle")}
         </p>
         <div className="mt-3 flex flex-col gap-3">
           {[gayatri, shanti].map((m) => (
             <div
               key={m.transliteration}
-              className="rounded-lg border border-accent/20 bg-accent/[0.04] px-3 py-3"
+              className="rounded-[0.875rem] bg-accent/[0.07] px-3.5 py-3"
             >
-              <p className="font-display text-lg leading-relaxed text-foreground" lang="sa">
+              <p className="font-display text-lg leading-relaxed text-accent" lang="sa">
                 {m.sanskrit}
               </p>
               <p className="mt-1 text-xs font-medium tracking-wide text-muted-foreground">
@@ -195,9 +198,6 @@ function WellBalancedFallback() {
             </div>
           ))}
         </div>
-      </div>
-      <div className="border-t border-border/60 pt-4">
-        <p className="text-xs text-muted-foreground">{t("sections.remedies.disclaimer")}</p>
       </div>
     </div>
   );
@@ -213,16 +213,16 @@ function RemedyCard({ ranked, locale }: { ranked: RankedRemedy; locale: string }
   });
 
   return (
-    <article className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="as-micro mb-1 text-muted-foreground">
+    <article className="flex flex-col gap-3 rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-muted-foreground">
             {t("sections.remedies.practiceFor")}
           </p>
-          <p className="text-sm leading-6 text-foreground">{headline}</p>
+          <p className="mt-0.5 text-[0.9375rem] leading-snug text-foreground">{headline}</p>
         </div>
         {condition.activeNow && (
-          <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-accent/40 bg-accent/15 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-accent">
+          <span className="inline-flex w-fit shrink-0 items-center rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent">
             {t("sections.remedies.activeNow")}
           </span>
         )}
@@ -259,9 +259,9 @@ function WhyChip({ reasons, planetName }: { reasons: string[]; planetName: strin
       {open && (
         <div
           id={contentId}
-          className="motion-fade-up mt-2 space-y-1.5 rounded-lg border border-border/60 bg-muted/30 p-3"
+          className="motion-fade-up mt-1 space-y-1.5 rounded-[0.875rem] bg-foreground/[0.05] p-3"
         >
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-semibold text-muted-foreground">
             {t("sections.remedies.whyTitle")}
           </p>
           <ul className="space-y-1.5">
@@ -289,12 +289,12 @@ function RemedyBundleBody({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-lg border border-accent/20 bg-accent/[0.04] px-3 py-3">
-        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="rounded-[0.875rem] bg-accent/[0.07] px-3.5 py-3">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
           <Flame size={12} aria-hidden="true" />
           {t("sections.remedies.mantraLabel")}
         </div>
-        <p className="mt-1.5 font-display text-lg leading-relaxed text-foreground" lang="sa">
+        <p className="mt-1 font-display text-lg leading-relaxed text-accent" lang="sa">
           {remedy.mantra.devanagari}
         </p>
         <p className="mt-1 text-xs font-medium tracking-wide text-muted-foreground">
@@ -303,11 +303,11 @@ function RemedyBundleBody({
       </div>
 
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.07] px-2.5 py-1">
           <CalendarDays size={12} aria-hidden="true" />
           {weekdayLabel(remedy.day, locale)}
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-foreground/[0.07] px-2.5 py-1">
           <Sparkles size={12} aria-hidden="true" />
           {remedy.deity.name}
           {remedy.deity.praise ? ` · ${remedy.deity.praise}` : ""}
@@ -315,7 +315,7 @@ function RemedyBundleBody({
       </div>
 
       <div>
-        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
           <HandCoins size={12} aria-hidden="true" />
           {t("sections.remedies.danaLabel")}
         </div>
@@ -323,7 +323,7 @@ function RemedyBundleBody({
           {remedy.dana.map((id) => (
             <span
               key={id}
-              className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-foreground"
+              className="rounded-full bg-foreground/[0.07] px-2.5 py-1 text-xs text-foreground"
             >
               {t(`sections.remedies.dana.${id}`)}
             </span>
@@ -345,11 +345,13 @@ function RemedyBundleBody({
 function GemstoneRudrakshaBlock({ remedy }: { remedy: PlanetRemedies }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-primary/25 bg-primary/[0.05] p-3">
+    <div className="rounded-[0.875rem] bg-foreground/[0.05] p-3">
       <div className="flex items-start gap-2">
-        <Gem size={14} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+        <Gem size={14} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
         <div className="flex flex-col gap-1">
-          <p className="as-micro text-primary">{t("sections.remedies.gemstoneCaveatTitle")}</p>
+          <p className="text-xs font-semibold text-foreground">
+            {t("sections.remedies.gemstoneCaveatTitle")}
+          </p>
           <p className="text-xs leading-relaxed text-muted-foreground">
             {remedy.gemstone.name} ({remedy.gemstone.sanskritName}) ·{" "}
             {t("sections.remedies.rudrakshaMukhi", { count: remedy.rudraksha.mukhi })}
@@ -390,9 +392,9 @@ export function DoshaRemedySummary({ doshaKey }: { doshaKey: DoshaKey }) {
       {open && (
         <div
           id={contentId}
-          className="motion-fade-up mt-2 rounded-lg border border-border/60 bg-muted/30 p-3"
+          className="motion-fade-up mt-1 rounded-[0.875rem] bg-foreground/[0.05] p-3"
         >
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">
             {t("sections.remedies.suggestedTitle")}
           </p>
           <RemedyBundleBody remedy={remedy} locale={i18n.language} />

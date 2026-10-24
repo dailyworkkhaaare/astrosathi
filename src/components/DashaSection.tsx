@@ -1,9 +1,11 @@
 import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, Scale, Sparkles } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { DashaBalance, DashaMaha } from "@/lib/charts";
 import { useDasha } from "@/lib/queries";
+import { AstroArt } from "@/components/AstroArt";
 import { DashaTimeline } from "@/components/DashaTimeline";
+import { grahaArtByName } from "@/lib/astro-art";
 
 export const VEDIC_BY_ID: Record<number, string> = {
   0: "Surya",
@@ -208,46 +210,37 @@ export function DashaSection({ compact = false }: { compact?: boolean }) {
     <section
       aria-labelledby="dasha-heading"
       className={
-        compact
-          ? "rounded-[1.35rem] border border-border bg-card p-4"
-          : "rounded-2xl border border-border bg-card p-4 sm:p-6"
+        compact ? "rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)]" : undefined
       }
-      style={{ boxShadow: "var(--shadow-soft)" }}
     >
-      <div className={compact ? "mb-4" : "mb-6 border-b border-border/70 pb-5"}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-          {t("sections.dasha.eyebrow")}
-        </p>
-        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+      {compact ? (
+        <h2 id="dasha-heading" className="text-[0.8125rem] font-semibold text-muted-foreground">
+          {t("sections.dasha.title")}
+        </h2>
+      ) : (
+        <div className="mb-4 px-1">
+          <p className="text-xs font-semibold text-accent">{t("sections.dasha.eyebrow")}</p>
           <h2
             id="dasha-heading"
-            className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+            className="mt-0.5 text-xl font-semibold tracking-tight text-foreground"
           >
             {t("sections.dasha.title")}
           </h2>
-          <p className="text-xs text-muted-foreground">{t("sections.dasha.subtitle")}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            {t("sections.dasha.scope")}
+          </p>
         </div>
-        {!compact && (
-          <>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              {t("sections.dasha.description")}
-            </p>
-            <p className="mt-3 max-w-2xl border-l-2 border-primary/35 pl-3 text-xs leading-relaxed text-muted-foreground">
-              {t("sections.dasha.scope")}
-            </p>
-          </>
-        )}
-      </div>
+      )}
 
       {loading && <DashaSkeleton />}
 
       {!loading && errorMessage && (
-        <div className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-          <p className="text-sm text-foreground">{errorMessage}</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[0.875rem] bg-destructive/[0.08] py-2 pl-4 pr-2">
+          <p className="min-w-0 flex-1 text-sm text-foreground">{errorMessage}</p>
           <button
             type="button"
             onClick={() => query.refetch()}
-            className="inline-flex min-h-11 items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("sections.dasha.retry")}
           </button>
@@ -317,7 +310,7 @@ function DashaBody({
   const mahaRefs = useRef(new Map<string, HTMLLIElement>());
 
   if (compact) {
-    return current ? <CurrentTimingCard current={current} compact locale={locale} /> : null;
+    return current ? <CompactTiming current={current} locale={locale} /> : null;
   }
 
   const registerMahaRef = (key: string, el: HTMLLIElement | null) => {
@@ -353,39 +346,33 @@ function DashaBody({
       )}
 
       {balance && (
-        <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-secondary/40 px-4 py-3">
-          <Scale size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-primary/80" />
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {t("sections.dasha.birthBalanceEyebrow")}
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-foreground">
-              <span className="font-medium">{t("sections.dasha.balanceAtBirth")}</span>{" "}
-              <span className="font-medium">{balance.lord?.name}</span>
-              {balance.lord?.vedic_name && (
-                <span className="text-muted-foreground"> ({balance.lord.vedic_name})</span>
-              )}
-              {balance.description && (
-                <span className="text-muted-foreground"> — {balance.description}</span>
-              )}
-            </p>
-          </div>
+        <div className="px-4">
+          <p className="text-xs font-semibold text-muted-foreground">
+            {t("sections.dasha.birthBalanceEyebrow")}
+          </p>
+          <p className="mt-0.5 text-sm leading-relaxed text-foreground">
+            <span className="font-medium">{t("sections.dasha.balanceAtBirth")}</span>{" "}
+            <span className="font-medium">{balance.lord?.name}</span>
+            {balance.lord?.vedic_name && (
+              <span className="text-muted-foreground"> ({balance.lord.vedic_name})</span>
+            )}
+            {balance.description && (
+              <span className="text-muted-foreground"> · {balance.description}</span>
+            )}
+          </p>
         </div>
       )}
 
-      <div className="space-y-3">
-        <div className="flex items-end gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {t("sections.dasha.periodMapEyebrow")}
-            </p>
-            <h3 className="mt-1 text-base font-semibold text-foreground">
-              {t("sections.dasha.allMahadashas")}
-            </h3>
-          </div>
-          <span className="h-px flex-1 bg-border/70" aria-hidden="true" />
+      <div>
+        <div className="px-4 pb-2">
+          <p className="text-xs font-semibold text-muted-foreground">
+            {t("sections.dasha.periodMapEyebrow")}
+          </p>
+          <h3 className="text-base font-semibold text-foreground">
+            {t("sections.dasha.allMahadashas")}
+          </h3>
         </div>
-        <ul className="space-y-2">
+        <ul className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)] [--list-inset:4.5rem]">
           {clamped.map((m) => (
             <MahaRow
               key={mahaKey(m)}
@@ -401,36 +388,41 @@ function DashaBody({
   );
 }
 
-function CurrentTimingCard({
-  current,
-  compact = false,
-  locale,
-}: {
-  current: CurrentDasha;
-  compact?: boolean;
-  locale: string;
-}) {
+function CurrentTimingCard({ current, locale }: { current: CurrentDasha; locale: string }) {
   const { t } = useTranslation();
+  const art = grahaArtByName(current.maha.name);
+  const rows = [
+    current.antar
+      ? { key: "antar", label: t("sections.dasha.antardasha"), p: current.antar }
+      : null,
+    current.pratyantar
+      ? { key: "pratyantar", label: t("sections.dasha.pratyantardasha"), p: current.pratyantar }
+      : null,
+  ].filter((row): row is NonNullable<typeof row> => row !== null);
+
   return (
     <div
       aria-labelledby="current-timing-heading"
-      className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.06] via-accent/10 to-transparent p-4 sm:p-5"
-      style={{ boxShadow: "var(--shadow-soft)" }}
+      className="relative isolate overflow-hidden rounded-[1.25rem] bg-accent/[0.08] p-[1.125rem] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_25%,transparent)]"
     >
-      <div className="mb-4 flex items-center gap-2">
-        <Sparkles size={16} aria-hidden="true" className="text-accent" />
-        <h3
-          id="current-timing-heading"
-          className={
-            compact
-              ? "text-base font-semibold text-foreground"
-              : "text-base font-semibold text-foreground sm:text-lg"
-          }
-        >
+      {art ? (
+        <AstroArt
+          kind="graha"
+          name={art}
+          size={168}
+          className="absolute -right-10 -top-8 -z-10 opacity-[0.32]"
+        />
+      ) : null}
+      <div className="flex items-center justify-between gap-3">
+        <h3 id="current-timing-heading" className="text-xs font-semibold text-muted-foreground">
           {t("sections.dasha.currentTiming")}
         </h3>
+        <RunningBadge />
       </div>
-      <p className="mb-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-2 font-display text-[1.625rem] font-semibold leading-tight text-foreground">
+        {label(current.maha).primary} {t("sections.dasha.mahadasha")}
+      </p>
+      <p className="mt-1 max-w-[85%] text-sm leading-relaxed text-muted-foreground">
         {current.antar
           ? t("sections.dasha.currentSummaryWithAntar", {
               maha: label(current.maha).primary,
@@ -438,18 +430,60 @@ function CurrentTimingCard({
             })
           : t("sections.dasha.currentSummary", { maha: label(current.maha).primary })}
       </p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <CurrentCell label={t("sections.dasha.mahadasha")} p={current.maha} />
-        {current.antar && <CurrentCell label={t("sections.dasha.antardasha")} p={current.antar} />}
-        {current.pratyantar && (
-          <CurrentCell
-            label={t("sections.dasha.pratyantardasha")}
-            p={current.pratyantar}
-            sub={t("sections.dasha.untilDate", {
-              date: fmtDateMs(current.pratyantar.endMs, locale),
-            })}
-          />
-        )}
+      {rows.length > 0 ? (
+        <dl className="mt-3 space-y-2 text-[0.9375rem]">
+          {rows.map((row) => (
+            <div key={row.key} className="flex items-baseline justify-between gap-3">
+              <dt className="text-muted-foreground">{row.label}</dt>
+              <dd className="text-right text-foreground">
+                <span>{label(row.p).primary}</span>
+                <span className="text-muted-foreground">
+                  {" · "}
+                  {t("sections.dasha.untilDate", { date: fmtDateMs(row.p.endMs, locale) })}
+                </span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
+/** The overview's one-card summary: running Mahadasha, Antardasha and progress. */
+function CompactTiming({ current, locale }: { current: CurrentDasha; locale: string }) {
+  const { t } = useTranslation();
+  const art = grahaArtByName(current.maha.name);
+  const length = current.maha.endMs - current.maha.startMs;
+  const pct =
+    length > 0
+      ? Math.min(100, Math.max(0, ((Date.now() - current.maha.startMs) / length) * 100))
+      : 0;
+  const monthYear = (ms: number) =>
+    new Intl.DateTimeFormat(locale, { month: "short", year: "numeric" }).format(new Date(ms));
+
+  return (
+    <div className="mt-2.5">
+      <div className="flex items-center gap-3">
+        {art ? <AstroArt kind="graha" name={art} size={40} /> : null}
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-xl font-semibold leading-tight text-foreground">
+            {label(current.maha).primary} {t("sections.dasha.mahadasha")}
+          </p>
+          {current.antar ? (
+            <p className="text-[0.8125rem] text-muted-foreground">
+              {label(current.antar).primary} {t("sections.dasha.antardasha")} ·{" "}
+              {t("sections.dasha.untilDate", { date: fmtDateMs(current.antar.endMs, locale) })}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10" aria-hidden="true">
+        <div className="h-full min-w-1.5 rounded-full bg-accent" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-1.5 flex justify-between text-xs tabular-nums text-muted-foreground">
+        <span>{monthYear(current.maha.startMs)}</span>
+        <span>{monthYear(current.maha.endMs)}</span>
       </div>
     </div>
   );
@@ -457,33 +491,6 @@ function CurrentTimingCard({
 
 export function mahaKey(m: { id: number; startMs: number }): string {
   return `${m.id}-${m.startMs}`;
-}
-
-function CurrentCell({
-  label: lbl,
-  p,
-  sub,
-}: {
-  label: string;
-  p: { id: number; name: string };
-  sub?: string;
-}) {
-  const l = label(p);
-  return (
-    <div className="min-w-0 rounded-xl border border-border/70 bg-card/80 px-3.5 py-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {lbl}
-        </span>
-        <RunningBadge />
-      </div>
-      <div className="truncate text-lg font-semibold leading-tight text-foreground">
-        {l.primary}
-      </div>
-      {l.vedic && <div className="mt-0.5 truncate text-xs text-muted-foreground">{l.vedic}</div>}
-      {sub && <div className="mt-2 text-xs text-muted-foreground">{sub}</div>}
-    </div>
-  );
 }
 
 function MahaRow({
@@ -499,17 +506,16 @@ function MahaRow({
 }) {
   const { t } = useTranslation();
   const running = isRunningMs(maha.startMs, maha.endMs, now);
+  const art = grahaArtByName(maha.name);
   return (
     <li ref={registerRef}>
-      <details
-        className={
-          "group overflow-hidden rounded-xl border transition-colors " +
-          (running
-            ? "border-primary/30 bg-primary/[0.04]"
-            : "border-border bg-background hover:bg-muted/30")
-        }
-      >
-        <summary className="flex min-h-[64px] cursor-pointer list-none items-start gap-3 px-4 py-3.5 text-sm sm:items-center">
+      <details className={"group " + (running ? "bg-accent/[0.06]" : "")}>
+        <summary className="flex min-h-[3.75rem] cursor-pointer list-none items-center gap-3.5 px-4 py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          {art ? (
+            <AstroArt kind="graha" name={art} size={40} />
+          ) : (
+            <span className="h-10 w-10 shrink-0" aria-hidden="true" />
+          )}
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
@@ -537,11 +543,11 @@ function MahaRow({
             className="mt-1 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 sm:mt-0"
           />
         </summary>
-        <div className="border-t border-border/60 bg-background/60 px-3 py-3 sm:px-4">
+        <div className="pb-3 pl-[4.5rem] pr-4">
           {maha.antardasha.length === 0 ? (
             <p className="text-xs text-muted-foreground">{t("sections.dasha.noAntardashas")}</p>
           ) : (
-            <ul className="divide-y divide-border/40">
+            <ul>
               {maha.antardasha.map((a) => (
                 <AntarRow key={`${a.id}-${a.startMs}`} antar={a} now={now} locale={locale} />
               ))}
@@ -557,15 +563,12 @@ function AntarRow({ antar, now, locale }: { antar: ClampedAntar; now: number; lo
   const { t } = useTranslation();
   const running = isRunningMs(antar.startMs, antar.endMs, now);
   return (
-    <li className="ml-2 border-l-2 border-primary/15 pl-3 py-1.5 sm:ml-3 sm:pl-4">
+    <li className="py-0.5">
       <details
         open={running}
-        className={
-          "group overflow-hidden rounded-lg border transition-colors " +
-          (running ? "border-primary/25 bg-primary/[0.04]" : "border-border/60 bg-background")
-        }
+        className={"group rounded-[0.625rem] " + (running ? "bg-accent/[0.08]" : "")}
       >
-        <summary className="flex min-h-[48px] cursor-pointer list-none items-start gap-2 px-3 py-2.5 text-sm sm:items-center">
+        <summary className="flex min-h-11 cursor-pointer list-none items-start gap-2 px-2.5 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:items-center [&::-webkit-details-marker]:hidden">
           <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
             <div className="flex min-w-0 items-center gap-2">
               <PlanetLabel p={antar} className="min-w-0 truncate font-medium text-foreground" />
@@ -581,13 +584,13 @@ function AntarRow({ antar, now, locale }: { antar: ClampedAntar; now: number; lo
             className="mt-1 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 sm:mt-0"
           />
         </summary>
-        <div className="border-t border-border/60 px-3 py-2">
+        <div className="px-2.5 pb-2">
           {antar.pratyantardasha.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               {t("sections.dasha.noPratyantardashas")}
             </p>
           ) : (
-            <ul className="divide-y divide-border/40">
+            <ul>
               {antar.pratyantardasha.map((p) => (
                 <PratyantarRow
                   key={`${p.id}-${p.startMs}`}
@@ -617,8 +620,8 @@ function PratyantarRow({
   return (
     <li
       className={
-        "ml-2 flex flex-col gap-1 rounded-md px-2.5 py-2 text-xs sm:ml-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 " +
-        (running ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted/40")
+        "flex flex-col gap-1 rounded-md px-2 py-1.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 " +
+        (running ? "bg-accent/10 text-foreground" : "text-muted-foreground")
       }
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -638,7 +641,7 @@ function PratyantarRow({
 function DashaSkeleton() {
   return (
     <div className="space-y-5 animate-pulse py-2">
-      <div className="rounded-2xl border border-border/60 bg-card/40 p-5 space-y-3">
+      <div className="rounded-[1.25rem] bg-card p-5 space-y-3">
         <div className="h-4 w-36 rounded bg-primary/10" />
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="h-12 rounded-lg bg-primary/10" />

@@ -707,8 +707,10 @@
     },
     "assistantName": "AstroSaathi",
     "newChat": "नई चैट",
-    "searchPlaceholder": "चैट, विषय या लोग खोजें",
+    "searchPlaceholder": "चैट या विषय खोजें",
     "clearSearch": "खोज साफ़ करें",
+    "searchNoMatch": "\"{{query}}\" से मेल खाती कोई चैट नहीं",
+    "searchNoMatchHint": "कोई ग्रह, व्यक्ति या विषय खोजकर देखें।",
     "openSidebar": "साइडबार खोलें",
     "closeSidebar": "साइडबार बंद करें",
     "toggleSidebar": "साइडबार टॉगल करें",
@@ -781,7 +783,8 @@
       "w3": "अपने नक्षत्र को समझना",
       "w4": "सिंह साथी के साथ अनुकूलता"
     },
-    "close": "बंद करें"
+    "close": "बंद करें",
+    "done": "हो गया"
   },
   "feedback": {
     "actions": "उत्तर की क्रियाएँ",

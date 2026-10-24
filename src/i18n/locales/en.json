@@ -707,8 +707,10 @@
     },
     "assistantName": "AstroSaathi",
     "newChat": "New chat",
-    "searchPlaceholder": "Search chats, topics, or people",
+    "searchPlaceholder": "Search chats or topics",
     "clearSearch": "Clear search",
+    "searchNoMatch": "No chats match \"{{query}}\"",
+    "searchNoMatchHint": "Try a planet, a person or a topic.",
     "openSidebar": "Open sidebar",
     "closeSidebar": "Close sidebar",
     "toggleSidebar": "Toggle sidebar",
@@ -782,7 +784,8 @@
       "w3": "Understanding my nakshatra",
       "w4": "Compatibility with a Leo partner"
     },
-    "close": "Close"
+    "close": "Close",
+    "done": "Done"
   },
   "feedback": {
     "actions": "Response actions",

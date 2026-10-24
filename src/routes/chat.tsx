@@ -30,7 +30,6 @@ import {
   Mic,
   MoreHorizontal,
   Pencil,
-  Plus,
   RefreshCw,
   Search,
   Sparkles,
@@ -50,7 +49,6 @@ import {
 import { RecordingWaveform } from "@/components/voice/RecordingWaveform";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
-import { Button } from "@/components/ui/button";
 import {
   Drawer,
   DrawerContent,
@@ -2163,6 +2161,7 @@ function AskSigil() {
 function ConversationItem({
   id,
   title,
+  time,
   active,
   onSelect,
   onRename,
@@ -2170,6 +2169,7 @@ function ConversationItem({
 }: {
   id: string;
   title: string;
+  time: string;
   active: boolean;
   onSelect: (id: string) => void;
   onRename: (id: string, title: string) => void;
@@ -2195,20 +2195,20 @@ function ConversationItem({
 
   if (confirmingDelete) {
     return (
-      <li className="flex flex-col gap-1.5 rounded-lg bg-destructive/5 px-3 py-2">
-        <p className="truncate text-xs text-muted-foreground">{t("chat.deleteConfirmPrompt")}</p>
+      <li className="flex flex-col gap-2 px-4 py-3">
+        <p className="truncate text-sm text-foreground">{t("chat.deleteConfirmPrompt")}</p>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setConfirmingDelete(false)}
-            className="tap-press min-h-11 flex-1 rounded-lg border border-border bg-background px-2 text-xs font-medium text-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press min-h-11 flex-1 rounded-full bg-foreground/[0.06] px-3 text-sm font-semibold text-foreground hover:bg-foreground/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("chat.cancel")}
           </button>
           <button
             type="button"
             onClick={() => onDelete(id)}
-            className="tap-press min-h-11 flex-1 rounded-lg border border-destructive/40 bg-destructive/10 px-2 text-xs font-medium text-destructive-strong hover:bg-destructive/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press min-h-11 flex-1 rounded-full bg-destructive/15 px-3 text-sm font-semibold text-destructive-strong hover:bg-destructive/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("chat.delete")}
           </button>
@@ -2220,7 +2220,7 @@ function ConversationItem({
   return (
     <li className="group/item relative flex items-center">
       {isRenaming ? (
-        <label className="w-full">
+        <label className="w-full px-2 py-1.5">
           <span className="sr-only">{t("chat.renameInputLabel")}</span>
           <input
             autoFocus
@@ -2236,7 +2236,7 @@ function ConversationItem({
                 setIsRenaming(false);
               }
             }}
-            className="w-full truncate rounded-lg border border-border bg-background py-2 pl-3 pr-10 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
+            className="min-h-11 w-full truncate rounded-[0.625rem] bg-background px-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </label>
       ) : (
@@ -2245,14 +2245,20 @@ function ConversationItem({
           onClick={() => onSelect(id)}
           aria-current={active ? "true" : undefined}
           className={
-            "tap-press w-full truncate rounded-lg py-2 pl-3 pr-10 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-            (active
-              ? "bg-accent/10 text-accent font-medium ring-1 ring-accent/20"
-              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground")
+            "tap-press flex min-h-[3.25rem] w-full min-w-0 items-center gap-3 py-2 pl-4 pr-12 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring " +
+            (active ? "bg-accent/[0.08]" : "hover:bg-foreground/[0.04]")
           }
           title={title}
         >
-          {title}
+          <span
+            className={
+              "min-w-0 flex-1 truncate text-base font-semibold md:text-[0.9375rem] " +
+              (active ? "text-accent" : "text-foreground")
+            }
+          >
+            {title}
+          </span>
+          {time && <span className="shrink-0 text-xs text-muted-foreground">{time}</span>}
         </button>
       )}
       {!isRenaming && (
@@ -2261,7 +2267,7 @@ function ConversationItem({
             <button
               type="button"
               aria-label={t("chat.conversationOptions")}
-              className="tap-press absolute right-0.5 top-1/2 -translate-y-1/2 grid min-h-11 min-w-11 place-items-center rounded-full text-muted-foreground opacity-100 transition-opacity hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring md:opacity-0 md:group-hover/item:opacity-100 md:focus-within:opacity-100"
+              className="tap-press absolute right-0.5 top-1/2 grid min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-opacity hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring md:opacity-0 md:group-hover/item:opacity-100 md:focus-visible:opacity-100"
             >
               <MoreHorizontal size={16} aria-hidden="true" />
             </button>
@@ -2315,66 +2321,89 @@ function Sidebar({
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
 
   const filteredGroups = useMemo(
-    () => groupConversations(conversations, query, t),
-    [conversations, query, t],
+    () => groupConversations(conversations, query, t, i18n.language),
+    [conversations, query, t, i18n.language],
   );
 
-  const searchBox = (
-    <div className="relative block">
-      <label htmlFor="chat-history-search" className="sr-only">
-        {t("chat.searchPlaceholder")}
-      </label>
-      <Search
-        size={14}
-        aria-hidden="true"
-        className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-      />
-      <input
-        id="chat-history-search"
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t("chat.searchPlaceholder")}
-        className="w-full rounded-full border border-border bg-background py-2 pl-8 pr-10 text-base text-foreground placeholder:text-muted-foreground focus:border-accent/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
-      />
-      {query && (
-        <button
-          type="button"
-          onClick={() => setQuery("")}
-          aria-label={t("chat.clearSearch")}
-          className="tap-press absolute right-1 top-1/2 grid min-h-9 min-w-9 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <X size={14} aria-hidden="true" />
-        </button>
-      )}
+  const searchRow = (
+    <div className="flex gap-2">
+      <div className="relative min-w-0 flex-1">
+        <label htmlFor="chat-history-search" className="sr-only">
+          {t("chat.searchPlaceholder")}
+        </label>
+        <Search
+          size={16}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
+        <input
+          id="chat-history-search"
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("chat.searchPlaceholder")}
+          className="h-11 w-full rounded-xl bg-foreground/[0.07] pl-9 pr-11 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            aria-label={t("chat.clearSearch")}
+            className="tap-press absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onNewChat}
+        aria-label={t("chat.newChat")}
+        title={t("chat.newChat")}
+        className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent hover:bg-accent/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <SquarePen size={18} aria-hidden="true" />
+      </button>
     </div>
   );
 
   const conversationList = (
     <>
-      {filteredGroups.length === 0 && (
-        <div className="px-3 py-4 text-xs text-muted-foreground">{t("chat.historyEmpty")}</div>
-      )}
+      {filteredGroups.length === 0 &&
+        (query.trim() ? (
+          <div className="flex flex-col gap-1.5 px-8 py-12 text-center">
+            <p className="text-base font-semibold text-foreground">
+              {t("chat.searchNoMatch", { query: query.trim() })}
+            </p>
+            <p className="text-[0.8125rem] text-muted-foreground">{t("chat.searchNoMatchHint")}</p>
+          </div>
+        ) : (
+          <p className="px-5 py-6 text-sm text-muted-foreground">{t("chat.historyEmpty")}</p>
+        ))}
       {filteredGroups.map((g, index) => {
         const groupId = `conversation-group-${index}`;
         return (
-          <section key={g.label} aria-labelledby={groupId} className="mb-4">
+          <section key={g.label} aria-labelledby={groupId} className="mt-4 first:mt-1">
             <h3
               id={groupId}
-              className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+              className="px-5 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal"
             >
               {g.label}
             </h3>
-            <ul aria-label={g.label} className="flex flex-col gap-0.5">
+            <ul
+              aria-label={g.label}
+              className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]"
+            >
               {g.items.map((it) => (
                 <ConversationItem
                   key={it.id}
                   id={it.id}
                   title={it.title}
+                  time={it.time}
                   active={activeId === it.id}
                   onSelect={onSelect}
                   onRename={onRename}
@@ -2392,34 +2421,26 @@ function Sidebar({
     return (
       <Drawer open={open} onOpenChange={(next) => !next && onClose()}>
         <DrawerContent aria-label={t("chat.historyTitle")} className="px-0">
-          <DrawerHeader className="border-b border-border/60">
-            <div className="flex items-center justify-between gap-3">
-              <DrawerTitle className="font-display text-xl tracking-tight">
-                {t("chat.historyTitle")}
-              </DrawerTitle>
-              <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-                {t("chat.historyCount", { count: conversations.length })}
-              </span>
-            </div>
-            <DrawerDescription>{t("chat.historySortHint")}</DrawerDescription>
+          <DrawerHeader className="grid grid-cols-[1fr_auto_1fr] items-center gap-0 px-2 pb-1 pt-1">
+            <span aria-hidden="true" />
+            <DrawerTitle className="text-[1.0625rem] font-semibold">
+              {t("chat.historyTitle")}
+            </DrawerTitle>
+            <button
+              type="button"
+              onClick={onClose}
+              className="tap-press inline-flex min-h-11 items-center justify-self-end rounded-full px-3 text-[1.0625rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t("chat.done")}
+            </button>
+            <DrawerDescription className="sr-only">{t("chat.historySortHint")}</DrawerDescription>
           </DrawerHeader>
 
-          <div className="border-b border-border/60 p-3">
-            <Button
-              variant="secondary"
-              className="w-full gap-2 font-medium shadow-sm"
-              onClick={onNewChat}
-            >
-              <Plus size={16} aria-hidden="true" />
-              {t("chat.newChat")}
-            </Button>
-          </div>
-
-          <div className="border-b border-border/60 px-3 py-2">{searchBox}</div>
+          <div className="px-4 pb-1 pt-1">{searchRow}</div>
 
           <nav
             aria-label={t("chat.historyTitle")}
-            className="min-h-0 flex-1 overflow-y-auto px-2 pb-[calc(1rem+var(--as-safe-bottom))] pt-2"
+            className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1.5rem+var(--as-safe-bottom))] pt-2"
           >
             {conversationList}
           </nav>
@@ -2431,36 +2452,17 @@ function Sidebar({
   return (
     <aside
       aria-label={t("chat.historyTitle")}
-      className={`relative flex h-full w-80 shrink-0 flex-col border-r border-border/70 bg-card/70 backdrop-blur-xl transition-transform duration-300 ease-out ${
+      className={`relative flex h-full w-80 shrink-0 flex-col border-r border-border/70 bg-background transition-transform duration-300 ease-out ${
         open ? "translate-x-0" : "-translate-x-full"
       } ${!open ? "hidden" : ""}`}
     >
-      <div className="border-b border-border/60 px-4 pb-3 pt-2">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
-            {t("chat.historyTitle")}
-          </h2>
-          <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-            {t("chat.historyCount", { count: conversations.length })}
-          </span>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">{t("chat.historySortHint")}</p>
+      <div className="flex min-h-14 items-center px-5 pt-1">
+        <h2 className="text-[1.0625rem] font-semibold text-foreground">{t("chat.historyTitle")}</h2>
       </div>
 
-      <div className="p-3">
-        <Button
-          variant="secondary"
-          className="w-full gap-2 font-medium shadow-sm"
-          onClick={onNewChat}
-        >
-          <Plus size={16} aria-hidden="true" />
-          {t("chat.newChat")}
-        </Button>
-      </div>
+      <div className="px-4 pb-1">{searchRow}</div>
 
-      <div className="px-3 pb-2">{searchBox}</div>
-
-      <nav aria-label={t("chat.historyTitle")} className="flex-1 overflow-y-auto px-2 pb-3">
+      <nav aria-label={t("chat.historyTitle")} className="flex-1 overflow-y-auto px-4 pb-4 pt-2">
         {conversationList}
       </nav>
     </aside>
@@ -3398,13 +3400,14 @@ function ErrorRow({ message, onRetry }: { message: string; onRetry: () => void }
 
 type ConversationGroup = {
   label: string;
-  items: Array<{ id: string; title: string }>;
+  items: Array<{ id: string; title: string; time: string }>;
 };
 
 function groupConversations(
   list: Conversation[],
   query: string,
   t: (k: string) => string,
+  locale: string,
 ): ConversationGroup[] {
   const q = query.trim().toLowerCase();
   const now = new Date();
@@ -3412,7 +3415,11 @@ function groupConversations(
   const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
   const start7 = startOfToday - 7 * 24 * 60 * 60 * 1000;
 
-  const buckets: Record<string, Array<{ id: string; title: string }>> = {
+  const timeFmt = new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" });
+  const weekdayFmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
+  const dateFmt = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
+
+  const buckets: Record<string, Array<{ id: string; title: string; time: string }>> = {
     today: [],
     yesterday: [],
     previous7: [],
@@ -3420,7 +3427,7 @@ function groupConversations(
   };
 
   for (const c of list) {
-    const title = (c.title ?? "").trim() || "New chat";
+    const title = (c.title ?? "").trim() || t("chat.newChat");
     if (q && !title.toLowerCase().includes(q)) continue;
     const ts = new Date(c.updated_at).getTime();
     let bucket: keyof typeof buckets;
@@ -3428,7 +3435,15 @@ function groupConversations(
     else if (ts >= startOfYesterday) bucket = "yesterday";
     else if (ts >= start7) bucket = "previous7";
     else bucket = "older";
-    buckets[bucket].push({ id: c.id, title });
+    const date = new Date(ts);
+    const time = Number.isNaN(ts)
+      ? ""
+      : bucket === "today" || bucket === "yesterday"
+        ? timeFmt.format(date)
+        : bucket === "previous7"
+          ? weekdayFmt.format(date)
+          : dateFmt.format(date);
+    buckets[bucket].push({ id: c.id, title, time });
   }
 
   const groups: ConversationGroup[] = [];

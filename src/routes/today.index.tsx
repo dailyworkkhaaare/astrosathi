@@ -164,7 +164,7 @@ function TodayPage() {
         <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
           {t("todayOverview.supporting")}
         </p>
-        <div className="grid items-start gap-6 md:grid-cols-2">
+        <div className="grid items-start gap-3 md:grid-cols-2">
           <PanchangSummaryCard />
           <DailyMantraSection />
         </div>

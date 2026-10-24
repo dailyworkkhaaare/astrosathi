@@ -29,7 +29,7 @@ type Mode = "signin" | "signup" | "forgot";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INPUT_CLASS =
-  "h-11 w-full bg-transparent text-[1.0625rem] text-foreground placeholder:text-muted-foreground/70 focus:outline-none";
+  "h-11 bg-transparent text-[1.0625rem] text-foreground placeholder:text-muted-foreground/70 focus:outline-none -mx-2 w-[calc(100%+1rem)] rounded-md px-2 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
 
 function AuthRoute() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -462,7 +462,7 @@ function Field({
 }) {
   return (
     <div
-      className="col-span-2 grid min-h-[3.125rem] grid-cols-subgrid items-center gap-x-4 px-4 focus-within:ring-2 focus-within:ring-inset focus-within:ring-ring data-[invalid]:bg-destructive/10"
+      className="col-span-2 grid min-h-[3.125rem] grid-cols-subgrid items-center gap-x-4 px-4 data-[invalid]:bg-destructive/10"
       data-invalid={error ? "" : undefined}
     >
       <label htmlFor={id} className="max-w-[10rem] text-[1.0625rem] leading-tight text-foreground">

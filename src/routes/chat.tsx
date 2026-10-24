@@ -18,10 +18,13 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  BookOpen,
   Check,
+  ChevronDown,
   CircleAlert,
   Copy,
   History,
+  Info,
   Loader2,
   Menu,
   Mic,
@@ -2752,9 +2755,13 @@ function EvidenceStrip({ provenance }: { provenance: Provenance }) {
 
   if (!provenance.chart_loaded && basis.length === 0) {
     return (
-      <div className="mt-3 border-t border-border/50 pt-2 text-xs text-muted-foreground">
-        <p className="font-medium text-foreground">{t("chat.evidenceLabel")}</p>
-        <p className="mt-1 leading-relaxed">{t("chat.evidenceUnavailable")}</p>
+      <div className="mt-4 flex items-start gap-2.5 rounded-[0.875rem] bg-card px-3.5 py-3 text-[0.8125rem] leading-snug text-muted-foreground shadow-[var(--as-elevation-1)]">
+        <Info size={16} className="mt-px shrink-0" aria-hidden="true" />
+        <p>
+          <span className="font-semibold text-foreground">{t("chat.evidenceLabel")}</span>
+          <span aria-hidden="true"> · </span>
+          {t("chat.evidenceUnavailable")}
+        </p>
       </div>
     );
   }
@@ -2763,25 +2770,31 @@ function EvidenceStrip({ provenance }: { provenance: Provenance }) {
 
   const summaryLabel = t("chat.evidenceSourceCount", { count: basis.length });
   return (
-    <details className="mt-3 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+    <details className="group/evidence mt-4 max-w-[36rem] overflow-hidden rounded-[0.875rem] bg-card text-[0.8125rem] text-muted-foreground shadow-[var(--as-elevation-1)]">
       <summary
         aria-label={`${t("chat.evidenceLabel")} · ${summaryLabel}`}
-        className="cursor-pointer list-none font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-h-11 cursor-pointer list-none items-center gap-2.5 px-3.5 font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
       >
-        <span>{t("chat.evidenceLabel")}</span>
-        <span aria-hidden="true" className="mx-1 text-muted-foreground">
-          ·
+        <BookOpen size={16} className="shrink-0 text-primary" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          {t("chat.evidenceLabel")}
+          <span aria-hidden="true"> · </span>
+          <span className="font-normal">{summaryLabel}</span>
         </span>
-        <span className="font-normal text-muted-foreground">{summaryLabel}</span>
+        <ChevronDown
+          size={16}
+          className="shrink-0 transition-transform duration-200 group-open/evidence:rotate-180 motion-reduce:transition-none"
+          aria-hidden="true"
+        />
       </summary>
-      <ul className="mt-2 list-disc space-y-1 pl-4 leading-relaxed">
+      <ul className="flex flex-col gap-1.5 pb-3 pl-[2.375rem] pr-3.5 leading-snug">
         {basis.map((item) => {
           const labelKey = EVIDENCE_LABEL_KEYS[item];
           return <li key={item}>{labelKey ? t(labelKey) : item}</li>;
         })}
       </ul>
       {!provenance.chart_loaded && (
-        <p className="mt-2 leading-relaxed">{t("chat.evidenceUnavailable")}</p>
+        <p className="pb-3 pl-[2.375rem] pr-3.5 leading-snug">{t("chat.evidenceUnavailable")}</p>
       )}
     </details>
   );
@@ -2832,20 +2845,18 @@ function MessageRow({
 
   if (message.role === "user") {
     return (
-      <div ref={registerRef} className="motion-fade-up group flex flex-col items-end gap-1.5">
-        <span className="pr-1 text-[11px] font-medium tracking-wide text-muted-foreground">
-          {t("chat.you")}
-        </span>
-        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl rounded-tr-sm bg-accent/10 px-4 py-3 text-base leading-relaxed text-foreground shadow-sm ring-1 ring-accent/25 md:max-w-[70%]">
+      <div ref={registerRef} className="motion-fade-up group flex flex-col items-end">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-[1.5rem] rounded-tr-lg bg-accent/10 px-4 py-3 text-[1.0625rem] leading-[1.45] text-foreground ring-1 ring-inset ring-accent/20 md:max-w-[70%]">
+          <span className="sr-only">{t("chat.you")}: </span>
           {message.content}
         </div>
-        <div className="flex gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
+        <div className="-mr-2 flex gap-0.5 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100">
           <IconAction label={copied ? t("chat.copied") : t("chat.copy")} onClick={doCopy}>
-            {copied ? <Check size={14} className="text-accent" /> : <Copy size={14} />}
+            {copied ? <Check size={16} className="text-accent" /> : <Copy size={16} />}
           </IconAction>
           {onEdit && (
             <IconAction label={t("chat.edit")} onClick={onEdit}>
-              <Pencil size={14} />
+              <Pencil size={16} />
             </IconAction>
           )}
         </div>
@@ -2869,41 +2880,22 @@ function MessageRow({
       }
     >
       <div className="min-w-0 flex-1">
-        <div className="rounded-2xl border border-border/60 bg-card/45 px-4 py-3.5 shadow-sm md:px-5 md:py-4">
-          <div className="mb-2.5 flex items-center gap-2.5">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-              <Sparkles size={14} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <span className="block text-xs font-semibold tracking-tight text-foreground">
-                {t("chat.assistantName")}
-              </span>
-              <span className="block text-[10px] font-medium tracking-wide text-muted-foreground">
-                {t("chat.interpretationLabel")}
-              </span>
-            </div>
-            {streaming && (
-              <span className="ml-auto flex items-center gap-1 text-[10px] font-medium text-accent">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none" />
-                {t("chat.phaseWriting")}
-              </span>
-            )}
-          </div>
+        <div>
+          <span className="sr-only">{t("chat.interpretationLabel")}</span>
           <div
             className={
-              "prose max-w-none break-words text-foreground leading-relaxed " +
+              "prose max-w-none break-words text-[1.0625rem] leading-[1.6] text-foreground " +
               "[&>*:first-child]:mt-0 " +
               "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 " +
               "[&_strong]:font-semibold [&_strong]:text-foreground [&_em]:italic [&_em]:text-foreground/90 " +
               "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] " +
               "[&_h1]:text-xl [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1]:mt-6 [&_h1]:mb-3 " +
               "[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:mt-6 [&_h2]:mb-2.5 " +
-              "[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 " +
+              "[&_h3]:text-[1.0625rem] [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 " +
               "[&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground/90 [&_h4]:mt-4 [&_h4]:mb-1.5 " +
-              "[&_p]:my-3 [&_p]:leading-relaxed " +
-              "[&_p:first-of-type]:text-[1.02rem] [&_p:first-of-type]:leading-relaxed " +
+              "[&_p]:my-3 [&_p]:leading-[1.6] " +
               "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 " +
-              "[&_li]:my-1 [&_li]:leading-relaxed [&_li>ul]:my-1.5 [&_li>ol]:my-1.5 [&_ul_ul]:mt-1 " +
+              "[&_li]:my-1 [&_li]:leading-[1.6] [&_li>ul]:my-1.5 [&_li>ol]:my-1.5 [&_ul_ul]:mt-1 " +
               "[&_ul>li]:marker:text-accent/60 [&_ol>li]:marker:text-muted-foreground " +
               "[&_li:has(input)]:list-none [&_li:has(input)]:-ml-5 [&_input[type=checkbox]]:mr-2 [&_input[type=checkbox]]:accent-accent " +
               "[&_hr]:my-6 [&_hr]:border-0 [&_hr]:border-t [&_hr]:border-border/60 " +
@@ -2917,7 +2909,7 @@ function MessageRow({
           {!streaming && message.provenance && <EvidenceStrip provenance={message.provenance} />}
         </div>
         {!streaming && message.content && (
-          <div className="mt-1 flex flex-wrap items-center gap-0.5">
+          <div className="-ml-2.5 mt-2 flex flex-wrap items-center gap-0.5">
             <MessageActionRow
               content={message.content}
               copied={copied}
@@ -2938,11 +2930,13 @@ function MessageRow({
               data-state={isSpeakLoading ? "preparing" : isSpeaking ? "speaking" : "idle"}
               title={isSpeaking ? t("voice.stopReading") : t("voice.readAloud")}
               className={
-                "tap-press -my-[10px] place-items-center rounded-full transition-[opacity,color,background-color] duration-[140ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait " +
-                (isSpeaking || isSpeakLoading ? "inline-flex gap-1 px-2" : "grid h-9 w-9 ") +
+                "tap-press h-11 place-items-center rounded-full transition-colors duration-[140ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait " +
                 (isSpeaking || isSpeakLoading
-                  ? "text-accent opacity-100"
-                  : "text-muted-foreground/55 opacity-40 hover:bg-muted/60 hover:text-foreground md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100")
+                  ? "inline-flex items-center gap-1 px-3"
+                  : "grid w-11 ") +
+                (isSpeaking || isSpeakLoading
+                  ? "bg-accent/10 text-accent"
+                  : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground")
               }
             >
               {isSpeakLoading ? (
@@ -2957,7 +2951,7 @@ function MessageRow({
                 <Volume2 size={16} aria-hidden="true" />
               )}
               {(isSpeaking || isSpeakLoading) && (
-                <span className="text-[10px] font-medium leading-none">
+                <span className="text-xs font-medium leading-none">
                   {t(isSpeakLoading ? "voice.preparingAudio" : "voice.speaking")}
                 </span>
               )}
@@ -2984,7 +2978,7 @@ function IconAction({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="tap-press grid h-11 w-11 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {children}
     </button>
@@ -3340,22 +3334,24 @@ function TypingRow({
     // ever appears right after the user's own bubble, so it always gets the
     // same "grouped" pull-up as a grouped assistant reply (see MessageRow).
     <div className={"motion-fade-up min-h-12" + (groupedWithPrev ? " -mt-2 md:-mt-2.5" : "")}>
-      <div className="max-w-[min(42rem,92%)] rounded-2xl border border-border/60 bg-card/55 px-4 py-3.5 shadow-sm backdrop-blur md:px-5">
-        <div className="mb-2 flex items-center gap-2.5">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-            <Sparkles size={14} aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground">{t("chat.reading.title")}</p>
-            <p className="truncate text-[10px] font-medium text-muted-foreground">
+      <div className="max-w-[min(42rem,100%)] rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)]">
+        <div className="mb-2.5 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[0.9375rem] font-semibold text-foreground">
+              {t("chat.reading.title")}
+            </p>
+            <p className="truncate text-xs font-semibold text-primary">
               {plan ? t(plan.focusKey) : t("chat.reading.focus.general")}
             </p>
           </div>
-          <span className="ml-auto flex gap-1" aria-hidden="true">
+          <span
+            className="mt-1 flex shrink-0 gap-1 rounded-full bg-foreground/[0.06] px-2.5 py-2"
+            aria-hidden="true"
+          >
             {[0, 1, 2].map((dot) => (
               <span
                 key={dot}
-                className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-accent motion-reduce:animate-none"
+                className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-primary motion-reduce:animate-none"
                 style={{ animationDelay: `${dot * 150}ms` }}
               />
             ))}
@@ -3363,7 +3359,7 @@ function TypingRow({
         </div>
         <p
           key={label}
-          className="motion-fade-in min-h-[1.5rem] text-sm leading-relaxed text-foreground"
+          className="motion-fade-in min-h-[1.5rem] text-[0.9375rem] italic leading-relaxed text-muted-foreground"
         >
           {label}
         </p>

@@ -83,10 +83,9 @@ function summarize(content: string): string {
 // glyph lands in exactly the same slot as the copy/thumbs buttons, keeping
 // gaps between all five triggers visually equal); it only grows to fit an
 // inline micro-label once a follow-up has been answered.
-const triggerIdle = "text-muted-foreground/55 hover:bg-muted/60 hover:text-foreground";
-const triggerIconOnly = "tap-press grid h-9 w-9 -my-[10px] place-items-center rounded-full";
-const triggerWithLabel =
-  "tap-press inline-flex h-9 -my-[10px] items-center gap-1 rounded-full px-1";
+const triggerIdle = "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground";
+const triggerIconOnly = "tap-press grid h-11 w-11 place-items-center rounded-full";
+const triggerWithLabel = "tap-press inline-flex h-11 items-center gap-1 rounded-full px-3";
 
 function RowIconButton({
   label,
@@ -194,7 +193,7 @@ function FollowUpControl<TValue extends string>({
         icon
       )}
       {selected && (
-        <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-none">
+        <span className="max-w-[5.5rem] truncate text-xs font-medium leading-none">
           {t(selected.labelKey)}
         </span>
       )}
@@ -393,7 +392,7 @@ export function MessageActionRow({
       role="group"
       aria-label={t("feedback.actions")}
       aria-busy={ratingBusy}
-      className="mt-1 flex items-center gap-0.5 opacity-40 transition-opacity duration-[140ms] md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100"
+      className="flex items-center gap-0.5"
     >
       <RowIconButton label={copied ? t("chat.copied") : t("chat.copy")} onClick={onCopy}>
         {copied ? <Check size={16} className="text-accent" /> : <Copy size={16} />}

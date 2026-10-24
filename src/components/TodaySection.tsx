@@ -1,5 +1,5 @@
-import { ChevronDown, MessageCircle, Moon } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight, MessageCircle, Moon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -12,27 +12,20 @@ import {
   PLANET_KEY_BY_CODE,
 } from "@/lib/todayTransits";
 import { triggerHaptic } from "@/lib/native-device";
-import { Button } from "@/components/ui/button";
+import { AstroArt } from "@/components/AstroArt";
+import { grahaArtByName, type GrahaArt } from "@/lib/astro-art";
 
 export function TodaySection() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const transitsQuery = useTodayTransits();
   const planetsQuery = usePlanets();
-  const [slowPlanetsOpen, setSlowPlanetsOpen] = useState(false);
 
   const loading = transitsQuery.isPending || planetsQuery.isPending;
   const hasError = transitsQuery.isError || planetsQuery.isError;
 
   const realPlanets = planetsQuery.data?.planets ?? [];
   const ascSignIndex = findAscendantSignIndex(realPlanets);
-
-  const today = new Date();
-  const dateLabel = new Intl.DateTimeFormat(i18n.language, {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(today);
 
   const moon = transitsQuery.data?.moon ?? null;
   const planets = transitsQuery.data?.planets ?? [];
@@ -51,39 +44,38 @@ export function TodaySection() {
     void navigate({ to: "/chat", search: { seed } });
   };
 
+  const moonSign = moon ? t(`signs.${SIGN_KEYS_BY_INDEX[moon.signIndex]}`) : "";
+  const moonNakshatra = moon ? (NAKSHATRAS[moon.nakshatraIndex] ?? null) : null;
+
   return (
-    <section
-      aria-labelledby="today-heading"
-      className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)] sm:min-h-[10.5rem] sm:p-5"
-    >
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
-            <Moon size={15} aria-hidden="true" />
-          </span>
-          <h2 id="today-heading" className="text-base font-semibold text-foreground">
-            {t("sections.today.title")}
-          </h2>
-        </div>
-        <p className="text-sm text-muted-foreground">{dateLabel}</p>
-      </header>
+    <section aria-labelledby="today-heading">
+      <h2
+        id="today-heading"
+        className="px-4 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal"
+      >
+        {t("sections.today.title")}
+      </h2>
 
       {loading && (
-        <div className="mt-4 space-y-3" aria-busy="true" role="status">
+        <div
+          className="space-y-3 rounded-[0.875rem] bg-card p-4 shadow-[var(--as-elevation-1)]"
+          aria-busy="true"
+          role="status"
+        >
           <span className="sr-only">{t("states.loading")}</span>
           <div
-            className="h-5 w-2/3 motion-safe:animate-pulse rounded bg-muted"
+            className="h-10 w-full motion-safe:animate-pulse rounded-lg bg-muted"
             aria-hidden="true"
           />
           <div
-            className="h-16 w-full motion-safe:animate-pulse rounded-xl bg-muted"
+            className="h-10 w-full motion-safe:animate-pulse rounded-lg bg-muted"
             aria-hidden="true"
           />
         </div>
       )}
 
       {!loading && hasError && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[0.875rem] bg-card py-2 pl-4 pr-2 shadow-[var(--as-elevation-1)]">
           <p className="min-w-0 flex-1 text-sm text-foreground">{t("sections.today.loadError")}</p>
           <button
             type="button"
@@ -91,7 +83,7 @@ export function TodaySection() {
               void transitsQuery.refetch();
               void planetsQuery.refetch();
             }}
-            className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("states.retry")}
           </button>
@@ -99,7 +91,7 @@ export function TodaySection() {
       )}
 
       {isEmpty && (
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-dashed border-border bg-background/60 px-3 py-3">
+        <div className="flex items-center gap-3 rounded-[0.875rem] border border-dashed border-border px-4 py-3">
           <Moon size={17} className="shrink-0 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm leading-relaxed text-muted-foreground">
             {t("sections.today.empty")}
@@ -108,82 +100,84 @@ export function TodaySection() {
       )}
 
       {!loading && !hasError && !isEmpty && (
-        <div className="mt-4 space-y-4">
+        <ul className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)] [--list-inset:4.375rem]">
           {moon && (
-            <div className="flex items-start gap-3 rounded-xl border border-border bg-background p-4">
-              <Moon
-                size={18}
-                className="mt-0.5 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {t("sections.today.moonNowLabel")}
-                </p>
-                <p className="mt-1 text-sm text-foreground">
-                  {t("sections.today.moonNowLine", {
-                    sign: t(`signs.${SIGN_KEYS_BY_INDEX[moon.signIndex]}`),
-                    nakshatra: NAKSHATRAS[moon.nakshatraIndex] ?? "—",
-                    pada: moon.pada ?? "—",
-                  })}
-                </p>
-                {ascSignIndex != null && (
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {t("sections.today.transitingHouse", {
-                      n: houseFor(moon.signIndex, ascSignIndex),
-                    })}
-                  </p>
-                )}
-              </div>
-            </div>
+            <SkyRow
+              art="moon"
+              name={t("home.planets.moon")}
+              detail={[
+                moonSign,
+                moonNakshatra,
+                moon.pada != null ? t("todayOverview.glance.pada", { n: moon.pada }) : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              house={moonHouse}
+              t={t}
+            />
           )}
-
-          {planets.length > 0 && (
-            <div>
-              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <button
-                  type="button"
-                  onClick={() => setSlowPlanetsOpen((open) => !open)}
-                  aria-expanded={slowPlanetsOpen}
-                  aria-controls="slow-planets-list"
-                  className="-mx-1 flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span>{t("sections.today.slowPlanetsTitle")}</span>
-                  <ChevronDown
-                    size={16}
-                    aria-hidden="true"
-                    className={
-                      "shrink-0 text-muted-foreground transition-transform " +
-                      (slowPlanetsOpen ? "rotate-180" : "")
-                    }
-                  />
-                </button>
-              </h3>
-              {slowPlanetsOpen && (
-                <ul id="slow-planets-list" className="motion-fade-up mt-2 space-y-2">
-                  {planets.map((p) => (
-                    <TodayPlanetRow key={p.planet} planet={p} ascSignIndex={ascSignIndex} t={t} />
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
+          {planets.map((p) => (
+            <TodayPlanetRow key={p.planet} planet={p} ascSignIndex={ascSignIndex} t={t} />
+          ))}
           {moonHouse != null && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAskAboutToday}
-              className="w-full gap-1.5 rounded-full px-3 text-muted-foreground hover:text-foreground sm:w-auto"
-            >
-              <MessageCircle size={16} aria-hidden="true" />
-              {t("sections.today.askAboutToday")}
-            </Button>
+            <li>
+              <button
+                type="button"
+                onClick={handleAskAboutToday}
+                className="tap-press flex min-h-[3.125rem] w-full items-center justify-between gap-3 px-4 text-left text-[0.9375rem] font-semibold text-[var(--as-color-action-ask)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <MessageCircle size={16} aria-hidden="true" />
+                  {t("sections.today.askAboutToday")}
+                </span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            </li>
           )}
-        </div>
+        </ul>
       )}
     </section>
+  );
+}
+
+function SkyRow({
+  art,
+  name,
+  badge,
+  detail,
+  note,
+  house,
+  t,
+}: {
+  art: GrahaArt | null;
+  name: string;
+  badge?: ReactNode;
+  detail: string;
+  note?: string | null;
+  house: number | null;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}) {
+  return (
+    <li className="flex min-h-[3.75rem] items-center gap-3.5 px-4 py-2.5">
+      {art ? (
+        <AstroArt kind="graha" name={art} size={40} />
+      ) : (
+        <span className="h-10 w-10 shrink-0" aria-hidden="true" />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2 text-[1.0625rem] text-foreground">
+          {name}
+          {badge}
+        </p>
+        <p className="text-[0.8125rem] text-muted-foreground">{detail}</p>
+        {note ? <p className="text-xs text-accent">{note}</p> : null}
+      </div>
+      {house != null ? (
+        <span className="shrink-0 text-[0.9375rem] text-muted-foreground">
+          {t("home.houseLabel", { n: house })}
+        </span>
+      ) : null}
+    </li>
   );
 }
 
@@ -211,31 +205,29 @@ function TodayPlanetRow({
     })();
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-foreground">{t(`home.planets.${key}`)}</span>
-        {planet.retrograde && (
+    <SkyRow
+      art={grahaArtByName(key)}
+      name={t(`home.planets.${key}`)}
+      badge={
+        planet.retrograde ? (
           <span
             aria-label={t("home.motionRetro")}
-            className="inline-flex items-center rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
+            className="inline-flex items-center rounded-md bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
           >
             {t("home.retroShort")}
           </span>
-        )}
-      </div>
-      <div className="flex flex-col items-end text-right">
-        <span className="text-sm text-foreground">
-          {t(`signs.${signKey}`)}
-          {house != null ? ` · ${t("home.houseLabel", { n: house })}` : ""}
-        </span>
-        {enteringSoon && (
-          <span className="text-xs text-muted-foreground">
-            {t("sections.today.enteringSoon", {
+        ) : null
+      }
+      detail={t(`signs.${signKey}`)}
+      note={
+        enteringSoon
+          ? t("sections.today.enteringSoon", {
               sign: t(`signs.${SIGN_KEYS_BY_INDEX[planet.nextSignIndex as number]}`),
-            })}
-          </span>
-        )}
-      </div>
-    </li>
+            })
+          : null
+      }
+      house={house}
+      t={t}
+    />
   );
 }

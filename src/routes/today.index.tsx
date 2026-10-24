@@ -153,7 +153,7 @@ function TodayPage() {
 
       <div className="motion-fade-up motion-delay-2 space-y-4">
         <TodayAtAGlance />
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
           {t("todayOverview.currentTiming")}
         </p>
         <TransitHighlightBand />
@@ -161,7 +161,7 @@ function TodayPage() {
       </div>
 
       <div className="motion-fade-up motion-delay-3 space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
           {t("todayOverview.supporting")}
         </p>
         <div className="grid items-start gap-6 md:grid-cols-2">
@@ -172,10 +172,10 @@ function TodayPage() {
 
       <div className="motion-fade-up motion-delay-4 space-y-4 border-t border-border/70 pt-8">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
             {t("todayOverview.experimental")}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-0.5 px-4 text-xs text-muted-foreground">
             {t("todayOverview.experimentalNote")}
           </p>
         </div>

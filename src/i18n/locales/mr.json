@@ -1969,6 +1969,7 @@
       "description": "Ask उघडण्यापूर्वी मसुदा तपासा.",
       "about": "विषयी",
       "aboutSelf": "माझी कुंडली",
+      "alwaysIncluded": "नेहमी समाविष्ट",
       "when": "केव्हा",
       "from": "येथून",
       "eventSource": "जीवनातील घटना",

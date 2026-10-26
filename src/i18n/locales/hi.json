@@ -1969,6 +1969,7 @@
       "description": "Ask खोलने से पहले ड्राफ़्ट देख लें।",
       "about": "के बारे में",
       "aboutSelf": "मेरी कुंडली",
+      "alwaysIncluded": "हमेशा शामिल",
       "when": "कब",
       "from": "से",
       "eventSource": "जीवन घटना",

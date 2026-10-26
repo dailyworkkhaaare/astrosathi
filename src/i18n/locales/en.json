@@ -1970,6 +1970,7 @@
       "description": "Review the draft before opening Ask.",
       "about": "About",
       "aboutSelf": "My chart",
+      "alwaysIncluded": "Always included",
       "when": "When",
       "from": "From",
       "eventSource": "Life event",

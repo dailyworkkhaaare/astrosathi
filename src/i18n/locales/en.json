@@ -1851,8 +1851,8 @@
       "errors": {
         "no_self_profile": "Complete your own birth details first to see compatibility.",
         "not_compat_eligible": "Compatibility is only available for a spouse or partner.",
-        "missing_self_coordinates": "Your birth place is missing — add it to your profile to see compatibility.",
-        "missing_partner_coordinates": "{{partner}}'s birth place is missing — edit their details to see compatibility."
+        "missing_self_coordinates": "Your birth place is missing. Add it to your profile to see compatibility.",
+        "missing_partner_coordinates": "{{partner}}'s birth place is missing. Edit their details to see compatibility."
       },
       "gunaMilan": {
         "eyebrow": "Traditional measure",
@@ -1894,7 +1894,7 @@
         },
         "gana": {
           "name": "Gana",
-          "meaning": "Compares temperament — calm, active or intense energies."
+          "meaning": "Compares temperament: calm, active or intense energies."
         },
         "bhakoot": {
           "name": "Bhakoot",

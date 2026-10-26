@@ -1710,6 +1710,9 @@
     "myself": "Myself",
     "myselfHint": "Your own chart",
     "addPerson": "Add person",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
     "limitReached": "You've saved the maximum of 10 people.",
     "limitHint": "Remove someone to add another.",
     "savedPeople": "Saved people",
@@ -1788,7 +1791,9 @@
       "deleteConfirmTitle": "Delete this person?",
       "deleteConfirmBody": "This removes their saved birth details and charts. This can't be undone.",
       "deleteConfirm": "Delete",
-      "deleteCancel": "Cancel"
+      "deleteCancel": "Cancel",
+      "deletePerson": "Delete person",
+      "deleteNote": "Your own chart stays as it is."
     },
     "detail": {
       "back": "People",

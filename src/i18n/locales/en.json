@@ -2205,7 +2205,7 @@
       "title": "Title",
       "titlePlaceholder": "A word or two",
       "content": "What happened, what shifted",
-      "contentPlaceholder": "Write freely — a few lines is enough.",
+      "contentPlaceholder": "What's on your mind?",
       "mood": "Mood",
       "tags": "Tags",
       "tagsHint": "Enter or comma to add",
@@ -2239,6 +2239,7 @@
     "placingInChart": "Reading the sky…",
     "refreshAstrology": "Refresh",
     "removeTag": "Remove {{tag}}",
+    "moodNone": "No mood",
     "form": {
       "eyebrow": "Private reflection",
       "intro": "Write in your own words. Your reflection is saved before its timing context is added.",

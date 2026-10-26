@@ -3,6 +3,7 @@ import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BookHeart,
+  ChevronDown,
   ChevronLeft,
   CircleAlert,
   MessageCircle,
@@ -10,6 +11,7 @@ import {
   Pencil,
   RefreshCw,
   Search,
+  Sparkles,
   SquarePen,
   Tag,
   Trash2,
@@ -17,7 +19,6 @@ import {
 } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
-import { Button } from "@/components/ui/button";
 import {
   Drawer,
   DrawerClose,
@@ -32,6 +33,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -44,13 +47,7 @@ import {
   useRestampJournalEntry,
   useUpdateJournalEntry,
 } from "@/lib/queries";
-import {
-  DIFFICULT_MOODS,
-  MOODS,
-  type JournalEntry,
-  type JournalEntryInput,
-  type Mood,
-} from "@/lib/journal";
+import { MOODS, type JournalEntry, type JournalEntryInput, type Mood } from "@/lib/journal";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
@@ -113,6 +110,20 @@ function hasStampedContext(entry: JournalEntry): entry is JournalEntry & {
     "version" in entry.astro_context &&
     entry.astro_context.version === 1
   );
+}
+
+/** The day's stamped timing, compact: "Jupiter / Jupiter · Saturn in Meena". */
+function skyLine(entry: JournalEntry, t: (key: string, opts?: Record<string, unknown>) => string) {
+  if (!hasStampedContext(entry)) return null;
+  const ctx = entry.astro_context;
+  const parts: string[] = [];
+  if (ctx.dasha.maha) {
+    parts.push([ctx.dasha.maha.name, ctx.dasha.antar?.name].filter(Boolean).join(" / "));
+  }
+  if (ctx.transits.saturn?.sign) {
+    parts.push(t("journal.context.saturnIn", { sign: ctx.transits.saturn.sign }));
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 function shortEntryDate(dateStr: string, locale: string): string {
@@ -553,262 +564,195 @@ function JournalEntryFormDialog({
     }
   };
 
+  const sky = existing ? skyLine(existing, t) : null;
+
   return (
     <Drawer open onOpenChange={(open) => !open && onClose()} shouldScaleBackground={false}>
       <DrawerContent
         aria-describedby="journal-entry-form-note"
-        className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+        className="bg-background sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(44rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
       >
-        <DrawerHeader className="flex flex-row items-start justify-between gap-4 px-5 pb-4 pt-5 text-left sm:px-6">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-accent/12 text-accent ring-1 ring-accent/25">
-              <BookHeart size={19} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {t("journal.form.eyebrow")}
-              </p>
-              <DrawerTitle className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground">
-                {isNew ? t("journal.addEntry") : t("journal.editEntry")}
-              </DrawerTitle>
-            </div>
-          </div>
+        <DrawerHeader className="grid grid-cols-[1fr_auto_1fr] items-center gap-0 px-2 pb-1 pt-1">
           <DrawerClose asChild>
             <button
               type="button"
-              aria-label={t("journal.cancel")}
-              className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press inline-flex min-h-11 items-center justify-self-start rounded-full px-3 text-[1.0625rem] text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <X size={16} aria-hidden="true" />
+              {t("journal.cancel")}
             </button>
           </DrawerClose>
+          <div className="flex min-w-0 flex-col items-center">
+            <DrawerTitle className="text-[1.0625rem] font-semibold">
+              {isNew ? t("journal.addEntry") : t("journal.editEntry")}
+            </DrawerTitle>
+            <label htmlFor="journal-date" className="sr-only">
+              {t("journal.fields.date")}
+            </label>
+            <input
+              id="journal-date"
+              type="date"
+              value={entryDate}
+              max={todayStr()}
+              onChange={(e) => setEntryDate(e.target.value)}
+              enterKeyHint="next"
+              aria-invalid={!!errors.date}
+              aria-describedby={errors.date ? "journal-date-error" : undefined}
+              className="min-h-7 rounded-md bg-transparent px-1 text-center text-xs text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+          <button
+            type="submit"
+            form="journal-entry-form"
+            disabled={submitting}
+            className="tap-press inline-flex min-h-11 items-center justify-self-end rounded-full px-3 text-[1.0625rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            {submitting ? t("journal.saving") : t("journal.save")}
+          </button>
         </DrawerHeader>
 
         <form
           id="journal-entry-form"
-          className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 pb-5 sm:px-6"
+          className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-2"
           onSubmit={onSubmit}
           noValidate
         >
-          <DrawerDescription
-            id="journal-entry-form-note"
-            className="mb-6 text-sm leading-relaxed text-muted-foreground"
-          >
+          <DrawerDescription id="journal-entry-form-note" className="sr-only">
             {t("journal.form.intro")}
           </DrawerDescription>
+          {errors.date && (
+            <p id="journal-date-error" className="mb-2 text-xs text-feedback-warning">
+              {errors.date}
+            </p>
+          )}
 
-          <section aria-labelledby="journal-reflection-title" className="space-y-4">
-            <div>
-              <h4 id="journal-reflection-title" className="text-sm font-semibold text-foreground">
-                {t("journal.form.reflection")}
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {t("journal.form.reflectionHint")}
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="journal-content"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                {t("journal.fields.content")}
-              </label>
-              <textarea
-                id="journal-content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={7}
-                placeholder={t("journal.fields.contentPlaceholder")}
-                enterKeyHint="enter"
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                spellCheck
-                aria-invalid={!!errors.content}
-                aria-describedby={errors.content ? "journal-content-error" : undefined}
-                className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              {errors.content && (
-                <p id="journal-content-error" className="mt-1 text-xs text-accent">
-                  {errors.content}
-                </p>
-              )}
-            </div>
-            <div>
-              <label
-                htmlFor="journal-title"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                {t("journal.fields.title")}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  {t("journal.fields.optional")}
-                </span>
-              </label>
-              <input
-                id="journal-title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={t("journal.fields.titlePlaceholder")}
-                enterKeyHint="next"
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-          </section>
+          <label htmlFor="journal-title" className="sr-only">
+            {t("journal.fields.title")}
+          </label>
+          <input
+            id="journal-title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("journal.fields.title")}
+            enterKeyHint="next"
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            className="h-12 w-full rounded-lg bg-transparent text-xl font-semibold text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus-visible:bg-foreground/[0.03]"
+          />
 
-          <section aria-labelledby="journal-timing-title" className="space-y-3">
-            <div>
-              <h4 id="journal-timing-title" className="text-sm font-semibold text-foreground">
-                {t("journal.form.timing")}
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {t("journal.form.timingHint")}
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="journal-date"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                {t("journal.fields.date")}
-              </label>
-              <input
-                id="journal-date"
-                type="date"
-                value={entryDate}
-                max={todayStr()}
-                onChange={(e) => setEntryDate(e.target.value)}
-                enterKeyHint="next"
-                aria-invalid={!!errors.date}
-                aria-describedby={errors.date ? "journal-date-error" : undefined}
-                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              {errors.date && (
-                <p id="journal-date-error" className="mt-1 text-xs text-accent">
-                  {errors.date}
-                </p>
-              )}
-            </div>
-          </section>
+          <label htmlFor="journal-content" className="sr-only">
+            {t("journal.fields.content")}
+          </label>
+          <textarea
+            id="journal-content"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={8}
+            placeholder={t("journal.fields.contentPlaceholder")}
+            enterKeyHint="enter"
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            spellCheck
+            aria-invalid={!!errors.content}
+            aria-describedby={errors.content ? "journal-content-error" : undefined}
+            className="mt-1 min-h-48 w-full resize-none rounded-lg bg-transparent text-[1.0625rem] leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:bg-foreground/[0.03]"
+          />
+          {errors.content && (
+            <p id="journal-content-error" className="mt-1 text-xs text-feedback-warning">
+              {errors.content}
+            </p>
+          )}
 
-          <section aria-labelledby="journal-details-title" className="space-y-4">
-            <div>
-              <h4 id="journal-details-title" className="text-sm font-semibold text-foreground">
-                {t("journal.form.details")}
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {t("journal.form.detailsHint")}
-              </p>
-            </div>
-            <div>
-              <span className="mb-2 block text-sm font-medium text-foreground">
-                {t("journal.fields.mood")}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  {t("journal.fields.optional")}
-                </span>
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-[var(--as-list-separator)] pt-3">
+            <Tag size={15} aria-hidden="true" className="mr-0.5 shrink-0 text-muted-foreground" />
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-0.5 rounded-full bg-foreground/[0.07] py-0.5 pl-2.5 pr-0.5 text-[0.8125rem] text-foreground"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => setTags((prev) => prev.filter((x) => x !== tag))}
+                  aria-label={t("journal.removeTag", { tag })}
+                  className="tap-press grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
               </span>
-              <div
-                role="radiogroup"
-                aria-label={t("journal.fields.mood")}
-                className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-              >
-                {MOODS.map((m) => {
-                  const selected = m === mood;
-                  const difficult = DIFFICULT_MOODS.includes(m);
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => setMood(selected ? null : m)}
-                      className={cn(
-                        "min-h-11 rounded-xl border px-3 text-left text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        selected
-                          ? difficult
-                            ? "border-accent/60 bg-accent/10 text-accent"
-                            : "border-primary/60 bg-primary/10 text-primary"
-                          : "border-border bg-background text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {t(`journal.moods.${m}`)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="journal-tags"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                {t("journal.fields.tags")}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  {t("journal.fields.tagsHint")}
-                </span>
-              </label>
-              {tags.length > 0 && (
-                <div className="mb-1.5 flex flex-wrap gap-1.5">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                    >
-                      <Tag size={10} aria-hidden="true" />
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => setTags((prev) => prev.filter((x) => x !== tag))}
-                        aria-label={t("journal.removeTag", { tag })}
-                        className="tap-press ml-0.5 rounded-full p-0.5 text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <X size={10} aria-hidden="true" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <input
-                id="journal-tags"
-                type="text"
-                value={tagDraft}
-                onChange={(e) => setTagDraft(e.target.value)}
-                onKeyDown={onTagKeyDown}
-                onBlur={() => tagDraft.trim() && commitTag(tagDraft)}
-                placeholder={t("journal.fields.tagsPlaceholder")}
-                enterKeyHint="done"
-                autoCapitalize="none"
-                autoCorrect="off"
-                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-          </section>
-
-          <div className="rounded-2xl border border-accent/20 bg-accent/[0.06] px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-            {t("journal.form.contextNote")}
+            ))}
+            <label htmlFor="journal-tags" className="sr-only">
+              {t("journal.fields.tags")}
+            </label>
+            <input
+              id="journal-tags"
+              type="text"
+              value={tagDraft}
+              onChange={(e) => setTagDraft(e.target.value)}
+              onKeyDown={onTagKeyDown}
+              onBlur={() => tagDraft.trim() && commitTag(tagDraft)}
+              placeholder={t("journal.fields.tagsPlaceholder")}
+              enterKeyHint="done"
+              autoCapitalize="none"
+              autoCorrect="off"
+              className="h-9 min-w-[8rem] flex-1 rounded-md bg-transparent px-1 text-[0.9375rem] text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:bg-foreground/[0.03]"
+            />
           </div>
         </form>
 
-        <DrawerFooter className="flex-row gap-2 px-5 sm:px-6">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            className="flex-1 border border-border bg-background"
-          >
-            {t("journal.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            form="journal-entry-form"
-            variant="primary"
-            disabled={submitting}
-            className="flex-1"
-          >
-            {submitting ? t("journal.saving") : t("journal.save")}
-          </Button>
+        <DrawerFooter className="flex-row items-center gap-2 border-t border-[var(--as-list-separator)] px-4 py-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`${t("journal.fields.mood")}: ${mood ? t(`journal.moods.${mood}`) : t("journal.moodNone")}`}
+                className="tap-press inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-foreground/[0.07] pl-3 pr-2.5 text-sm font-semibold text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    mood ? MOOD_DOT[mood] : "bg-muted-foreground/40",
+                  )}
+                />
+                {mood ? t(`journal.moods.${mood}`) : t("journal.fields.mood")}
+                <ChevronDown size={15} aria-hidden="true" className="text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              side="top"
+              className="min-w-[11rem] rounded-xl border-border bg-card p-1.5 shadow-[var(--shadow-elevated)]"
+            >
+              <DropdownMenuRadioGroup
+                value={mood ?? ""}
+                onValueChange={(v) => setMood(v ? (v as Mood) : null)}
+              >
+                {MOODS.map((m) => (
+                  <DropdownMenuRadioItem
+                    key={m}
+                    value={m}
+                    className="min-h-11 cursor-pointer gap-2.5 rounded-lg text-sm"
+                  >
+                    <span aria-hidden="true" className={cn("h-2 w-2 rounded-full", MOOD_DOT[m])} />
+                    {t(`journal.moods.${m}`)}
+                  </DropdownMenuRadioItem>
+                ))}
+                <DropdownMenuRadioItem
+                  value=""
+                  className="min-h-11 cursor-pointer gap-2.5 rounded-lg text-sm text-muted-foreground"
+                >
+                  {t("journal.moodNone")}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {sky && (
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <Sparkles size={13} aria-hidden="true" className="shrink-0 text-accent" />
+              <span className="truncate">{sky}</span>
+            </p>
+          )}
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

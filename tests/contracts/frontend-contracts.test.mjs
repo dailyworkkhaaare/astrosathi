@@ -463,9 +463,9 @@ test("Connections list preserves owner-scoped navigation and truthful birth-time
   assert.match(routeSource, /people\.quickActions\.ask/);
   assert.match(routeSource, /subjectRelatedChartId: p\.id/);
   assert.match(routeSource, /p\.birth_time_known\s*\?\s*t\("people\.birthTimeKnown"\)/);
-  assert.match(routeSource, /sm:grid-cols-2/);
-  assert.match(routeSource, /last:border-b-0/);
-  assert.match(routeSource, /min-h-\[4\.75rem\]/);
+  assert.match(routeSource, /list-hairline/);
+  assert.match(routeSource, /border-\[var\(--as-list-separator\)\]/);
+  assert.match(routeSource, /min-h-\[3\.75rem\]/);
 
   const localeNames = ["en", "hi", "mr"];
   const locales = Object.fromEntries(

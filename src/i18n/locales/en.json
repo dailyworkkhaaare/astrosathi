@@ -1711,10 +1711,12 @@
     "myselfHint": "Your own chart",
     "addPerson": "Add person",
     "limitReached": "You've saved the maximum of 10 people.",
+    "limitHint": "Remove someone to add another.",
     "savedPeople": "Saved people",
     "savedPeopleTitle": "Your constellation",
-    "count": "{{count}} of {{limit}} saved",
+    "count": "{{count}} of {{limit}}",
     "listAria": "{{count}} saved people",
+    "separateNote": "Each chart stays separate from yours.",
     "birthTimeKnown": "Birth time recorded",
     "birthTimeUnknown": "Birth time unknown",
     "quickActions": {
@@ -1728,7 +1730,7 @@
     },
     "loading": "Loading saved people",
     "emptyTitle": "Your circle is waiting",
-    "empty": "No saved people yet. Add someone to see their chart.",
+    "empty": "Add someone to see their chart.",
     "relationLabel": "Relation",
     "relations": {
       "wife": "Wife",

@@ -2172,7 +2172,7 @@
   },
   "journal": {
     "title": "Reflection Journal",
-    "subtitle": "Your private record of what you noticed, felt, and want to remember.",
+    "subtitle": "How the days felt, beside your chart.",
     "eyebrow": "Your reflections",
     "entryLabel": "Reflection Journal",
     "entryHint": "Note how each period actually felt, with the sky of that day.",
@@ -2186,11 +2186,16 @@
     "confirmDeleteBody": "This reflection and its astrology context will be permanently removed.",
     "empty": {
       "title": "Nothing written yet",
-      "body": "Add your first reflection and we'll stamp it with the daśā and transits of that day."
+      "body": "Write when something stands out."
     },
     "composerTitle": "Write for yourself",
     "composerHint": "Your words are saved privately. The day's astrological context stays separate.",
     "timelineAria": "Reflections by month",
+    "searchLabel": "Search reflections",
+    "searchPlaceholder": "Search",
+    "noMatches": "No matches",
+    "noMatchesHint": "Try another word.",
+    "privacy": "Only you can see your reflections.",
     "loading": "Opening your reflections…",
     "loadingBody": "Your saved writing will appear here.",
     "loadError": "Reflections unavailable",

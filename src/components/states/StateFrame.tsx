@@ -18,13 +18,13 @@ const glyphClasses: Record<StateTone, string> = {
   empty:
     "border-action-warm/30 bg-action-warm/15 text-action-warm shadow-[0_16px_36px_-22px_var(--as-color-action-warm)]",
   error:
-    "border-feedback-danger/25 bg-feedback-danger/10 text-feedback-danger shadow-[0_16px_36px_-22px_var(--as-color-feedback-danger)]",
+    "border-feedback-warning/25 bg-feedback-warning/10 text-feedback-warning shadow-[0_16px_36px_-22px_var(--as-color-feedback-warning)]",
 };
 
 const edgeClasses: Record<StateTone, string> = {
   loading: "bg-[var(--as-gradient-aurora-live)]",
   empty: "bg-[var(--as-gradient-solar-reveal)]",
-  error: "bg-feedback-danger/65",
+  error: "bg-feedback-warning/65",
 };
 
 export function StateFrame({

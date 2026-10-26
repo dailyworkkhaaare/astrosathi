@@ -5,6 +5,7 @@ import type { TFunction } from "i18next";
 import {
   Briefcase,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -17,12 +18,10 @@ import {
   Plus,
   RefreshCw,
   Trash2,
-  X,
   type LucideIcon,
 } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
-import { Button } from "@/components/ui/button";
 import {
   Drawer,
   DrawerClose,
@@ -513,6 +512,16 @@ const VALENCE_TAG: Record<Valence, string> = {
   neutral: "bg-foreground/[0.08] text-muted-foreground",
 };
 
+const VALENCE_SELECTED: Record<Valence, string> = {
+  positive: "text-feedback-success shadow-[inset_0_0_0_1.5px_var(--as-color-feedback-success)]",
+  negative: "text-feedback-warning shadow-[inset_0_0_0_1.5px_var(--as-color-feedback-warning)]",
+  mixed: "text-foreground shadow-[inset_0_0_0_1.5px_var(--muted-foreground)]",
+  neutral: "text-foreground shadow-[inset_0_0_0_1.5px_var(--muted-foreground)]",
+};
+
+const FORM_LABEL =
+  "mb-2 px-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal";
+
 function EventRow({
   event,
   current,
@@ -692,63 +701,57 @@ function LifeEventFormDialog({
     }
   };
 
+  const stamped = existing && eventDate === existing.event_date ? stampedDasha(existing) : null;
+  const fallsIn = stamped?.maha
+    ? [stamped.maha, stamped.antar]
+        .filter((p): p is NonNullable<typeof p> => !!p)
+        .map((p) => planetName(t, p.name))
+        .join(" / ")
+    : null;
+
   return (
     <Drawer open onOpenChange={(open) => !open && onClose()} shouldScaleBackground={false}>
       <DrawerContent
         aria-describedby="life-event-form-note"
-        className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+        className="bg-background sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(44rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
       >
-        <DrawerHeader className="flex flex-row items-start justify-between gap-4 px-5 pb-4 pt-5 text-left sm:px-6">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-accent/12 text-accent ring-1 ring-accent/25">
-              <CalendarDays size={19} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {t("life.form.eyebrow")}
-              </p>
-              <DrawerTitle className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground">
-                {isNew ? t("life.addEvent") : t("life.editEvent")}
-              </DrawerTitle>
-            </div>
-          </div>
+        <DrawerHeader className="grid grid-cols-[1fr_auto_1fr] items-center gap-0 px-2 pb-1 pt-1">
           <DrawerClose asChild>
             <button
               type="button"
-              aria-label={t("life.cancel")}
-              className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press inline-flex min-h-11 items-center justify-self-start rounded-full px-3 text-[1.0625rem] text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <X size={16} aria-hidden="true" />
+              {t("life.cancel")}
             </button>
           </DrawerClose>
+          <DrawerTitle className="text-[1.0625rem] font-semibold">
+            {isNew ? t("life.addEvent") : t("life.editEvent")}
+          </DrawerTitle>
+          <button
+            type="submit"
+            form="life-event-form"
+            disabled={submitting}
+            className="tap-press inline-flex min-h-11 items-center justify-self-end rounded-full px-3 text-[1.0625rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            {submitting ? t("life.saving") : t("life.save")}
+          </button>
         </DrawerHeader>
 
         <form
           id="life-event-form"
-          className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 sm:px-6"
+          className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-1"
           onSubmit={onSubmit}
           noValidate
         >
-          <DrawerDescription
-            id="life-event-form-note"
-            className="mb-6 text-sm leading-relaxed text-muted-foreground"
-          >
+          <DrawerDescription id="life-event-form-note" className="sr-only">
             {t("life.form.intro")}
           </DrawerDescription>
 
           {isNew ? (
-            <section aria-labelledby="life-event-template-title" className="mb-6 space-y-3">
-              <div>
-                <h4
-                  id="life-event-template-title"
-                  className="text-sm font-semibold text-foreground"
-                >
-                  {t("life.form.templatesTitle")}
-                </h4>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {t("life.form.templatesHint")}
-                </p>
-              </div>
+            <section aria-labelledby="life-event-template-title" className="mb-5">
+              <h4 id="life-event-template-title" className={FORM_LABEL}>
+                {t("life.form.templatesTitle")}
+              </h4>
               <div className="grid grid-cols-2 gap-2">
                 {EVENT_TEMPLATES.map(({ id, category, icon: Icon }) => (
                   <button
@@ -757,227 +760,176 @@ function LifeEventFormDialog({
                     onClick={() => {
                       setTitle(t(`life.form.templates.${id}.title`));
                       setCategory(category);
+                      void triggerHaptic("selection");
                     }}
-                    className="tap-press flex min-h-11 items-center gap-2 rounded-xl border border-border bg-background px-3 text-left text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/35 hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="tap-press flex min-h-11 items-center gap-2 rounded-xl bg-card px-3 py-2 text-left text-sm font-semibold text-foreground shadow-[var(--as-elevation-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <Icon size={15} aria-hidden="true" className="shrink-0 text-accent" />
-                    <span className="min-w-0 truncate">{t(`life.form.templates.${id}.label`)}</span>
+                    <Icon size={16} aria-hidden="true" className="shrink-0 text-accent" />
+                    <span className="min-w-0 leading-tight">
+                      {t(`life.form.templates.${id}.label`)}
+                    </span>
                   </button>
                 ))}
               </div>
             </section>
           ) : null}
 
-          <div className="space-y-6">
-            <section aria-labelledby="life-event-details-title" className="space-y-4">
-              <div>
-                <h4 id="life-event-details-title" className="text-sm font-semibold text-foreground">
-                  {t("life.form.details")}
-                </h4>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {t("life.form.detailsHint")}
-                </p>
-              </div>
-              <div>
-                <label
-                  htmlFor="life-title"
-                  className="mb-1 block text-sm font-medium text-foreground"
-                >
-                  {t("life.fields.title")}
-                </label>
-                <input
-                  id="life-title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  enterKeyHint="next"
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  aria-invalid={!!errors.title}
-                  aria-describedby={errors.title ? "life-title-error" : undefined}
-                  className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                {errors.title && (
-                  <p id="life-title-error" className="mt-1 text-xs text-accent">
-                    {errors.title}
-                  </p>
-                )}
-              </div>
+          <label htmlFor="life-title" className="sr-only">
+            {t("life.fields.title")}
+          </label>
+          <input
+            id="life-title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("life.form.titlePlaceholder")}
+            enterKeyHint="next"
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            aria-invalid={!!errors.title}
+            aria-describedby={errors.title ? "life-title-error" : undefined}
+            className={cn(
+              "h-14 w-full rounded-[0.875rem] bg-card px-4 text-lg font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              errors.title
+                ? "shadow-[inset_0_0_0_1px_var(--as-color-feedback-warning)]"
+                : "shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_35%,transparent)]",
+            )}
+          />
+          {errors.title && (
+            <p id="life-title-error" className="mt-1.5 px-1 text-xs text-feedback-warning">
+              {errors.title}
+            </p>
+          )}
 
-              <div>
-                <label
-                  htmlFor="life-description"
-                  className="mb-1 block text-sm font-medium text-foreground"
-                >
-                  {t("life.fields.description")}
-                </label>
-                <textarea
-                  id="life-description"
-                  value={description ?? ""}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  enterKeyHint="enter"
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  spellCheck
-                  className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-            </section>
+          <label htmlFor="life-category" className={cn(FORM_LABEL, "mt-5 block")}>
+            {t("life.fields.category")}
+          </label>
+          <div className="relative">
+            <select
+              id="life-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as LifeEventCategory)}
+              className="h-12 w-full appearance-none rounded-[0.875rem] bg-card pl-4 pr-10 text-base text-foreground shadow-[var(--as-elevation-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {t(`life.categories.${c}`)}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={18}
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+          </div>
 
-            <section aria-labelledby="life-event-timing-title" className="space-y-4">
-              <div>
-                <h4 id="life-event-timing-title" className="text-sm font-semibold text-foreground">
-                  {t("life.form.timing")}
-                </h4>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {t("life.form.timingHint")}
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="life-category"
-                    className="mb-1 block text-sm font-medium text-foreground"
-                  >
-                    {t("life.fields.category")}
-                  </label>
-                  <select
-                    id="life-category"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as LifeEventCategory)}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {t(`life.categories.${c}`)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label
-                    htmlFor="life-date"
-                    className="mb-1 block text-sm font-medium text-foreground"
-                  >
-                    {t("life.fields.date")}
-                  </label>
-                  <input
-                    id="life-date"
-                    type="date"
-                    value={eventDate}
-                    max={todayStr()}
-                    onChange={(e) => setEventDate(e.target.value)}
-                    enterKeyHint="done"
-                    aria-invalid={!!errors.date}
-                    aria-describedby={errors.date ? "life-date-error" : undefined}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                  {errors.date && (
-                    <p id="life-date-error" className="mt-1 text-xs text-accent">
-                      {errors.date}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <span className="mb-2 block text-sm font-medium text-foreground">
-                  {t("life.fields.precision")}
-                </span>
-                <div
-                  role="radiogroup"
-                  aria-label={t("life.fields.precision")}
-                  className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-                >
-                  {PRECISIONS.map((p) => {
-                    const selected = p === precision;
-                    return (
-                      <button
-                        key={p}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        onClick={() => setPrecision(p)}
-                        className={`min-h-11 rounded-xl border px-3 text-left text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                          selected
-                            ? "border-primary/60 bg-primary/10 text-primary"
-                            : "border-border bg-background text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {t(`life.precisions.${p}`)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-
-            <section aria-labelledby="life-event-experience-title" className="space-y-3">
-              <div>
-                <h4
-                  id="life-event-experience-title"
-                  className="text-sm font-semibold text-foreground"
-                >
-                  {t("life.form.experience")}
-                </h4>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {t("life.form.experienceHint")}
-                </p>
-              </div>
+          <p className={cn(FORM_LABEL, "mt-5")}>{t("life.form.timing")}</p>
+          <div className="overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]">
+            <div className="p-2">
               <div
                 role="radiogroup"
-                aria-label={t("life.fields.valence")}
-                className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+                aria-label={t("life.fields.precision")}
+                className="grid grid-cols-2 gap-0.5 rounded-[0.625rem] bg-foreground/[0.07] p-0.5 sm:grid-cols-4"
               >
-                {VALENCES.map((v) => {
-                  const selected = v === valence;
+                {PRECISIONS.map((p) => {
+                  const selected = p === precision;
                   return (
                     <button
-                      key={v}
+                      key={p}
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      onClick={() => setValence(selected ? null : v)}
-                      className={`min-h-11 rounded-xl border px-3 text-left text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      onClick={() => setPrecision(p)}
+                      className={cn(
+                        "min-h-11 rounded-[0.5rem] px-2 text-[0.8125rem] font-semibold leading-tight transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                         selected
-                          ? v === "negative"
-                            ? "border-accent/60 bg-accent/10 text-accent"
-                            : "border-primary/60 bg-primary/10 text-primary"
-                          : "border-border bg-background text-muted-foreground hover:text-foreground"
-                      }`}
+                          ? "bg-background text-foreground shadow-[var(--as-elevation-1)] dark:bg-foreground/[0.16]"
+                          : "text-muted-foreground",
+                      )}
                     >
-                      {t(`life.valences.${v}`)}
+                      {t(`life.precisions.${p}`)}
                     </button>
                   );
                 })}
               </div>
-            </section>
-
-            <div className="rounded-2xl border border-accent/20 bg-accent/[0.06] px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-              {t("life.form.contextNote")}
+            </div>
+            <div className="flex min-h-12 items-center justify-between gap-3 border-t border-[var(--as-list-separator)] pl-4 pr-2">
+              <label htmlFor="life-date" className="text-base text-foreground">
+                {t("life.fields.date")}
+              </label>
+              <input
+                id="life-date"
+                type="date"
+                value={eventDate}
+                max={todayStr()}
+                onChange={(e) => setEventDate(e.target.value)}
+                enterKeyHint="done"
+                aria-invalid={!!errors.date}
+                aria-describedby={errors.date ? "life-date-error" : undefined}
+                className="min-h-9 rounded-lg bg-foreground/[0.07] px-2.5 text-base text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
             </div>
           </div>
+          {errors.date && (
+            <p id="life-date-error" className="mt-1.5 px-1 text-xs text-feedback-warning">
+              {errors.date}
+            </p>
+          )}
+          {fallsIn && (
+            <p className="mt-2 px-1 text-xs text-muted-foreground">
+              {t("life.form.fallsIn", { lords: fallsIn })}
+            </p>
+          )}
+
+          <p className={cn(FORM_LABEL, "mt-5")}>{t("life.fields.valence")}</p>
+          <div
+            role="radiogroup"
+            aria-label={t("life.fields.valence")}
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+          >
+            {VALENCES.map((v) => {
+              const selected = v === valence;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setValence(selected ? null : v)}
+                  className={cn(
+                    "tap-press flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    selected
+                      ? cn("bg-card", VALENCE_SELECTED[v])
+                      : "bg-card text-muted-foreground shadow-[var(--as-elevation-1)]",
+                  )}
+                >
+                  <span aria-hidden="true" className={cn("h-2 w-2 rounded-full", VALENCE_DOT[v])} />
+                  {t(`life.valences.${v}`)}
+                </button>
+              );
+            })}
+          </div>
+
+          <label htmlFor="life-description" className="sr-only">
+            {t("life.fields.description")}
+          </label>
+          <textarea
+            id="life-description"
+            value={description ?? ""}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            placeholder={t("life.form.notePlaceholder")}
+            enterKeyHint="enter"
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            spellCheck
+            className="mt-5 w-full resize-none rounded-[0.875rem] bg-card px-4 py-3.5 text-base leading-snug text-foreground shadow-[var(--as-elevation-1)] placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          />
         </form>
 
-        <DrawerFooter className="flex-row gap-2 px-5 sm:px-6">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            className="flex-1 border border-border bg-background"
-          >
-            {t("life.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            form="life-event-form"
-            variant="primary"
-            disabled={submitting}
-            className="flex-1"
-          >
-            {submitting ? t("life.saving") : t("life.save")}
-          </Button>
+        <DrawerFooter className="px-5 pt-0">
+          <p className="text-center text-xs text-muted-foreground">{t("life.form.privacy")}</p>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

@@ -2080,7 +2080,11 @@
       "timingHint": "Choose the accuracy you remember. Your timeline will keep that same precision.",
       "experience": "Your experience",
       "experienceHint": "Optional. This does not change the astrological context.",
-      "contextNote": "Your milestone saves first. If astrology needs a retry, the event remains yours."
+      "contextNote": "Your milestone saves first. If astrology needs a retry, the event remains yours.",
+      "titlePlaceholder": "What happened?",
+      "notePlaceholder": "Add a note (optional)",
+      "fallsIn": "Falls in {{lords}}",
+      "privacy": "Only you can see this."
     },
     "errors": {
       "titleRequired": "Please add a title.",

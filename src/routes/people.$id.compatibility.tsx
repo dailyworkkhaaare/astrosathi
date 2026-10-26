@@ -1,10 +1,17 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronLeft, MessageCircle, Share2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, MessageCircle, Share2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AstroArt } from "@/components/AstroArt";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { signArtByIndex } from "@/lib/astro-art";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { useCompatibility, usePersonCharts } from "@/lib/queries";
@@ -343,6 +350,7 @@ function CompatibilityOverview({
 function GunaMilanCard({ bundle }: { bundle: CompatibilityBundle }) {
   const { t } = useTranslation();
   const { total, max, verdict, kutas } = bundle.guna_milan;
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
     <section
@@ -359,43 +367,164 @@ function GunaMilanCard({ bundle }: { bundle: CompatibilityBundle }) {
       </p>
       <ul className={`${GROUP} [--list-inset:1rem]`}>
         {kutas.map((k) => (
-          <KutaRow key={k.name} kuta={k} />
+          <KutaRow
+            key={k.name}
+            kuta={k}
+            onOpen={() => {
+              setOpenIndex(kutas.indexOf(k));
+              void triggerHaptic("selection");
+            }}
+          />
         ))}
       </ul>
       <p className={FOOTNOTE}>
         {t("people.compatibility.gunaMilan.method")} {t("people.compatibility.gunaMilan.limit")}
       </p>
+      <KutaSheet kutas={kutas} index={openIndex} onIndexChange={setOpenIndex} />
     </section>
   );
 }
 
-function KutaRow({ kuta }: { kuta: CompatibilityKuta }) {
-  const { t } = useTranslation();
-  const key = KUTA_KEY[kuta.name] ?? kuta.name;
+function kutaName(kuta: CompatibilityKuta, t: ReturnType<typeof useTranslation>["t"]) {
+  return t(`people.compatibility.kutas.${KUTA_KEY[kuta.name] ?? kuta.name}.name`, kuta.name);
+}
+
+function KutaBar({ kuta, className }: { kuta: CompatibilityKuta; className?: string }) {
   const ratio = kuta.max > 0 ? Math.min(1, Math.max(0, kuta.got / kuta.max)) : 0;
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <span className="min-w-0 flex-1">
-        <span className="block text-[0.9375rem] font-semibold text-foreground">
-          {t(`people.compatibility.kutas.${key}.name`, kuta.name)}
-        </span>
-        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-          {t(`people.compatibility.kutas.${key}.meaning`, "")}
-        </span>
-      </span>
-      <span
-        aria-hidden="true"
-        className="h-1 w-12 shrink-0 overflow-hidden rounded-full bg-foreground/[0.1]"
+    <span
+      aria-hidden="true"
+      className={cn("block overflow-hidden rounded-full bg-foreground/[0.1]", className)}
+    >
+      <span className="block h-full rounded-full bg-accent" style={{ width: `${ratio * 100}%` }} />
+    </span>
+  );
+}
+
+function KutaRow({ kuta, onOpen }: { kuta: CompatibilityKuta; onOpen: () => void }) {
+  const { t } = useTranslation();
+  const key = KUTA_KEY[kuta.name] ?? kuta.name;
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="tap-press flex w-full items-center gap-3 px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span
-          className="block h-full rounded-full bg-accent"
-          style={{ width: `${ratio * 100}%` }}
-        />
-      </span>
-      <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
-        {t("people.compatibility.gunaMilan.gotLabel", { got: kuta.got, max: kuta.max })}
-      </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[0.9375rem] font-semibold text-foreground">
+            {kutaName(kuta, t)}
+          </span>
+          <span className="mt-0.5 line-clamp-2 block text-xs leading-snug text-muted-foreground">
+            {t(`people.compatibility.kutas.${key}.meaning`, "")}
+          </span>
+        </span>
+        <KutaBar kuta={kuta} className="h-1 w-12 shrink-0" />
+        <span className="w-11 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
+          {t("people.compatibility.gunaMilan.gotLabel", { got: kuta.got, max: kuta.max })}
+        </span>
+        <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+      </button>
     </li>
+  );
+}
+
+/** One kuta at a time, with its score and meaning, stepping through all eight. */
+function KutaSheet({
+  kutas,
+  index,
+  onIndexChange,
+}: {
+  kutas: CompatibilityKuta[];
+  index: number | null;
+  onIndexChange: (index: number | null) => void;
+}) {
+  const { t } = useTranslation();
+  const total = kutas.length;
+  const kuta = index != null ? kutas[index] : null;
+  const step = (delta: number) => {
+    if (index == null || total === 0) return;
+    onIndexChange((index + delta + total) % total);
+    void triggerHaptic("selection");
+  };
+  const prev = index != null && total > 1 ? kutas[(index - 1 + total) % total] : null;
+  const next = index != null && total > 1 ? kutas[(index + 1) % total] : null;
+  const key = kuta ? (KUTA_KEY[kuta.name] ?? kuta.name) : "";
+
+  return (
+    <Drawer
+      open={kuta !== null}
+      onOpenChange={(open) => !open && onIndexChange(null)}
+      shouldScaleBackground={false}
+    >
+      <DrawerContent
+        aria-describedby="kuta-sheet-meaning"
+        className="bg-background px-5 pb-[calc(1rem+var(--as-safe-bottom))] sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+      >
+        {kuta && index != null && (
+          <>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {t("people.compatibility.kutaSheet.position", { n: index + 1, total })}
+              </span>
+              <DrawerClose asChild>
+                <button
+                  type="button"
+                  aria-label={t("people.compatibility.kutaSheet.close")}
+                  className="tap-press -mr-2.5 grid h-11 w-11 place-items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="grid h-[1.875rem] w-[1.875rem] place-items-center rounded-full bg-foreground/[0.1] text-muted-foreground">
+                    <X size={15} aria-hidden="true" />
+                  </span>
+                </button>
+              </DrawerClose>
+            </div>
+
+            <div aria-live="polite" className="flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <DrawerTitle className="text-2xl font-semibold leading-tight">
+                  {kutaName(kuta, t)}
+                </DrawerTitle>
+                <span className="shrink-0 text-[1.0625rem] font-semibold tabular-nums text-foreground">
+                  {kuta.got}
+                  <span className="font-normal text-muted-foreground"> / {kuta.max}</span>
+                </span>
+              </div>
+              <KutaBar kuta={kuta} className="h-1.5 w-full" />
+              <DrawerDescription
+                id="kuta-sheet-meaning"
+                className="mt-2.5 text-base leading-relaxed text-foreground/85"
+              >
+                {t(`people.compatibility.kutas.${key}.meaning`, "")}
+              </DrawerDescription>
+            </div>
+
+            {prev && next && (
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => step(-1)}
+                  aria-label={`${t("people.compatibility.kutaSheet.previous")}: ${kutaName(prev, t)}`}
+                  className="tap-press flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-full bg-foreground/[0.08] px-3 text-[0.9375rem] font-semibold text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ChevronLeft size={17} className="shrink-0" aria-hidden="true" />
+                  <span className="truncate">{kutaName(prev, t)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => step(1)}
+                  aria-label={`${t("people.compatibility.kutaSheet.next")}: ${kutaName(next, t)}`}
+                  className="tap-press flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-full bg-foreground/[0.08] px-3 text-[0.9375rem] font-semibold text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="truncate">{kutaName(next, t)}</span>
+                  <ChevronRight size={17} className="shrink-0" aria-hidden="true" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </DrawerContent>
+    </Drawer>
   );
 }
 

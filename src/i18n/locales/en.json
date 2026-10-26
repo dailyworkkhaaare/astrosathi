@@ -1905,6 +1905,12 @@
           "meaning": "Checks genetic and health compatibility, the most heavily weighted kuta."
         }
       },
+      "kutaSheet": {
+        "position": "{{n}} of {{total}}",
+        "previous": "Previous",
+        "next": "Next",
+        "close": "Close"
+      },
       "mangal": {
         "eyebrow": "Traditional comparison",
         "title": "Mangal Dosha",

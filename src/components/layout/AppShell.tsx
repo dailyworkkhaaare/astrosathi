@@ -216,7 +216,8 @@ function isActive(pathname: string, to: string) {
       pathname.startsWith("/journey/") ||
       pathname === "/life" ||
       pathname.startsWith("/life/") ||
-      pathname === "/journal"
+      pathname === "/journal" ||
+      pathname === "/nudges"
     );
   if (to === "/people") return pathname === "/people" || pathname.startsWith("/people/");
   return false;
@@ -233,6 +234,7 @@ function supportsContextDock(pathname: string) {
     pathname === "/life" ||
     pathname.startsWith("/life/") ||
     pathname === "/journal" ||
+    pathname === "/nudges" ||
     pathname === "/people" ||
     pathname.startsWith("/people/")
   );

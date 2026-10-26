@@ -2,23 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Bell,
-  CalendarClock,
-  RefreshCw,
-  Settings2,
-  Moon,
-  Orbit,
-  Sparkles,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleAlert, Moon, RefreshCw, Settings2 } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { useActOnNudge, useDismissNudge, useSentNudges } from "@/lib/queries";
 import type { NudgePriority, ProactiveNudge } from "@/lib/proactive";
 import { triggerHaptic } from "@/lib/native-device";
@@ -46,17 +33,6 @@ export const Route = createFileRoute("/nudges")({
   }),
   component: NudgesPage,
 });
-
-const KIND_ICON: Record<string, LucideIcon> = {
-  dasha_change: Orbit,
-  sade_sati_phase: Moon,
-  transit_alert: Sparkles,
-  life_event_followup: CalendarClock,
-};
-
-function iconFor(kind: string): LucideIcon {
-  return KIND_ICON[kind] ?? Bell;
-}
 
 function relativeTime(
   iso: string | null,
@@ -168,79 +144,66 @@ function NudgesPage() {
   };
 
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
-      <header className="motion-fade-up flex items-start gap-3 px-1 pt-1">
-        <div className="flex items-start gap-3">
-          <Link
-            to="/"
-            aria-label={t("common.back")}
-            className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    <section className="mx-auto max-w-2xl">
+      <nav className="motion-fade-up -mx-2 -mt-2 flex min-h-11 items-center justify-between">
+        <Link
+          to="/journey"
+          className="tap-press inline-flex min-h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-[1.0625rem] text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ChevronLeft size={22} aria-hidden="true" />
+          {t("nav.journey")}
+        </Link>
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={query.isFetching}
+            aria-label={t("nudges.refresh")}
+            title={t("nudges.refresh")}
+            className="tap-press grid h-11 w-11 place-items-center rounded-full text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
-            <ArrowLeft size={18} aria-hidden="true" />
+            <RefreshCw
+              size={19}
+              className={query.isFetching ? "animate-spin motion-reduce:animate-none" : ""}
+              aria-hidden="true"
+            />
+          </button>
+          <Link
+            to="/settings/proactive"
+            aria-label={t("settings.proactive.title")}
+            className="tap-press grid h-11 w-11 place-items-center rounded-full text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Settings2 size={19} aria-hidden="true" />
           </Link>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 text-primary">
-                  <span
-                    className="grid h-8 w-8 place-items-center rounded-full bg-primary/10"
-                    aria-hidden="true"
-                  >
-                    <Bell size={15} />
-                  </span>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    {t("nudges.entryLabel")}
-                  </span>
-                </div>
-                <h1 className="mt-3 font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl">
-                  {t("nudges.title")}
-                </h1>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={onRefresh}
-                  disabled={query.isFetching}
-                  aria-label={t("nudges.refresh")}
-                  title={t("nudges.refresh")}
-                  className="tap-press grid h-11 w-11 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  <RefreshCw
-                    size={17}
-                    className={query.isFetching ? "animate-spin motion-reduce:animate-none" : ""}
-                    aria-hidden="true"
-                  />
-                </button>
-                <Link
-                  to="/settings/proactive"
-                  aria-label={t("settings.proactive.title")}
-                  className="tap-press grid h-11 w-11 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Settings2 size={17} aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              {t("nudges.subtitle")}
-            </p>
-          </div>
         </div>
+      </nav>
+
+      <header className="motion-fade-up mt-1">
+        <h1 className="large-title text-foreground">{t("nudges.title")}</h1>
+        <p className="mt-1.5 text-[0.9375rem] leading-snug text-muted-foreground">
+          {t("nudges.subtitle")}
+        </p>
       </header>
 
       {query.isLoading && (
-        <div className="space-y-3" aria-hidden="true">
-          <div className="h-40 animate-pulse rounded-[1.5rem] border border-border bg-card" />
-          <div className="h-40 animate-pulse rounded-[1.5rem] border border-border bg-card" />
+        <div className="mt-6 space-y-2" aria-hidden="true">
+          <div className="h-28 motion-safe:animate-pulse rounded-[0.875rem] bg-card" />
+          <div className="h-28 motion-safe:animate-pulse rounded-[0.875rem] bg-card" />
         </div>
       )}
 
       {!query.isLoading && query.isError && (
-        <div className="rounded-[1.5rem] border border-destructive/30 bg-destructive/5 p-5">
-          <p className="text-sm text-foreground">{t("nudges.loadError")}</p>
+        <div
+          role="alert"
+          data-state="error"
+          className="mt-6 flex items-center gap-3 rounded-[0.875rem] bg-card py-2 pl-4 pr-2 shadow-[var(--as-elevation-1)]"
+        >
+          <CircleAlert size={18} className="shrink-0 text-feedback-warning" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-sm text-foreground">{t("nudges.loadError")}</p>
           <button
             type="button"
             onClick={onRefresh}
-            className="tap-press mt-3 inline-flex min-h-11 items-center rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("nudges.retry")}
           </button>
@@ -248,27 +211,33 @@ function NudgesPage() {
       )}
 
       {!query.isLoading && !query.isError && visible.length === 0 && (
-        <div className="motion-fade-up rounded-lg border border-border bg-card p-6 text-center shadow-[var(--shadow-soft)]">
-          <p className="text-base font-semibold text-foreground">{t("nudges.empty.title")}</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+        <div className="motion-fade-up mt-10 flex flex-col items-center gap-1.5 px-8 text-center">
+          <span className="mb-2 grid h-11 w-11 place-items-center rounded-full bg-accent/12 text-accent">
+            <Moon size={20} aria-hidden="true" />
+          </span>
+          <p className="text-lg font-semibold text-foreground">{t("nudges.empty.title")}</p>
+          <p className="max-w-xs text-[0.8125rem] leading-snug text-muted-foreground">
             {t("nudges.empty.body")}
           </p>
         </div>
       )}
 
       {!query.isLoading && !query.isError && visible.length > 0 && (
-        <ol className="space-y-3" aria-label={t("nudges.title")}>
-          {visible.map((n) => (
-            <li key={n.id}>
-              <NudgeCard
-                nudge={n}
-                onAct={onAct}
-                onDismiss={onDismiss}
-                focused={n.id === focus}
-              />
-            </li>
-          ))}
-        </ol>
+        <>
+          <h2 className="mb-2 mt-7 px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+            {t("nudges.newLabel")}
+          </h2>
+          <ol
+            className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)] [--list-inset:2.25rem]"
+            aria-label={t("nudges.title")}
+          >
+            {visible.map((n) => (
+              <li key={n.id}>
+                <NudgeCard nudge={n} onAct={onAct} onDismiss={onDismiss} focused={n.id === focus} />
+              </li>
+            ))}
+          </ol>
+        </>
       )}
     </section>
   );
@@ -286,7 +255,6 @@ function NudgeCard({
   focused: boolean;
 }) {
   const { t } = useTranslation();
-  const Icon = iconFor(nudge.kind);
   const kindLabel = t(`nudges.kinds.${nudge.kind}`, { defaultValue: t("nudges.kinds.other") });
   const priority = nudge.priority as NudgePriority;
   const isHigh = priority === "high";
@@ -298,81 +266,58 @@ function NudgeCard({
       aria-labelledby={cardId}
       data-state={focused ? "targeted" : undefined}
       className={cn(
-        "motion-fade-up scroll-mt-6 rounded-lg border bg-card p-5 shadow-[var(--shadow-soft)]",
-        isHigh ? "border-accent/50 bg-accent/[0.045]" : "border-border",
-        focused && "ring-2 ring-accent/45 ring-offset-2 ring-offset-background",
+        "motion-fade-up flex scroll-mt-6 gap-0 py-3 pr-4",
+        focused && "bg-accent/[0.07]",
       )}
     >
-      <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border",
-            isHigh
-              ? "border-accent/30 bg-accent/15 text-accent"
-              : "border-border bg-muted text-muted-foreground",
-          )}
-          aria-hidden="true"
+      <span aria-hidden="true" className="flex w-9 shrink-0 justify-center pt-[0.4375rem]">
+        <span className={cn("h-2 w-2 rounded-full", isHigh ? "bg-accent" : "bg-transparent")} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2
+          id={cardId}
+          tabIndex={focused ? -1 : undefined}
+          className="text-base font-semibold leading-snug text-foreground focus:outline-none"
         >
-          <Icon size={16} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {kindLabel}
-            </span>
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                isHigh
-                  ? "border-accent/40 bg-accent/10 text-accent"
-                  : "border-border bg-background text-muted-foreground",
-              )}
-            >
-              {t(`nudges.priority.${priority}`, { defaultValue: t("nudges.priority.normal") })}
-            </span>
-            {when && (
-              <time dateTime={when} className="ml-auto text-[11px] text-muted-foreground">
-                {relativeTime(when, t)}
-              </time>
+          {nudge.title}
+        </h2>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+          <span>{kindLabel}</span>
+          {when && (
+            <>
+              <span aria-hidden="true">·</span>
+              <time dateTime={when}>{relativeTime(when, t)}</time>
+            </>
+          )}
+          <span
+            className={cn(
+              "ml-0.5 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold",
+              isHigh ? "bg-accent/15 text-accent" : "bg-foreground/[0.07] text-muted-foreground",
             )}
-          </div>
-          <h2
-            id={cardId}
-            tabIndex={focused ? -1 : undefined}
-            className="mt-2 text-base font-semibold leading-snug text-foreground focus:outline-none"
           >
-            {nudge.title}
-          </h2>
-          {nudge.body && (
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{nudge.body}</p>
-          )}
-          {nudge.topic && (
-            <p className="mt-3 border-l-2 border-primary/35 pl-3 text-xs leading-relaxed text-muted-foreground">
-              {nudge.topic}
-            </p>
-          )}
-
-          <div className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4">
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => onAct(nudge.id)}
-              className="min-h-11 w-full gap-1.5"
-            >
-              <Sparkles size={14} aria-hidden="true" />
-              <span>{t("nudges.act")}</span>
-              <ArrowRight size={14} aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onDismiss(nudge.id)}
-              className="min-h-11 w-full gap-1.5 border border-border bg-background text-muted-foreground hover:text-foreground"
-            >
-              <X size={14} aria-hidden="true" />
-              <span>{t("nudges.dismiss")}</span>
-            </Button>
-          </div>
+            {t(`nudges.priority.${priority}`, { defaultValue: t("nudges.priority.normal") })}
+          </span>
+        </div>
+        {nudge.body && (
+          <p className="mt-1.5 text-sm leading-snug text-muted-foreground">{nudge.body}</p>
+        )}
+        {nudge.topic && <p className="mt-1 text-xs text-accent">{nudge.topic}</p>}
+        <div className="-ml-3 mt-1 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onAct(nudge.id)}
+            className="tap-press inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("nudges.act")}
+            <ChevronRight size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDismiss(nudge.id)}
+            className="tap-press inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("nudges.dismiss")}
+          </button>
         </div>
       </div>
     </article>

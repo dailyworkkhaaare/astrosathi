@@ -2129,8 +2129,9 @@
     "entryHint": "Your milestones, mapped against your daśā and transits."
   },
   "nudges": {
-    "title": "Nudges",
-    "subtitle": "Gentle notes from your chart, when the sky changes",
+    "title": "Guidance",
+    "subtitle": "Quiet notes when your sky shifts.",
+    "newLabel": "New",
     "entryLabel": "Nudges",
     "entryHint": "Timely notes when your daśā or transits shift.",
     "kinds": {
@@ -2151,7 +2152,7 @@
     "dismiss": "Dismiss",
     "empty": {
       "title": "All quiet under the sky",
-      "body": "You'll see gentle notes here when your daśā shifts or a major transit is worth a moment."
+      "body": "We'll note the next shift here."
     },
     "loading": "Reading the sky…",
     "loadError": "Couldn't load nudges. Please try again.",

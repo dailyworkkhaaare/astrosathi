@@ -3374,11 +3374,11 @@ function ErrorRow({ message, onRetry }: { message: string; onRetry: () => void }
       aria-live="assertive"
       aria-atomic="true"
       data-state="error"
-      className="motion-fade-up flex items-start gap-3 rounded-2xl border border-feedback-danger/25 bg-feedback-danger/5 px-4 py-3.5 text-sm text-foreground shadow-sm"
+      className="motion-fade-up flex items-start gap-3 rounded-[1.25rem] bg-card p-4 text-sm text-foreground shadow-[var(--as-elevation-1)]"
     >
       <span
         aria-hidden="true"
-        className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-feedback-danger/10 text-feedback-danger"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-feedback-warning/15 text-feedback-warning"
       >
         <CircleAlert size={16} strokeWidth={1.8} />
       </span>
@@ -3388,7 +3388,7 @@ function ErrorRow({ message, onRetry }: { message: string; onRetry: () => void }
         <button
           type="button"
           onClick={onRetry}
-          className="tap-press mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-feedback-danger/30 bg-background px-3 py-1.5 text-xs font-medium text-feedback-danger transition-colors hover:bg-feedback-danger/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="tap-press -ml-1 mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-feedback-warning/12 px-4 text-sm font-semibold text-feedback-warning transition-colors hover:bg-feedback-warning/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <RefreshCw size={14} aria-hidden="true" />
           {t("chat.retry")}

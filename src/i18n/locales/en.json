@@ -2011,6 +2011,18 @@
     "title": "Life Timeline",
     "subtitle": "Your life, mapped against the sky",
     "timelineAria": "Life events in chronological order",
+    "filterLabel": "Filter by area",
+    "filterAll": "All",
+    "groupSpan": "{{start}} to {{end}}",
+    "groupNow": "Now · {{span}}",
+    "unplaced": "Not yet placed",
+    "rowOptions": "Options for {{title}}",
+    "privacy": "Only you can see your timeline.",
+    "findPattern": {
+      "title": "Find the pattern",
+      "body": "Ask how your daśās shaped these years",
+      "seed": "Looking at the milestones on my life timeline, how have my daśās shaped these years?"
+    },
     "loading": "Reading your timeline…",
     "loadingBody": "Your milestones will appear here.",
     "loadError": "Timeline unavailable",
@@ -2028,8 +2040,8 @@
     "refreshAstrology": "Refresh astrology",
     "approxTag": "approx.",
     "empty": {
-      "title": "Your story hasn't been mapped yet",
-      "body": "Add a milestone, like a job, move, or marriage. AstroSaathi maps it to your daśā and transits, and quietly notices events you mention in chat."
+      "title": "Your timeline starts here",
+      "body": "Add a milestone, big or small."
     },
     "fields": {
       "title": "Title",

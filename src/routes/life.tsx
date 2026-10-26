@@ -1,13 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
-  ArrowLeft,
   Briefcase,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
   Heart,
   HeartPulse,
   Home as HomeIcon,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -27,8 +33,12 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { JourneyAskDialog, type JourneyAskSource } from "@/components/journey/JourneyAskDialog";
-import { ErrorState } from "@/components/states/ErrorState";
-import { LoadingState } from "@/components/states/LoadingState";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { triggerHaptic } from "@/lib/native-device";
 import { ConfirmDialog } from "@/components/settings/primitives";
@@ -101,69 +111,6 @@ function formatEventDateForAsk(event: LifeEvent, locale: string, approximate: st
   return event.date_precision === "approx" ? `${date} · ${approximate}` : date;
 }
 
-function eventYear(dateStr: string): number {
-  const d = parseLocalDate(dateStr);
-  return d ? d.getFullYear() : 0;
-}
-
-function buildContextLine(
-  event: LifeEvent,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string | null {
-  const ctx = event.astro_context;
-  if (!ctx || !("version" in ctx) || ctx.version !== 1) return null;
-  const parts: string[] = [];
-  if (ctx.dasha.maha) {
-    const lordChain = [ctx.dasha.maha.name, ctx.dasha.antar?.name].filter(Boolean).join("–");
-    parts.push(`${t("life.context.dasha")}: ${lordChain}`);
-  }
-  if (ctx.sade_sati.active && ctx.sade_sati.phase) {
-    const phaseKey =
-      ctx.sade_sati.phase === "rising"
-        ? "life.context.phaseRising"
-        : ctx.sade_sati.phase === "peak"
-          ? "life.context.phasePeak"
-          : "life.context.phaseSetting";
-    parts.push(`${t("life.context.sadeSati")} (${t(phaseKey)})`);
-  }
-  if (ctx.transits.jupiter.sign) {
-    parts.push(t("life.context.transitIn", { sign: ctx.transits.jupiter.sign }));
-  }
-  return parts.length > 0 ? parts.join(" · ") : null;
-}
-
-const VALENCE_TOKEN: Record<Valence, string> = {
-  positive: "bg-primary",
-  neutral: "bg-primary",
-  mixed: "bg-primary",
-  negative: "bg-destructive",
-};
-
-// Calm, muted per-graha tones — copied from DashaTimeline.tsx so the life
-// ribbon reads as the same instrument as the Home daśā timeline. Deliberately
-// avoids accent/primary (reserved for the "now" marker + event markers here)
-// and any red-adjacent chart tone.
-const MAHA_TONE_BY_PLANET_ID: Record<number, { bg: string; ring: string }> = {
-  0: { bg: "bg-muted-foreground/28", ring: "ring-muted-foreground/50" },
-  1: { bg: "bg-foreground/14", ring: "ring-foreground/32" },
-  2: { bg: "bg-foreground/14", ring: "ring-foreground/32" },
-  3: { bg: "bg-chart-4/25", ring: "ring-chart-4/50" },
-  4: { bg: "bg-secondary-foreground/20", ring: "ring-secondary-foreground/42" },
-  5: { bg: "bg-chart-4/25", ring: "ring-chart-4/50" },
-  6: { bg: "bg-muted-foreground/28", ring: "ring-muted-foreground/50" },
-  101: { bg: "bg-chart-2/25", ring: "ring-chart-2/50" },
-  102: { bg: "bg-chart-2/25", ring: "ring-chart-2/50" },
-};
-const DEFAULT_MAHA_TONE = { bg: "bg-muted", ring: "ring-border" };
-function mahaToneFor(id: number) {
-  return MAHA_TONE_BY_PLANET_ID[id] ?? DEFAULT_MAHA_TONE;
-}
-
-function fmtRibbonYear(ms: number): string {
-  const d = new Date(ms);
-  return Number.isNaN(d.getTime()) ? "" : String(d.getUTCFullYear());
-}
-
 const EVENT_TEMPLATES: {
   id: "job" | "move" | "relationship" | "health";
   category: LifeEventCategory;
@@ -203,6 +150,40 @@ function birthMsFromDasha(firstMahaEnd: string, balanceDuration: string | null):
   return Number.isFinite(birthMs) ? birthMs : null;
 }
 
+type TimelineGroup = {
+  key: string;
+  title: string;
+  span: string | null;
+  current: boolean;
+  latestMs: number;
+  events: LifeEvent[];
+};
+
+function eventMs(event: LifeEvent): number {
+  return parseLocalDate(event.event_date)?.getTime() ?? 0;
+}
+
+function planetName(t: TFunction, name: string): string {
+  return t(`home.planets.${name.trim().toLowerCase()}`, { defaultValue: name });
+}
+
+/** "Aug 2026", "2016, approx." — the date as precisely as it was recorded. */
+function shortEventDate(event: LifeEvent, locale: string, approximate: string): string {
+  const d = parseLocalDate(event.event_date);
+  if (!d) return event.event_date;
+  const loc = locale === "en" ? "en-IN" : locale;
+  const date =
+    event.date_precision === "year"
+      ? String(d.getFullYear())
+      : d.toLocaleDateString(loc, { month: "short", year: "numeric" });
+  return event.date_precision === "approx" ? `${date}, ${approximate}` : date;
+}
+
+function stampedDasha(event: LifeEvent) {
+  const ctx = event.astro_context;
+  return ctx && "version" in ctx && ctx.version === 1 ? ctx.dasha : null;
+}
+
 function LifePage() {
   useRequireOnboarding();
   const { t, i18n } = useTranslation();
@@ -217,28 +198,72 @@ function LifePage() {
   const [formTarget, setFormTarget] = useState<LifeEvent | "new" | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LifeEvent | null>(null);
   const [askSource, setAskSource] = useState<JourneyAskSource | null>(null);
-  const [highlightId, setHighlightId] = useState<string | null>(null);
-  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [area, setArea] = useState<LifeEventCategory | "all">("all");
 
-  const events = eventsQuery.data ?? [];
+  const events = useMemo(() => eventsQuery.data ?? [], [eventsQuery.data]);
+  const areas = useMemo(
+    () => CATEGORIES.filter((c) => events.some((ev) => ev.category === c)),
+    [events],
+  );
+  const activeArea = area !== "all" && areas.includes(area) ? area : "all";
 
-  const grouped = useMemo(() => {
-    const byYear = new Map<number, LifeEvent[]>();
+  // Events grouped under the Mahadasha they fell in, newest first. The
+  // period comes from the daśā list when it covers the date, else from the
+  // dasha stamped on the event; unplaced events gather at the end.
+  const groups = useMemo(() => {
+    const periods = dashaQuery.data?.periods ?? [];
+    const balance = dashaQuery.data?.balance?.duration;
+    const birthMs =
+      periods.length > 0
+        ? (birthMsFromDasha(periods[0].end, balance != null ? String(balance) : null) ??
+          Date.parse(periods[0].start))
+        : null;
+    const now = Date.now();
+    const yearOf = (ms: number) => new Date(ms).getFullYear();
+    const byKey = new Map<string, TimelineGroup>();
+
     for (const ev of events) {
-      const y = eventYear(ev.event_date);
-      const list = byYear.get(y) ?? [];
-      list.push(ev);
-      byYear.set(y, list);
+      if (activeArea !== "all" && ev.category !== activeArea) continue;
+      const ms = eventMs(ev);
+      const period = periods.find((p) => Date.parse(p.start) <= ms && ms <= Date.parse(p.end));
+      const maha = stampedDasha(ev)?.maha ?? null;
+      let group: Omit<TimelineGroup, "latestMs" | "events">;
+      if (period) {
+        const startMs = Math.max(Date.parse(period.start), birthMs ?? -Infinity);
+        const endMs = Date.parse(period.end);
+        const span = t("life.groupSpan", { start: yearOf(startMs), end: yearOf(endMs) });
+        const current = startMs <= now && now <= endMs;
+        group = {
+          key: `${period.id}-${period.start}`,
+          title: `${planetName(t, period.name)} ${t("sections.dasha.mahadasha")}`,
+          span: current ? t("life.groupNow", { span }) : span,
+          current,
+        };
+      } else if (maha) {
+        group = {
+          key: `maha-${maha.id}`,
+          title: `${planetName(t, maha.name)} ${t("sections.dasha.mahadasha")}`,
+          span: null,
+          current: false,
+        };
+      } else {
+        group = { key: "unplaced", title: t("life.unplaced"), span: null, current: false };
+      }
+      const existing = byKey.get(group.key);
+      if (existing) {
+        existing.events.push(ev);
+        existing.latestMs = Math.max(existing.latestMs, ms);
+      } else {
+        byKey.set(group.key, { ...group, latestMs: ms, events: [ev] });
+      }
     }
-    return [...byYear.entries()].sort((a, b) => a[0] - b[0]);
-  }, [events]);
 
-  const scrollToEvent = (id: string) => {
-    const el = cardRefs.current.get(id);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    setHighlightId(id);
-    setTimeout(() => setHighlightId((cur) => (cur === id ? null : cur)), 1600);
-  };
+    return [...byKey.values()]
+      .map((g) => ({ ...g, events: [...g.events].sort((a, b) => eventMs(b) - eventMs(a)) }))
+      .sort((a, b) =>
+        a.key === "unplaced" ? 1 : b.key === "unplaced" ? -1 : b.latestMs - a.latestMs,
+      );
+  }, [events, activeArea, dashaQuery.data, t]);
 
   const onRefreshAstrology = async (id: string) => {
     setStampingIds((prev) => new Set(prev).add(id));
@@ -253,125 +278,188 @@ function LifePage() {
     }
   };
 
+  const hasEvents = !eventsQuery.isLoading && !eventsQuery.isError && events.length > 0;
+
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
-      <div className="motion-fade-up flex items-center gap-2">
+    <section className="mx-auto max-w-2xl">
+      <nav className="motion-fade-up -mx-2 -mt-2 flex min-h-11 items-center justify-between">
         <Link
           to="/journey"
-          aria-label={t("common.back")}
-          className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="tap-press inline-flex min-h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-[1.0625rem] text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <ArrowLeft size={18} aria-hidden="true" />
+          <ChevronLeft size={22} aria-hidden="true" />
+          {t("nav.journey")}
         </Link>
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl">
-            {t("life.title")}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t("life.subtitle")}</p>
-        </div>
-      </div>
+        {hasEvents && (
+          <button
+            type="button"
+            onClick={() => setFormTarget("new")}
+            aria-label={t("life.addEvent")}
+            title={t("life.addEvent")}
+            className="tap-press grid h-11 w-11 place-items-center rounded-full text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Plus size={22} aria-hidden="true" />
+          </button>
+        )}
+      </nav>
 
-      <DashaRibbon
-        events={events}
-        periods={dashaQuery.data?.periods ?? []}
-        balanceDuration={
-          dashaQuery.data?.balance?.duration != null
-            ? String(dashaQuery.data.balance.duration)
-            : null
-        }
-        isLoading={dashaQuery.isLoading}
-        onMarkerClick={scrollToEvent}
-      />
-
-      <Button
-        type="button"
-        variant="primary"
-        onClick={() => setFormTarget("new")}
-        className="w-full gap-2 min-h-11"
-      >
-        <Plus size={16} aria-hidden="true" />
-        {t("life.addEvent")}
-      </Button>
+      <header className="motion-fade-up mt-1">
+        <h1 className="large-title text-foreground">{t("life.title")}</h1>
+        <p className="mt-1.5 text-[0.9375rem] leading-snug text-muted-foreground">
+          {t("life.subtitle")}
+        </p>
+      </header>
 
       {eventsQuery.isLoading ? (
-        <LoadingState scope="panel" label={t("life.loading")} description={t("life.loadingBody")} />
+        <div role="status" aria-label={t("life.loading")} className="mt-6 space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="ml-7 h-16 motion-safe:animate-pulse rounded-[0.875rem] bg-card"
+            />
+          ))}
+        </div>
       ) : eventsQuery.isError ? (
-        <ErrorState
-          scope="panel"
-          title={t("life.loadError")}
-          description={t("life.loadErrorBody")}
-          onRetry={() => void eventsQuery.refetch()}
-        />
+        <div
+          role="alert"
+          data-state="error"
+          className="mt-6 flex items-center gap-3 rounded-[0.875rem] bg-card py-2 pl-4 pr-2 shadow-[var(--as-elevation-1)]"
+        >
+          <CircleAlert size={18} className="shrink-0 text-feedback-warning" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{t("life.loadError")}</p>
+            <p className="text-xs text-muted-foreground">{t("life.loadErrorBody")}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void eventsQuery.refetch()}
+            className="tap-press inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("states.retry")}
+          </button>
+        </div>
       ) : events.length === 0 ? (
-        <div className="motion-fade-up rounded-2xl border border-border bg-card p-6 text-center">
+        <div
+          data-state="empty"
+          className="motion-fade-up mt-8 flex flex-col items-center gap-1.5 rounded-[1.25rem] bg-card px-6 py-8 text-center shadow-[var(--as-elevation-1)]"
+        >
+          <span className="mb-2 grid h-11 w-11 place-items-center rounded-[0.875rem] bg-accent/12 text-accent">
+            <CalendarDays size={20} aria-hidden="true" />
+          </span>
           <p className="text-base font-semibold text-foreground">{t("life.empty.title")}</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+          <p className="max-w-xs text-[0.8125rem] leading-snug text-muted-foreground">
             {t("life.empty.body")}
           </p>
+          <button
+            type="button"
+            onClick={() => setFormTarget("new")}
+            className="tap-press mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent/15 px-5 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Plus size={16} aria-hidden="true" />
+            {t("life.addEvent")}
+          </button>
         </div>
       ) : (
-        <section aria-label={t("life.timelineAria")} className="relative">
-          <div
-            aria-hidden="true"
-            className="absolute bottom-5 left-[13px] top-5 w-px bg-border sm:left-[15px]"
-          />
-          <div className="relative space-y-8">
-            {grouped.map(([year, yearEvents]) => (
-              <section key={year} aria-labelledby={`life-year-${year}`} className="relative">
-                <div className="mb-3 flex items-center gap-3">
-                  <span
-                    aria-hidden="true"
-                    className="relative z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-accent/35 bg-background"
+        <>
+          {areas.length > 1 && (
+            <div
+              role="group"
+              aria-label={t("life.filterLabel")}
+              className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {(["all", ...areas] as const).map((value) => {
+                const pressed = activeArea === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={pressed}
+                    onClick={() => {
+                      setArea(value);
+                      void triggerHaptic("selection");
+                    }}
+                    className={cn(
+                      "tap-press inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      pressed
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_16%,transparent)]",
+                    )}
                   >
-                    <span className="h-2 w-2 rounded-full bg-accent" />
-                  </span>
+                    {value === "all" ? t("life.filterAll") : t(`life.categories.${value}`)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div aria-label={t("life.timelineAria")} role="region">
+            {groups.map((group) => (
+              <section
+                key={group.key}
+                aria-labelledby={`life-group-${group.key}`}
+                className="motion-fade-up mt-6"
+              >
+                <div className="mb-2.5 flex items-baseline justify-between gap-2.5 pl-9 pr-1">
                   <h2
-                    id={`life-year-${year}`}
-                    className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+                    id={`life-group-${group.key}`}
+                    className={cn(
+                      "text-xs font-semibold uppercase tracking-[0.08em] [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal",
+                      group.current ? "text-accent" : "text-muted-foreground",
+                    )}
                   >
-                    {year}
+                    {group.title}
                   </h2>
+                  {group.span && (
+                    <span className="shrink-0 text-xs text-muted-foreground">{group.span}</span>
+                  )}
                 </div>
-                <ol className="space-y-3">
-                  {yearEvents.map((ev) => (
-                    <li key={ev.id} className="relative pl-10 sm:pl-12">
-                      <span
-                        aria-hidden="true"
-                        className="absolute left-[9px] top-6 z-10 h-2.5 w-2.5 rounded-full border-2 border-background bg-primary ring-1 ring-primary/30 sm:left-[11px]"
-                      />
-                      <EventCard
-                        event={ev}
-                        locale={i18n.language}
-                        highlighted={highlightId === ev.id}
-                        stamping={stampingIds.has(ev.id)}
-                        cardRef={(el) => {
-                          if (el) cardRefs.current.set(ev.id, el);
-                          else cardRefs.current.delete(ev.id);
-                        }}
-                        onEdit={() => setFormTarget(ev)}
-                        onDelete={() => setDeleteTarget(ev)}
-                        onAsk={() => {
-                          const date = formatEventDateForAsk(
-                            ev,
-                            i18n.language,
-                            t("life.approxTag"),
-                          );
-                          setAskSource({
-                            kind: "event",
-                            title: ev.title,
-                            date,
-                            draft: t("journey.askContext.eventDraft", { title: ev.title, date }),
-                          });
-                        }}
-                        onRefreshAstrology={() => onRefreshAstrology(ev.id)}
-                      />
-                    </li>
+                <ol className="flex flex-col gap-2">
+                  {group.events.map((ev) => (
+                    <EventRow
+                      key={ev.id}
+                      event={ev}
+                      current={group.current}
+                      locale={i18n.language}
+                      stamping={stampingIds.has(ev.id)}
+                      onEdit={() => setFormTarget(ev)}
+                      onDelete={() => setDeleteTarget(ev)}
+                      onAsk={() => {
+                        const date = formatEventDateForAsk(ev, i18n.language, t("life.approxTag"));
+                        setAskSource({
+                          kind: "event",
+                          title: ev.title,
+                          date,
+                          draft: t("journey.askContext.eventDraft", { title: ev.title, date }),
+                        });
+                      }}
+                      onRefreshAstrology={() => onRefreshAstrology(ev.id)}
+                    />
                   ))}
                 </ol>
               </section>
             ))}
           </div>
-        </section>
+
+          <Link
+            to="/chat"
+            search={{ seed: t("life.findPattern.seed") }}
+            className="tap-press mt-6 flex items-center gap-3.5 rounded-[1.25rem] bg-[color-mix(in_oklab,var(--as-color-action-ask)_12%,transparent)] p-4 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--as-color-action-ask)_30%,transparent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[color-mix(in_oklab,var(--as-color-action-ask)_20%,transparent)] text-[var(--as-color-action-ask)]">
+              <MessageCircle size={19} aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-semibold text-foreground">
+                {t("life.findPattern.title")}
+              </span>
+              <span className="block text-xs text-[var(--as-color-action-ask)]">
+                {t("life.findPattern.body")}
+              </span>
+            </span>
+            <ChevronRight size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+          </Link>
+          <p className="mt-3 text-center text-xs text-muted-foreground">{t("life.privacy")}</p>
+        </>
       )}
 
       {formTarget && (
@@ -411,256 +499,138 @@ function LifePage() {
   );
 }
 
-function DashaRibbon({
-  events,
-  periods,
-  balanceDuration,
-  isLoading,
-  onMarkerClick,
-}: {
-  events: LifeEvent[];
-  periods: { id: number; name: string; start: string; end: string }[];
-  balanceDuration: string | null;
-  isLoading: boolean;
-  onMarkerClick: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  const cycle = periods.slice(0, 9);
-  if (isLoading || cycle.length === 0) return null;
+const VALENCE_DOT: Record<Valence, string> = {
+  positive: "bg-feedback-success",
+  negative: "bg-feedback-warning",
+  mixed: "bg-muted-foreground",
+  neutral: "bg-muted-foreground",
+};
 
-  // The first mahadasha starts before birth (Vimshottari periods run from the
-  // natal nakshatra, not from birth) — clamp the ribbon to actually start at
-  // birth so it never shows years the user wasn't alive for.
-  const birthMs = birthMsFromDasha(cycle[0].end, balanceDuration) ?? Date.parse(cycle[0].start);
-  const rangeStartMs = birthMs;
-  const rangeEndMs = Date.parse(cycle[cycle.length - 1].end);
-  const totalMs = rangeEndMs - rangeStartMs;
-  if (!Number.isFinite(totalMs) || totalMs <= 0) return null;
+const VALENCE_TAG: Record<Valence, string> = {
+  positive: "bg-feedback-success/15 text-feedback-success",
+  negative: "bg-feedback-warning/15 text-feedback-warning",
+  mixed: "bg-foreground/[0.08] text-muted-foreground",
+  neutral: "bg-foreground/[0.08] text-muted-foreground",
+};
 
-  const nowMs = Date.now();
-  const showNow = nowMs >= rangeStartMs && nowMs <= rangeEndMs;
-  const nowPct = showNow ? ((nowMs - rangeStartMs) / totalMs) * 100 : null;
-
-  const markers = events
-    .map((ev) => {
-      const ms = Date.parse(`${ev.event_date}T12:00:00Z`);
-      if (!Number.isFinite(ms) || ms < rangeStartMs || ms > rangeEndMs) return null;
-      const leftPct = ((ms - rangeStartMs) / totalMs) * 100;
-      const tone: string =
-        ev.valence && ev.valence in VALENCE_TOKEN ? VALENCE_TOKEN[ev.valence] : "bg-primary";
-      return { id: ev.id, leftPct, tone, title: ev.title };
-    })
-    .filter((m): m is { id: string; leftPct: number; tone: string; title: string } => m !== null);
-
-  return (
-    <div
-      className="motion-fade-up rounded-2xl border border-border bg-card/60 p-4 sm:p-5"
-      style={{ boxShadow: "var(--shadow-soft)" }}
-    >
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          {t("life.context.dasha")}
-        </h2>
-        <span className="text-[10px] tabular-nums text-muted-foreground">
-          {fmtRibbonYear(rangeStartMs)}–{fmtRibbonYear(rangeEndMs)}
-        </span>
-      </div>
-
-      <div className="overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        <div className="relative min-w-[640px]">
-          {showNow && nowPct !== null && (
-            <div
-              className="pointer-events-none absolute top-0 z-10 -translate-x-1/2"
-              style={{ left: `${nowPct}%` }}
-            >
-              <span className="whitespace-nowrap rounded-full bg-foreground px-1.5 py-0.5 text-[9px] font-semibold text-background shadow-sm">
-                {t("sections.dasha.youAreHere")}
-              </span>
-            </div>
-          )}
-
-          <div className="relative mt-6">
-            {showNow && nowPct !== null && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 z-10 w-px bg-foreground/40"
-                style={{ left: `${nowPct}%` }}
-              />
-            )}
-
-            <div className="relative h-6">
-              {markers.map((m) => (
-                <div
-                  key={m.id}
-                  className="absolute top-0 -translate-x-1/2"
-                  style={{ left: `${m.leftPct}%` }}
-                >
-                  <div
-                    aria-hidden="true"
-                    className="mx-auto h-3 w-px bg-border"
-                    style={{ marginTop: "6px" }}
-                  />
-                  <button
-                    type="button"
-                    title={m.title}
-                    aria-label={m.title}
-                    onClick={() => onMarkerClick(m.id)}
-                    className={cn(
-                      "tap-press absolute -top-1 left-1/2 -translate-x-1/2 rounded-full border-2 border-card shadow-sm transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      m.tone,
-                      "h-3.5 w-3.5",
-                    )}
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div
-              className="flex h-11 overflow-hidden rounded-full ring-1 ring-border/60"
-              aria-label={t("life.context.dasha")}
-            >
-              {cycle.map((p) => {
-                const pStartMs = Math.max(Date.parse(p.start), rangeStartMs);
-                const pEndMs = Date.parse(p.end);
-                if (pEndMs <= rangeStartMs) return null;
-                const spanMs = pEndMs - pStartMs;
-                const widthPct = (spanMs / totalMs) * 100;
-                const tone = mahaToneFor(p.id);
-                return (
-                  <div
-                    key={`${p.id}-${p.start}`}
-                    style={{ flexBasis: `${widthPct}%` }}
-                    title={p.name}
-                    className={cn(
-                      "flex shrink-0 grow-0 items-center justify-center overflow-hidden border-r border-background/40 px-1 text-center transition-colors last:border-r-0 hover:brightness-95",
-                      tone.bg,
-                    )}
-                  >
-                    {widthPct > 6 && (
-                      <span className="truncate text-[10px] font-medium text-foreground">
-                        {p.name}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-1.5 flex justify-between text-[10px] tabular-nums text-muted-foreground">
-              <span>{fmtRibbonYear(rangeStartMs)}</span>
-              <span>{fmtRibbonYear(rangeEndMs)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EventCard({
+function EventRow({
   event,
+  current,
   locale,
-  highlighted,
   stamping,
-  cardRef,
   onEdit,
   onDelete,
   onAsk,
   onRefreshAstrology,
 }: {
   event: LifeEvent;
+  current: boolean;
   locale: string;
-  highlighted: boolean;
   stamping: boolean;
-  cardRef: (el: HTMLDivElement | null) => void;
   onEdit: () => void;
   onDelete: () => void;
   onAsk: () => void;
   onRefreshAstrology: () => void;
 }) {
   const { t } = useTranslation();
-  const contextLine = buildContextLine(event, t);
-  const hasContext = !!event.astro_context && "version" in event.astro_context;
+  const dasha = stampedDasha(event);
+  const date = shortEventDate(event, locale, t("life.approxTag"));
+  const lords = dasha?.maha
+    ? [dasha.maha, dasha.antar]
+        .filter((p): p is NonNullable<typeof p> => !!p)
+        .map((p) => planetName(t, p.name))
+        .join(" / ")
+    : null;
 
   return (
-    <div
-      ref={cardRef}
-      className={`motion-fade-up rounded-xl border bg-card p-4 transition-colors duration-[var(--motion-standard)] ${
-        highlighted ? "border-accent/60 bg-accent/[0.05]" : "border-border"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
+    <li className="relative flex">
+      <span aria-hidden="true" className="relative flex w-5 shrink-0 justify-center">
+        <span
+          className={cn(
+            "absolute -bottom-1 -top-1 w-0.5",
+            current ? "bg-accent/50" : "bg-foreground/[0.12]",
+          )}
+        />
+        <span
+          className={cn(
+            "absolute top-[1.625rem] h-3 w-3 rounded-full shadow-[0_0_0_4px_var(--background)]",
+            event.valence ? VALENCE_DOT[event.valence] : "bg-accent",
+          )}
+        />
+      </span>
+      <div className="ml-2 flex min-h-16 min-w-0 flex-1 items-center rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]">
         <button
           type="button"
           onClick={onEdit}
-          className="min-w-0 flex-1 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="tap-press flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-l-[0.875rem] py-3 pl-3.5 pr-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
-          <p className="truncate text-base font-semibold text-foreground">{event.title}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {formatEventDate(event.event_date, event.date_precision, locale)}
-            {event.date_precision === "approx" && (
-              <span className="ml-1.5 inline-flex items-center rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {t("life.approxTag")}
-              </span>
-            )}
-          </p>
-        </button>
-        <div className="flex shrink-0 items-center gap-1">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="truncate text-base text-foreground">{event.title}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {date}
+              {" · "}
+              {lords ?? (stamping ? t("life.placingInChart") : t("life.astrologyPending"))}
+            </span>
+          </span>
           {event.valence && (
             <span
-              aria-hidden="true"
-              className={`h-2.5 w-2.5 rounded-full ${VALENCE_TOKEN[event.valence] ?? "bg-primary"}`}
-            />
+              className={cn(
+                "shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold",
+                VALENCE_TAG[event.valence],
+              )}
+            >
+              {t(`life.valences.${event.valence}`)}
+            </span>
           )}
-          <button
-            type="button"
-            onClick={onDelete}
-            aria-label={t("life.delete")}
-            className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/10 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Trash2 size={15} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-foreground">
-          {t(`life.categories.${event.category}`)}
-        </span>
-      </div>
-
-      {event.description && (
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{event.description}</p>
-      )}
-
-      <button
-        type="button"
-        onClick={onAsk}
-        className="tap-press mt-3 inline-flex min-h-9 items-center rounded-lg px-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {t("journey.askContext.eventAction")}
-      </button>
-
-      {hasContext && contextLine ? (
-        <p className="mt-2.5 text-xs italic text-accent">{contextLine}</p>
-      ) : (
-        <div className="mt-2.5 flex items-center gap-2">
-          <span className="inline-flex items-center rounded-md border border-border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {stamping ? t("life.placingInChart") : t("life.astrologyPending")}
-          </span>
-          {!stamping && (
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <button
               type="button"
-              onClick={onRefreshAstrology}
-              className="tap-press inline-flex min-h-[28px] items-center gap-1 text-[11px] font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={t("life.rowOptions", { title: event.title })}
+              className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <RefreshCw size={11} aria-hidden="true" />
-              {t("life.refreshAstrology")}
+              <MoreHorizontal size={18} aria-hidden="true" />
             </button>
-          )}
-        </div>
-      )}
-    </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="min-w-[12rem] rounded-xl border-border bg-card p-1.5 shadow-[var(--shadow-elevated)]"
+          >
+            <DropdownMenuItem
+              onClick={onEdit}
+              className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm text-foreground"
+            >
+              <Pencil size={15} aria-hidden="true" />
+              {t("life.editEvent")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onAsk}
+              className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm text-foreground"
+            >
+              <MessageCircle size={15} aria-hidden="true" />
+              {t("journey.askContext.eventAction")}
+            </DropdownMenuItem>
+            {!lords && !stamping && (
+              <DropdownMenuItem
+                onClick={onRefreshAstrology}
+                className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm text-foreground"
+              >
+                <RefreshCw size={15} aria-hidden="true" />
+                {t("life.refreshAstrology")}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm text-destructive-strong"
+            >
+              <Trash2 size={15} aria-hidden="true" />
+              {t("life.delete")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </li>
   );
 }
 

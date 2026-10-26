@@ -113,6 +113,7 @@ function NewPersonPage() {
             errors={errors}
             todayMax={today}
             variant="grouped"
+            subject="other"
           />
           {form.timeUnknown ? (
             <p className="-mt-3 flex gap-2 px-4 text-xs leading-relaxed text-muted-foreground">

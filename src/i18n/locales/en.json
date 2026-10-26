@@ -241,6 +241,7 @@
     "genderPreferNotToSay": "Prefer not to say",
     "genderHelp": "Used for your Feng Shui Kua directions.",
     "timeUnknown": "I don't know my birth time",
+    "timeUnknownOther": "Birth time unknown",
     "placeHelp": "Tip: English or romanized place names work best (e.g. \"Pune, Maharashtra\").",
     "reassurance": "Birth time can be approximate — you can update it later in Settings.",
     "timeUnknownNote": "Some time-sensitive details (like ascendant and moon-timing) may be limited.",

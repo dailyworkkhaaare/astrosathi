@@ -33,6 +33,7 @@ export function BirthDetailsForm({
   todayMax,
   section = "all",
   variant = "stacked",
+  subject = "self",
 }: {
   value: BirthDetailsValue;
   onChange: (patch: Partial<BirthDetailsValue>) => void;
@@ -41,8 +42,11 @@ export function BirthDetailsForm({
   section?: "all" | "identity" | "birth";
   /** "grouped" draws native inset-grouped rows (onboarding); People keeps "stacked". */
   variant?: "stacked" | "grouped";
+  /** "other" words the form for someone else's chart (People), not the user's own. */
+  subject?: "self" | "other";
 }) {
   const { t } = useTranslation();
+  const timeUnknownLabel = t(subject === "other" ? "birth.timeUnknownOther" : "birth.timeUnknown");
   const [placeResults, setPlaceResults] = useState<PlaceHit[]>([]);
   const [placeOpen, setPlaceOpen] = useState(false);
   const [placeLoading, setPlaceLoading] = useState(false);
@@ -94,6 +98,7 @@ export function BirthDetailsForm({
         errors={errors}
         todayMax={todayMax}
         section={section}
+        timeUnknownLabel={timeUnknownLabel}
         genderOptions={genderOptions}
         place={{
           open: placeOpen,
@@ -217,7 +222,7 @@ export function BirthDetailsForm({
                   aria-hidden="true"
                 />
               </div>
-              <span>{t("birth.timeUnknown")}</span>
+              <span>{timeUnknownLabel}</span>
             </label>
           </div>
 
@@ -364,6 +369,7 @@ function GroupedBirthFields({
   errors,
   todayMax,
   section,
+  timeUnknownLabel,
   genderOptions,
   place,
 }: {
@@ -372,6 +378,7 @@ function GroupedBirthFields({
   errors: BirthDetailsErrors;
   todayMax: string;
   section: "all" | "identity" | "birth";
+  timeUnknownLabel: string;
   genderOptions: { value: Gender; label: string }[];
   place: PlaceSearch;
 }) {
@@ -483,7 +490,7 @@ function GroupedBirthFields({
               </GroupRow>
               <label className="col-span-2 flex min-h-[3.125rem] cursor-pointer items-center gap-3 px-4 py-1.5">
                 <span className="min-w-0 flex-1 text-[0.9375rem] leading-snug text-foreground">
-                  {t("birth.timeUnknown")}
+                  {timeUnknownLabel}
                 </span>
                 <span className="relative inline-flex h-[1.9375rem] w-[3.1875rem] shrink-0">
                   <input

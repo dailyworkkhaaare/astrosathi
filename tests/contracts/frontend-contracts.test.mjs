@@ -1275,7 +1275,7 @@ test("settings subpages share one native back header", async () => {
   ]);
 
   assert.match(primitivesSource, /export function SettingsBackHeader/);
-  assert.match(primitivesSource, /h-11 w-11/);
+  assert.match(primitivesSource, /inline-flex h-11 items-center/);
   for (const source of subpageSources) {
     assert.match(source, /SettingsBackHeader/);
     assert.doesNotMatch(source, /ArrowLeft/);

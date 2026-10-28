@@ -1023,9 +1023,9 @@
       }
     },
     "proactive": {
-      "title": "Proactive nudges",
+      "title": "Guidance",
       "back": "Back",
-      "enabled": "Proactive nudges",
+      "enabled": "Guidance notes",
       "enabledHint": "Let AstroSaathi surface gentle notes when your daśā, transits, or life-event context shift.",
       "enabledDetail": "Turning this off pauses future guidance without deleting nudges already in your feed.",
       "enabledStatusOn": "Guidance on",
@@ -1033,6 +1033,8 @@
       "controlsPaused": "Turn proactive guidance on to adjust its schedule and topics.",
       "saving": "Saving changes…",
       "frequency": "How often",
+      "frequencyLabel": "Maximum",
+      "settingsAria": "Guidance settings",
       "frequencyHint": "Maximum notes per week. AstroSaathi stays within this cap even during busy sky periods.",
       "frequencyDetail": "This is a cap, not a promise. Relevant guidance may arrive less often.",
       "frequencyOff": "Off",

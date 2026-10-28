@@ -170,7 +170,7 @@ function NudgesPage() {
           </button>
           <Link
             to="/settings/proactive"
-            aria-label={t("settings.proactive.title")}
+            aria-label={t("settings.proactive.settingsAria")}
             className="tap-press grid h-11 w-11 place-items-center rounded-full text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Settings2 size={19} aria-hidden="true" />

@@ -10,6 +10,7 @@ import {
   SegmentedGroup,
   SettingsBackHeader,
   Toggle,
+  VALUE_TRIGGER,
 } from "@/components/settings/primitives";
 import {
   Select,
@@ -165,6 +166,3 @@ function VoiceSettingsPage() {
     </section>
   );
 }
-
-const VALUE_TRIGGER =
-  "h-11 w-auto min-w-0 max-w-[60%] justify-end gap-1.5 border-0 bg-transparent px-1 text-right text-[1.0625rem] text-muted-foreground shadow-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-ring [&>span]:truncate";

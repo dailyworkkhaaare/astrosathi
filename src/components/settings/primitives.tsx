@@ -57,7 +57,7 @@ export function Group({
   footer,
   delay,
 }: {
-  title: string;
+  title?: string;
   /** Kept for callers; native groups are labelled by text only. */
   icon?: ReactNode;
   children: ReactNode;
@@ -67,9 +67,11 @@ export function Group({
 }) {
   return (
     <div className={"motion-fade-up" + (delay ? ` motion-delay-${delay}` : "")}>
-      <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
-        {title}
-      </h2>
+      {title ? (
+        <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+          {title}
+        </h2>
+      ) : null}
       <div className="overflow-hidden rounded-[0.875rem] bg-card text-card-foreground shadow-[var(--as-elevation-1)]">
         {children}
       </div>
@@ -96,6 +98,10 @@ export function IconTile({ children, tone }: { children: ReactNode; tone?: "warn
     </span>
   );
 }
+
+/** Borderless trailing value for a Select in a settings row: "Label ...... Value ⌄". */
+export const VALUE_TRIGGER =
+  "h-11 w-auto min-w-0 max-w-[60%] justify-end gap-1.5 border-0 bg-transparent px-1 text-right text-[1.0625rem] text-muted-foreground shadow-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-ring [&>span]:truncate";
 
 export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (

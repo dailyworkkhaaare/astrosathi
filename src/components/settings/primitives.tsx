@@ -80,6 +80,23 @@ export function Group({
   );
 }
 
+/** Small rounded icon square that leads a settings row. */
+export function IconTile({ children, tone }: { children: ReactNode; tone?: "warning" }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={
+        "grid h-[1.875rem] w-[1.875rem] shrink-0 place-items-center rounded-[0.5rem] " +
+        (tone === "warning"
+          ? "bg-destructive/12 text-destructive-strong"
+          : "bg-accent/12 text-accent")
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
 export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-h-12 flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { AstroArt } from "@/components/AstroArt";
-import { ConfirmDialog, Group, Toggle } from "@/components/settings/primitives";
+import { ConfirmDialog, Group, IconTile, Toggle } from "@/components/settings/primitives";
 import { clearSession, getSession, mockAuth } from "@/lib/auth";
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
@@ -258,22 +258,6 @@ function SettingsPage() {
 const ROWS = "list-hairline [--list-inset:3.75rem]";
 const ROW_BUTTON =
   "tap-press flex min-h-12 w-full items-center gap-3.5 px-4 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
-
-function IconTile({ children, tone }: { children: ReactNode; tone?: "warning" }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={
-        "grid h-[1.875rem] w-[1.875rem] shrink-0 place-items-center rounded-[0.5rem] " +
-        (tone === "warning"
-          ? "bg-destructive/12 text-destructive-strong"
-          : "bg-accent/12 text-accent")
-      }
-    >
-      {children}
-    </span>
-  );
-}
 
 function SettingsLink({
   to,

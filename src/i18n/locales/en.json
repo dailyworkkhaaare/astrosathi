@@ -855,7 +855,7 @@
       "lengthConcise": "Concise",
       "lengthBalanced": "Balanced",
       "haptics": "Haptic feedback",
-      "hapticsHint": "Feel a light touch for selections, saved changes, and important warnings.",
+      "hapticsHint": "A light touch for selections, saves and warnings.",
       "memory": "Remember our conversations",
       "memoryHelp": "Personalize guidance based on past chats."
     },
@@ -866,13 +866,13 @@
     "preferences": {
       "eyebrow": "Make it yours",
       "title": "Experience preferences",
-      "subtitle": "Choose how AstroSaathi looks, speaks, and feels most natural to you.",
+      "subtitle": "How AstroSaathi looks and speaks to you.",
       "languageTitle": "Language",
-      "languageHint": "Your choice is used across AstroSaathi and saved for your next visit.",
+      "languageHint": "Saved for your next visit.",
       "appearanceTitle": "Appearance",
-      "themeHint": "System follows this device’s appearance. Changing appearance never changes your chart or guidance.",
+      "themeHint": "System follows this device. Your chart stays the same.",
       "guidanceTitle": "Guidance style",
-      "guidanceHint": "These choices shape the tone and length of future AstroSaathi responses.",
+      "guidanceHint": "Shapes the tone and length of future replies.",
       "feedbackTitle": "Device feedback"
     },
     "guidance": {

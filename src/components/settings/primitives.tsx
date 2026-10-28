@@ -54,12 +54,15 @@ export function SettingsBackHeader({
 export function Group({
   title,
   children,
+  footer,
   delay,
 }: {
   title: string;
   /** Kept for callers; native groups are labelled by text only. */
   icon?: ReactNode;
   children: ReactNode;
+  /** Short footnote under the card. */
+  footer?: ReactNode;
   delay?: 1 | 2 | 3 | 4;
 }) {
   return (
@@ -70,6 +73,9 @@ export function Group({
       <div className="overflow-hidden rounded-[0.875rem] bg-card text-card-foreground shadow-[var(--as-elevation-1)]">
         {children}
       </div>
+      {footer ? (
+        <p className="mt-2 px-4 text-[0.8125rem] leading-snug text-muted-foreground">{footer}</p>
+      ) : null}
     </div>
   );
 }

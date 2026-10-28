@@ -2294,12 +2294,15 @@
     "playError": "Couldn't play audio.",
     "settingsTitle": "Voice",
     "settingsHint": "Speak your questions and tap to hear replies aloud.",
+    "groupInput": "Speaking",
+    "groupOutput": "Read aloud",
     "inputEnabled": "Voice input (microphone)",
     "inputEnabledHelp": "Show the mic button in the chat composer.",
     "inputStatusOn": "Mic available",
     "inputStatusOff": "Mic hidden",
     "sttLang": "Speech language",
     "sttLangHelp": "The language you'll speak in. Auto follows the app language.",
+    "sttLangAuto": "Auto",
     "sttLangOptions": {
       "auto": "Auto (follow app language)",
       "en": "English",
@@ -2318,12 +2321,12 @@
     "pace": "Read-aloud speed",
     "paceHelp": "How fast replies are read aloud.",
     "previewTitle": "Preview read-aloud",
-    "previewHint": "Play a short sample with your selected voice and speed. This does not record your microphone.",
+    "previewHint": "Plays a short sample with this voice and speed.",
     "previewPlay": "Play preview",
     "previewLoading": "Preparing preview…",
     "previewStop": "Stop preview",
     "previewError": "Couldn't prepare the preview. Please try again.",
     "previewText": "A calm moment can make space for a clear question.",
-    "languageNote": "Voice is powered by Sarvam. Nothing is recorded — audio streams through and is discarded. Preferences are saved on this device."
+    "languageNote": "Voice is powered by Sarvam. Audio streams through and is never stored. Preferences stay on this device."
   }
 }

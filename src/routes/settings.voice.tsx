@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Loader2, Square, Volume2 } from "lucide-react";
+import { Loader2, Square, Volume2 } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import {
-  Divider,
   Group,
+  Row,
   SegmentedGroup,
   SettingsBackHeader,
   Toggle,
@@ -58,30 +58,22 @@ function VoiceSettingsPage() {
   };
 
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
-      <SettingsBackHeader title={t("voice.settingsTitle")} backLabel={t("settings.memory.back")} />
-
-      <Group
+    <section className="mx-auto max-w-2xl space-y-7">
+      <SettingsBackHeader
         title={t("voice.settingsTitle")}
-        icon={<AudioLines size={14} aria-hidden="true" />}
-        delay={1}
-      >
-        <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
-          <div className="min-w-0">
+        backLabel={t("settings.memory.back")}
+        subtitle={t("voice.settingsHint")}
+      />
+
+      <Group title={t("voice.groupInput")} footer={t("voice.inputEnabledHelp")} delay={1}>
+        <div className="list-hairline">
+          <div className="flex min-h-11 items-center justify-between gap-3 py-1.5 pl-4 pr-2">
             <label
               htmlFor="voice-input-enabled"
-              className="block text-sm font-medium text-foreground"
+              className="min-w-0 text-[1.0625rem] leading-snug text-foreground"
             >
               {t("voice.inputEnabled")}
             </label>
-            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-              {t("voice.inputEnabledHelp")}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {settings.inputEnabled ? t("voice.inputStatusOn") : t("voice.inputStatusOff")}
-            </span>
             <Toggle
               id="voice-input-enabled"
               ariaLabel={t("voice.inputEnabled")}
@@ -89,84 +81,68 @@ function VoiceSettingsPage() {
               onChange={(v) => update({ inputEnabled: v })}
             />
           </div>
-        </div>
-        <Divider />
-        <div className="flex flex-col gap-2 px-4 py-3 min-h-11 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0">
-            <span className="text-sm font-medium text-foreground">{t("voice.sttLang")}</span>
-            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-              {t("voice.sttLangHelp")}
-            </p>
+          <div className="flex min-h-11 items-center justify-between gap-3 pl-4 pr-3">
+            <span className="shrink-0 text-[1.0625rem] text-foreground">{t("voice.sttLang")}</span>
+            <Select
+              value={settings.sttLang}
+              onValueChange={(v) => update({ sttLang: v as SttLang })}
+            >
+              <SelectTrigger className={VALUE_TRIGGER} aria-label={t("voice.sttLang")}>
+                <SelectValue>
+                  {settings.sttLang === "auto"
+                    ? t("voice.sttLangAuto")
+                    : t(`voice.sttLangOptions.${settings.sttLang}`)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">{t("voice.sttLangOptions.auto")}</SelectItem>
+                <SelectItem value="en">{t("voice.sttLangOptions.en")}</SelectItem>
+                <SelectItem value="hi">{t("voice.sttLangOptions.hi")}</SelectItem>
+                <SelectItem value="mr">{t("voice.sttLangOptions.mr")}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={settings.sttLang} onValueChange={(v) => update({ sttLang: v as SttLang })}>
-            <SelectTrigger className="h-10 w-full text-sm md:w-52" aria-label={t("voice.sttLang")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">{t("voice.sttLangOptions.auto")}</SelectItem>
-              <SelectItem value="en">{t("voice.sttLangOptions.en")}</SelectItem>
-              <SelectItem value="hi">{t("voice.sttLangOptions.hi")}</SelectItem>
-              <SelectItem value="mr">{t("voice.sttLangOptions.mr")}</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
-        <Divider />
-        <div className="flex flex-col gap-2 px-4 py-3 min-h-11 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0">
-            <span className="text-sm font-medium text-foreground">{t("voice.speaker")}</span>
-            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-              {t("voice.speakerHelp")}
-            </p>
+      </Group>
+
+      <Group title={t("voice.groupOutput")} footer={t("voice.previewHint")} delay={2}>
+        <div className="list-hairline">
+          <div className="flex min-h-11 items-center justify-between gap-3 pl-4 pr-3">
+            <span className="shrink-0 text-[1.0625rem] text-foreground">{t("voice.speaker")}</span>
+            <Select value={settings.speaker} onValueChange={(v) => update({ speaker: v })}>
+              <SelectTrigger className={VALUE_TRIGGER} aria-label={t("voice.speaker")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SPEAKER_OPTIONS.map((sp) => (
+                  <SelectItem key={sp} value={sp}>
+                    {t(`voice.speakers.${sp}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={settings.speaker} onValueChange={(v) => update({ speaker: v })}>
-            <SelectTrigger className="h-10 w-full text-sm md:w-52" aria-label={t("voice.speaker")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SPEAKER_OPTIONS.map((sp) => (
-                <SelectItem key={sp} value={sp}>
-                  {t(`voice.speakers.${sp}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Divider />
-        <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
-          <div className="min-w-0">
-            <span className="text-sm font-medium text-foreground">{t("voice.pace")}</span>
-            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-              {t("voice.paceHelp")}
-            </p>
-          </div>
-          <SegmentedGroup<string>
-            name="voice-pace"
-            value={String(settings.pace)}
-            onChange={(v) => update({ pace: Number(v) })}
-            options={PACE_OPTIONS}
-          />
-        </div>
-        <Divider />
-        <div className="flex flex-col gap-3 px-4 py-3">
-          <div className="min-w-0">
-            <span className="text-sm font-medium text-foreground">{t("voice.previewTitle")}</span>
-            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-              {t("voice.previewHint")}
-            </p>
-          </div>
+          <Row label={t("voice.pace")}>
+            <SegmentedGroup<string>
+              name="voice-pace"
+              value={String(settings.pace)}
+              onChange={(v) => update({ pace: Number(v) })}
+              options={PACE_OPTIONS}
+            />
+          </Row>
           <button
             type="button"
             onClick={previewVoice}
             disabled={previewLoading}
             aria-pressed={previewPlaying}
-            className="tap-press inline-flex min-h-11 w-fit items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70"
+            className="tap-press flex min-h-11 w-full items-center gap-2.5 px-4 text-left text-[1.0625rem] text-accent transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70"
           >
             {previewLoading ? (
-              <Loader2 size={15} aria-hidden="true" className="animate-spin" />
+              <Loader2 size={18} aria-hidden="true" className="motion-safe:animate-spin" />
             ) : previewPlaying ? (
-              <Square size={14} aria-hidden="true" />
+              <Square size={16} aria-hidden="true" />
             ) : (
-              <Volume2 size={15} aria-hidden="true" />
+              <Volume2 size={18} aria-hidden="true" />
             )}
             {previewLoading
               ? t("voice.previewLoading")
@@ -174,17 +150,21 @@ function VoiceSettingsPage() {
                 ? t("voice.previewStop")
                 : t("voice.previewPlay")}
           </button>
-          {previewError && (
-            <p role="alert" className="text-xs text-destructive">
-              {previewError}
-            </p>
-          )}
         </div>
       </Group>
 
-      <p className="motion-fade-up motion-delay-2 px-1 text-xs leading-relaxed text-muted-foreground">
+      {previewError && (
+        <p role="alert" className="-mt-4 px-4 text-[0.8125rem] text-destructive-strong">
+          {previewError}
+        </p>
+      )}
+
+      <p className="motion-fade-up motion-delay-3 px-4 text-[0.8125rem] leading-snug text-muted-foreground">
         {t("voice.languageNote")}
       </p>
     </section>
   );
 }
+
+const VALUE_TRIGGER =
+  "h-11 w-auto min-w-0 max-w-[60%] justify-end gap-1.5 border-0 bg-transparent px-1 text-right text-[1.0625rem] text-muted-foreground shadow-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-ring [&>span]:truncate";

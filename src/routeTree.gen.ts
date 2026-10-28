@@ -34,6 +34,7 @@ import { Route as SettingsMemoryRouteImport } from './routes/settings.memory'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
 import { Route as SettingsProactiveRouteImport } from './routes/settings.proactive'
 import { Route as SettingsVoiceRouteImport } from './routes/settings.voice'
+import { Route as SettingsWhatsappRouteImport } from './routes/settings.whatsapp'
 import { Route as TodayIndexRouteImport } from './routes/today.index'
 import { Route as TodayHoroscopeRouteImport } from './routes/today.horoscope'
 import { Route as TodayMarketsRouteImport } from './routes/today.markets'
@@ -167,6 +168,11 @@ const SettingsVoiceRoute = SettingsVoiceRouteImport.update({
   path: '/voice',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsWhatsappRoute = SettingsWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const TodayIndexRoute = TodayIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/proactive': typeof SettingsProactiveRoute
   '/settings/voice': typeof SettingsVoiceRoute
+  '/settings/whatsapp': typeof SettingsWhatsappRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/proactive': typeof SettingsProactiveRoute
   '/settings/voice': typeof SettingsVoiceRoute
+  '/settings/whatsapp': typeof SettingsWhatsappRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/proactive': typeof SettingsProactiveRoute
   '/settings/voice': typeof SettingsVoiceRoute
+  '/settings/whatsapp': typeof SettingsWhatsappRoute
   '/today/horoscope': typeof TodayHoroscopeRoute
   '/today/markets': typeof TodayMarketsRoute
   '/today/panchang': typeof TodayPanchangRoute
@@ -329,6 +338,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/proactive'
     | '/settings/voice'
+    | '/settings/whatsapp'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/proactive'
     | '/settings/voice'
+    | '/settings/whatsapp'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
@@ -394,6 +405,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/proactive'
     | '/settings/voice'
+    | '/settings/whatsapp'
     | '/today/horoscope'
     | '/today/markets'
     | '/today/panchang'
@@ -604,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsVoiceRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/whatsapp': {
+      id: '/settings/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/settings/whatsapp'
+      preLoaderRoute: typeof SettingsWhatsappRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/today/': {
       id: '/today/'
       path: '/'
@@ -671,6 +690,7 @@ interface SettingsRouteChildren {
   SettingsPreferencesRoute: typeof SettingsPreferencesRoute
   SettingsProactiveRoute: typeof SettingsProactiveRoute
   SettingsVoiceRoute: typeof SettingsVoiceRoute
+  SettingsWhatsappRoute: typeof SettingsWhatsappRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -679,6 +699,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsPreferencesRoute: SettingsPreferencesRoute,
   SettingsProactiveRoute: SettingsProactiveRoute,
   SettingsVoiceRoute: SettingsVoiceRoute,
+  SettingsWhatsappRoute: SettingsWhatsappRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 

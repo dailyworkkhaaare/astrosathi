@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, MessageCircle } from "lucide-react";
+import { Check } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/settings/primitives";
 import {
   DEFAULT_WHATSAPP_HOUR,
   isValidE164Phone,
@@ -68,51 +68,30 @@ export function WhatsAppGuidanceCard() {
   };
 
   return (
-    <div className="motion-fade-up">
-      <h2 className="mb-2.5 flex items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        <span className="text-accent">
-          <MessageCircle size={14} aria-hidden="true" />
-        </span>
-        {t("settings.whatsapp.title")}
-      </h2>
-      <div className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-[var(--shadow-soft)]">
-        <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
-          <div className="min-w-0">
-            <label htmlFor="whatsapp-opt-in" className="block text-sm font-medium text-foreground">
-              {t("settings.whatsapp.toggleLabel")}
-            </label>
-            <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-              {t("settings.whatsapp.toggleHelp")}
-            </p>
-          </div>
-          <button
-            id="whatsapp-opt-in"
-            type="button"
-            role="switch"
-            aria-label={t("settings.whatsapp.toggleLabel")}
-            aria-checked={optIn}
-            onClick={() => setOptIn((v) => !v)}
-            className="grid min-h-11 min-w-11 place-items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    <div className="motion-fade-up space-y-2">
+      <div className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]">
+        <div className="flex min-h-11 items-center justify-between gap-3 py-2 pl-4 pr-2">
+          <label
+            htmlFor="whatsapp-opt-in"
+            className="min-w-0 text-[1.0625rem] leading-snug text-foreground"
           >
-            <span
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-[var(--motion-micro)] focus-visible:ring-2 focus-visible:ring-ring ${
-                optIn ? "bg-primary" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-background shadow transition-transform duration-[var(--motion-micro)] ${
-                  optIn ? "translate-x-5" : "translate-x-0.5"
-                }`}
-              />
-            </span>
-          </button>
+            {t("settings.whatsapp.toggleLabel")}
+          </label>
+          <Toggle
+            id="whatsapp-opt-in"
+            ariaLabel={t("settings.whatsapp.toggleLabel")}
+            checked={optIn}
+            onChange={setOptIn}
+          />
         </div>
 
         {optIn && (
           <>
-            <div className="h-px bg-border" role="presentation" />
-            <div className="space-y-1.5 px-4 py-3">
-              <label htmlFor="whatsapp-phone" className="block text-sm font-medium text-foreground">
+            <div className="flex min-h-11 items-center gap-3 px-4">
+              <label
+                htmlFor="whatsapp-phone"
+                className="shrink-0 whitespace-nowrap text-[1.0625rem] text-foreground"
+              >
                 {t("settings.whatsapp.phoneLabel")}
               </label>
               <input
@@ -120,74 +99,76 @@ export function WhatsAppGuidanceCard() {
                 type="tel"
                 inputMode="tel"
                 dir="ltr"
+                autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 onBlur={() => setPhoneTouched(true)}
                 placeholder={t("settings.whatsapp.phonePlaceholder")}
                 aria-invalid={showPhoneError}
-                className="h-11 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
+                aria-describedby={showPhoneError ? "whatsapp-phone-error" : undefined}
+                className={INPUT_CLS + " text-right"}
               />
-              {showPhoneError && (
-                <p className="text-xs text-accent">{t("settings.whatsapp.phoneError")}</p>
-              )}
             </div>
 
-            <div className="h-px bg-border" role="presentation" />
-            <div className="flex flex-col gap-2 px-4 py-3 min-h-11 md:flex-row md:items-center md:justify-between">
-              <span className="text-sm font-medium text-foreground">
+            <div className="flex min-h-11 items-center gap-3 px-4">
+              <label
+                htmlFor="whatsapp-hour"
+                className="shrink-0 whitespace-nowrap text-[1.0625rem] text-foreground"
+              >
                 {t("settings.whatsapp.timeLabel")}
-              </span>
-              <div className="w-full md:w-auto">
-                <label htmlFor="whatsapp-hour" className="sr-only">
-                  {t("settings.whatsapp.timeLabel")}
-                </label>
-                <select
-                  id="whatsapp-hour"
-                  value={hour}
-                  onChange={(e) => setHour(Number(e.target.value))}
-                  className="h-11 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring md:w-auto md:text-sm"
-                >
-                  {Array.from({ length: 24 }, (_, h) => h).map((h) => (
-                    <option key={h} value={h}>
-                      {formatHour(h)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="h-px bg-border" role="presentation" />
-            <div className="space-y-3 px-4 py-3">
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {t("settings.whatsapp.helperLine")}
-              </p>
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={onSave}
-                  disabled={saving}
-                  className="min-h-11"
-                >
-                  {saving ? t("settings.whatsapp.saving") : t("settings.whatsapp.save")}
-                </Button>
-                {saved && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-accent">
-                    <Check size={14} aria-hidden="true" />
-                    {t("settings.whatsapp.saved")}
-                  </span>
-                )}
-                {saveError && (
-                  <span className="text-xs text-muted-foreground">
-                    {t("settings.whatsapp.saveError")}
-                  </span>
-                )}
-              </div>
+              </label>
+              <select
+                id="whatsapp-hour"
+                value={hour}
+                onChange={(e) => setHour(Number(e.target.value))}
+                className={INPUT_CLS + " text-right [text-align-last:right]"}
+              >
+                {Array.from({ length: 24 }, (_, h) => h).map((h) => (
+                  <option key={h} value={h}>
+                    {formatHour(h)}
+                  </option>
+                ))}
+              </select>
             </div>
           </>
         )}
       </div>
+
+      {optIn && (
+        <>
+          {showPhoneError ? (
+            <p id="whatsapp-phone-error" className="px-4 text-[0.8125rem] text-destructive-strong">
+              {t("settings.whatsapp.phoneError")}
+            </p>
+          ) : null}
+          <p className="px-4 text-[0.8125rem] leading-snug text-muted-foreground">
+            {t("settings.whatsapp.helperLine")}
+          </p>
+          <div className="flex items-center gap-3 px-1 pt-3">
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              className="tap-press inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-6 text-[0.9375rem] font-semibold text-accent-foreground transition-opacity disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              {saving ? t("settings.whatsapp.saving") : t("settings.whatsapp.save")}
+            </button>
+            <span role="status" className="text-[0.8125rem]">
+              {saved ? (
+                <span className="inline-flex items-center gap-1 font-medium text-feedback-success">
+                  <Check size={14} aria-hidden="true" />
+                  {t("settings.whatsapp.saved")}
+                </span>
+              ) : saveError ? (
+                <span className="text-destructive-strong">{t("settings.whatsapp.saveError")}</span>
+              ) : null}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
+
+const INPUT_CLS =
+  "h-11 min-w-0 flex-1 -mx-2 rounded-md bg-transparent px-2 text-[1.0625rem] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";

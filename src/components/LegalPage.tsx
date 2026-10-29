@@ -1,5 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Section = { heading: string; body: string[] };
 
@@ -19,42 +20,48 @@ function isValidSections(value: unknown): value is Section[] {
 /** Shared shell for the Terms and Privacy pages — same layout, different i18n namespace. */
 export function LegalPage({ i18nKey }: { i18nKey: "terms" | "privacy" }) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const rawSections = t(`${i18nKey}.sections`, { returnObjects: true });
   const sections = isValidSections(rawSections) ? rawSections : [];
   const alternate = i18nKey === "terms" ? "/privacy" : "/terms";
   const alternateLabel = i18nKey === "terms" ? t("common.privacy") : t("common.terms");
 
+  const goBack = () => {
+    if (canGoBack) router.history.back();
+    else void router.navigate({ to: "/" });
+  };
+
   return (
     <article className="mx-auto w-full max-w-[var(--container-reading)] pb-8">
-      <header className="border-b border-border/70 pb-6">
-        <p className="as-micro text-primary">{t(`${i18nKey}.lastUpdated`)}</p>
-        <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-            {t(`${i18nKey}.title`)}
-          </h1>
-          <Link
-            to={alternate}
-            className="tap-press inline-flex min-h-11 w-fit items-center rounded-md border border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      <header className="motion-fade-up">
+        <nav className="-mx-2 -mt-2 flex min-h-11 items-center">
+          <button
+            type="button"
+            onClick={goBack}
+            className="tap-press inline-flex h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-[1.0625rem] text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {alternateLabel}
-          </Link>
-        </div>
-        <p className="mt-5 rounded-md border border-accent/25 bg-accent/5 p-4 text-sm leading-relaxed text-muted-foreground">
-          {t(`${i18nKey}.draftNotice`)}
+            <ChevronLeft size={22} aria-hidden="true" />
+            {t("common.back")}
+          </button>
+        </nav>
+        <h1 className="large-title mt-1 text-foreground">{t(`${i18nKey}.title`)}</h1>
+        <p className="mt-1.5 text-[0.9375rem] text-muted-foreground">
+          {t(`${i18nKey}.lastUpdated`)}
         </p>
       </header>
 
       {sections.length > 0 && (
         <nav
           aria-label={t(`${i18nKey}.title`)}
-          className="-mx-4 mt-5 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
+          className="-mx-4 mt-5 overflow-x-auto px-4 pb-2 [scrollbar-width:none]"
         >
           <ol className="flex min-w-max gap-2">
             {sections.map((section, i) => (
               <li key={section.heading}>
                 <a
                   href={`#${i18nKey}-section-${i + 1}`}
-                  className="tap-press inline-flex min-h-10 items-center rounded-md border border-border/70 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="tap-press inline-flex min-h-11 items-center rounded-full bg-foreground/[0.06] px-3.5 text-[0.8125rem] font-medium text-foreground/80 transition-colors hover:bg-foreground/[0.1] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {section.heading}
                 </a>
@@ -64,17 +71,13 @@ export function LegalPage({ i18nKey }: { i18nKey: "terms" | "privacy" }) {
         </nav>
       )}
 
-      <div className="mt-8 divide-y divide-border/70">
+      <div className="mt-6 space-y-7">
         {sections.map((section, i) => (
-          <section
-            id={`${i18nKey}-section-${i + 1}`}
-            key={section.heading}
-            className="py-6 first:pt-0"
-          >
-            <h2 className="text-base font-semibold text-foreground">{section.heading}</h2>
+          <section id={`${i18nKey}-section-${i + 1}`} key={section.heading} className="scroll-mt-6">
+            <h2 className="text-[1.0625rem] font-semibold text-foreground">{section.heading}</h2>
             <div className="mt-2 space-y-3">
               {section.body.map((paragraph, j) => (
-                <p key={j} className="text-sm leading-7 text-muted-foreground">
+                <p key={j} className="text-[0.9375rem] leading-relaxed text-muted-foreground">
                   {paragraph}
                 </p>
               ))}
@@ -82,6 +85,14 @@ export function LegalPage({ i18nKey }: { i18nKey: "terms" | "privacy" }) {
           </section>
         ))}
       </div>
+
+      <Link
+        to={alternate}
+        className="tap-press mt-10 flex min-h-11 items-center justify-between gap-3 rounded-[0.875rem] bg-card px-4 text-[1.0625rem] text-foreground shadow-[var(--as-elevation-1)] transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {alternateLabel}
+        <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+      </Link>
     </article>
   );
 }

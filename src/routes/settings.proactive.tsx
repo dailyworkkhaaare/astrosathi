@@ -2,11 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Bell, CalendarClock, Check, Moon, Orbit, Sparkles, type LucideIcon } from "lucide-react";
+import { CalendarClock, Moon, Orbit, Sparkles, type LucideIcon } from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
-import { Group, SettingsBackHeader, Toggle } from "@/components/settings/primitives";
+import {
+  Group,
+  IconTile,
+  SettingsBackHeader,
+  Toggle,
+  VALUE_TRIGGER,
+} from "@/components/settings/primitives";
 import {
   Select,
   SelectContent,
@@ -22,11 +28,10 @@ import {
   triggerHaptic,
   type DeviceNotificationPermission,
 } from "@/lib/native-device";
-import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/settings/proactive")({
   head: () => ({
-    meta: [{ title: "Proactive nudges — AstroSaathi" }],
+    meta: [{ title: "Guidance settings — AstroSaathi" }],
   }),
   component: ProactiveSettingsPage,
 });
@@ -148,35 +153,22 @@ function ProactiveSettingsPage() {
   const mutedKindCount = NUDGE_KINDS.filter((kind) => local.muted_kinds.includes(kind)).length;
 
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
+    <section className="mx-auto max-w-2xl space-y-7">
       <SettingsBackHeader
         title={t("settings.proactive.title")}
         backLabel={t("settings.memory.back")}
+        subtitle={t("settings.proactive.enabledHint")}
       />
 
-      {/* Master toggle */}
-      <Group title={t("settings.proactive.enabled")} delay={1}>
-        <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
-          <div className="min-w-0">
+      <div className="space-y-2">
+        <Group footer={t("settings.proactive.enabledDetail")} delay={1}>
+          <div className="flex min-h-11 items-center justify-between gap-3 py-1.5 pl-4 pr-2">
             <label
               htmlFor="proactive-enabled"
-              className="block text-sm font-medium text-foreground"
+              className="min-w-0 text-[1.0625rem] leading-snug text-foreground"
             >
               {t("settings.proactive.enabled")}
             </label>
-            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-              {t("settings.proactive.enabledHint")}
-            </p>
-            <p className="mt-1 text-xs leading-snug text-muted-foreground">
-              {t("settings.proactive.enabledDetail")}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              {local.enabled
-                ? t("settings.proactive.enabledStatusOn")
-                : t("settings.proactive.enabledStatusOff")}
-            </span>
             <Toggle
               id="proactive-enabled"
               ariaLabel={t("settings.proactive.enabled")}
@@ -184,63 +176,71 @@ function ProactiveSettingsPage() {
               onChange={onToggleEnabled}
             />
           </div>
-        </div>
-      </Group>
+        </Group>
+        {saveMutation.isPending && (
+          <p
+            role="status"
+            aria-live="polite"
+            className="px-4 text-[0.8125rem] text-muted-foreground"
+          >
+            {t("settings.proactive.saving")}
+          </p>
+        )}
+      </div>
 
-      {saveMutation.isPending && (
-        <p role="status" aria-live="polite" className="px-1 text-xs text-muted-foreground">
-          {t("settings.proactive.saving")}
+      {disabled && (
+        <p className="-mt-3 px-4 text-[0.8125rem] leading-snug text-muted-foreground">
+          {t("settings.proactive.controlsPaused")}
         </p>
       )}
 
       <div
-        className={cn("space-y-6 transition-opacity", disabled && "pointer-events-none opacity-50")}
-      >
-        {disabled && (
-          <p className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-            {t("settings.proactive.controlsPaused")}
-          </p>
+        aria-disabled={disabled || undefined}
+        className={cn(
+          "space-y-7 transition-opacity motion-reduce:transition-none",
+          disabled && "pointer-events-none opacity-50",
         )}
-
-        <Group title={t("settings.proactive.deviceAlerts")} icon={<Bell size={14} aria-hidden="true" />} delay={2}>
-          <div className="flex min-h-12 items-center justify-between gap-4 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">
-                {t(`settings.proactive.deviceAlertStatus.${notificationPermission}`)}
-              </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {t(`settings.proactive.deviceAlertHint.${notificationPermission}`)}
-              </p>
-            </div>
+      >
+        <Group
+          title={t("settings.proactive.deviceAlerts")}
+          footer={t(`settings.proactive.deviceAlertHint.${notificationPermission}`)}
+          delay={2}
+        >
+          <div className="flex min-h-11 items-center justify-between gap-3 py-1.5 pl-4 pr-2">
+            <span className="min-w-0 text-[1.0625rem] leading-snug text-foreground">
+              {t(`settings.proactive.deviceAlertStatus.${notificationPermission}`)}
+            </span>
             {notificationPermission === "prompt" ? (
-              <Button
+              <button
                 type="button"
-                size="sm"
-                variant="outline"
-                className="shrink-0"
                 disabled={requestingNotificationPermission}
                 onClick={() => void onEnableDeviceAlerts()}
+                className="tap-press inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-[0.9375rem] font-semibold text-accent transition-colors hover:bg-accent/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
               >
                 {requestingNotificationPermission
                   ? t("settings.proactive.deviceAlertsRequesting")
                   : t("settings.proactive.deviceAlertsEnable")}
-              </Button>
+              </button>
             ) : null}
           </div>
         </Group>
 
-        {/* Frequency cap */}
-        <Group title={t("settings.proactive.frequency")} delay={3}>
-          <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
-            <p className="text-xs leading-snug text-muted-foreground">
-              {t("settings.proactive.frequencyHint")}
-            </p>
-            <p className="text-xs leading-snug text-muted-foreground">
-              {t("settings.proactive.frequencyDetail")}
-            </p>
+        <Group
+          title={t("settings.proactive.frequency")}
+          footer={
+            local.max_per_week === 0
+              ? t("settings.proactive.frequencyStatusOff")
+              : t("settings.proactive.frequencyStatus", { n: local.max_per_week })
+          }
+          delay={2}
+        >
+          <div className="flex min-h-11 items-center justify-between gap-3 pl-4 pr-3">
+            <span className="shrink-0 text-[1.0625rem] text-foreground">
+              {t("settings.proactive.frequencyLabel")}
+            </span>
             <Select value={String(local.max_per_week)} onValueChange={onChangeFrequency}>
               <SelectTrigger
-                className="h-11 w-full text-sm sm:w-56"
+                className={VALUE_TRIGGER}
                 aria-label={t("settings.proactive.frequency")}
                 disabled={disabled}
               >
@@ -256,95 +256,70 @@ function ProactiveSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs font-medium text-foreground">
-              {local.max_per_week === 0
-                ? t("settings.proactive.frequencyStatusOff")
-                : t("settings.proactive.frequencyStatus", { n: local.max_per_week })}
-            </p>
           </div>
         </Group>
 
-        {/* Quiet hours */}
-        <Group title={t("settings.proactive.quietHours")} delay={4}>
-          <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
-            <p className="text-xs leading-snug text-muted-foreground">
-              {t("settings.proactive.quietHint")}
-            </p>
-            <p className="text-xs leading-snug text-muted-foreground">
-              {t("settings.proactive.quietDetail")}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <QuietHourSelect
-                label={t("settings.proactive.quietStart")}
-                value={local.quiet_hours_start}
-                disabled={disabled}
-                onChange={(v) => onChangeQuiet("start", v)}
-              />
-              <QuietHourSelect
-                label={t("settings.proactive.quietEnd")}
-                value={local.quiet_hours_end}
-                disabled={disabled}
-                onChange={(v) => onChangeQuiet("end", v)}
-              />
-            </div>
-            <p className="text-xs font-medium text-foreground">
-              {quietHoursActive
-                ? t("settings.proactive.quietStatusActive", {
-                    start: formatHour(local.quiet_hours_start!),
-                    end: formatHour(local.quiet_hours_end!),
-                  })
-                : t("settings.proactive.quietStatusOff")}
-            </p>
+        <Group
+          title={t("settings.proactive.quietHours")}
+          footer={
+            quietHoursActive
+              ? t("settings.proactive.quietStatusActive", {
+                  start: formatHour(local.quiet_hours_start!),
+                  end: formatHour(local.quiet_hours_end!),
+                })
+              : t("settings.proactive.quietHint")
+          }
+          delay={3}
+        >
+          <div className="list-hairline">
+            <QuietHourSelect
+              label={t("settings.proactive.quietStart")}
+              value={local.quiet_hours_start}
+              disabled={disabled}
+              onChange={(v) => onChangeQuiet("start", v)}
+            />
+            <QuietHourSelect
+              label={t("settings.proactive.quietEnd")}
+              value={local.quiet_hours_end}
+              disabled={disabled}
+              onChange={(v) => onChangeQuiet("end", v)}
+            />
           </div>
         </Group>
 
-        {/* Muted kinds */}
-        <Group title={t("settings.proactive.mutedKinds")}>
-          <div className="flex flex-col gap-3 px-4 py-3">
-            <p className="text-xs leading-snug text-muted-foreground">
-              {t("settings.proactive.mutedKindsHint")}
-            </p>
-            <p className="text-xs leading-snug text-muted-foreground">
-              {t("settings.proactive.mutedKindsDetail")}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {NUDGE_KINDS.map((kind) => {
-                const included = !local.muted_kinds.includes(kind);
-                const Icon = KIND_ICON[kind];
-                return (
-                  <button
-                    key={kind}
-                    id={`proactive-kind-${kind}`}
-                    type="button"
-                    role="switch"
-                    aria-checked={included}
-                    onClick={() => onToggleKind(kind, !included)}
-                    className={cn(
-                      "tap-press inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      included
-                        ? "border-primary/50 bg-primary/10 text-foreground"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground",
-                    )}
+        <Group
+          title={t("settings.proactive.mutedKinds")}
+          footer={
+            mutedKindCount === 0
+              ? t("settings.proactive.mutedKindsHint")
+              : t("settings.proactive.mutedKindsStatusMuted", { n: mutedKindCount })
+          }
+          delay={4}
+        >
+          <div className="list-hairline [--list-inset:3.75rem]">
+            {NUDGE_KINDS.map((kind) => {
+              const included = !local.muted_kinds.includes(kind);
+              const Icon = KIND_ICON[kind];
+              return (
+                <div key={kind} className="flex min-h-11 items-center gap-3 py-1.5 pl-4 pr-2">
+                  <IconTile>
+                    <Icon size={17} />
+                  </IconTile>
+                  <label
+                    htmlFor={`proactive-kind-${kind}`}
+                    className="min-w-0 flex-1 text-[1.0625rem] leading-snug text-foreground"
                   >
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "flex h-4 w-4 items-center justify-center rounded-full transition-colors",
-                        included ? "bg-primary text-primary-foreground" : "border border-border",
-                      )}
-                    >
-                      {included ? <Check size={10} strokeWidth={3} /> : <Icon size={10} />}
-                    </span>
-                    <span>{t(`settings.proactive.kinds.${kind}`)}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs font-medium text-foreground">
-              {mutedKindCount === 0
-                ? t("settings.proactive.mutedKindsStatusAll")
-                : t("settings.proactive.mutedKindsStatusMuted", { n: mutedKindCount })}
-            </p>
+                    {t(`settings.proactive.kinds.${kind}`)}
+                  </label>
+                  <Toggle
+                    id={`proactive-kind-${kind}`}
+                    ariaLabel={t(`settings.proactive.kinds.${kind}`)}
+                    checked={included}
+                    onChange={(v) => onToggleKind(kind, v)}
+                  />
+                </div>
+              );
+            })}
           </div>
         </Group>
       </div>
@@ -365,12 +340,10 @@ function QuietHourSelect({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
-      </span>
+    <div className="flex min-h-11 items-center justify-between gap-3 pl-4 pr-3">
+      <span className="shrink-0 text-[1.0625rem] text-foreground">{label}</span>
       <Select value={value == null ? QUIET_OFF : String(value)} onValueChange={onChange}>
-        <SelectTrigger className="h-11 w-full text-sm" aria-label={label} disabled={disabled}>
+        <SelectTrigger className={VALUE_TRIGGER} aria-label={label} disabled={disabled}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

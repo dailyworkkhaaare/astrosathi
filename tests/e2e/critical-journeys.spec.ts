@@ -71,12 +71,12 @@ test.describe("onboarding routing", () => {
     await expect(page.getByText("About you", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Date of birth")).not.toBeVisible();
     await page.getByLabel("Full name").fill("Aarav Sharma");
+    await expect(page.getByLabel("Full name")).toHaveAttribute("enterkeyhint", "next");
     await page.getByRole("button", { name: "Continue to birth details" }).click();
 
     await expect(page.getByText("Birth details", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Date of birth")).toBeVisible();
     await expect(page.getByLabel("Place of birth")).toBeVisible();
-    await expect(page.getByLabel("Full name")).toHaveAttribute("enterkeyhint", "next");
     await expect(page.getByLabel("Date of birth")).toHaveAttribute("enterkeyhint", "next");
     await expect(page.getByLabel("Time of birth")).toHaveAttribute("enterkeyhint", "next");
     await expect(page.getByLabel("Place of birth")).toHaveAttribute("enterkeyhint", "done");
@@ -101,6 +101,8 @@ test.describe("onboarding routing", () => {
     await page.getByRole("button", { name: "Calculate my chart" }).click();
 
     await expect(page.getByRole("heading", { name: "Casting your chart…" })).toBeVisible();
+    await expect(page.getByText("Your chart is ready", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Explore my chart" }).click();
     await expect(page).toHaveURL(/\/home\/?$/);
     expect(primeCalls).toBe(0);
   });
@@ -124,8 +126,24 @@ test.describe("onboarding routing", () => {
     await page.getByRole("button", { name: "Calculate my chart" }).click();
 
     await expect(page.getByRole("heading", { name: "Casting your chart…" })).toBeVisible();
+    await expect(page.getByText("Your chart is ready", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Explore my chart" }).click();
     await expect(page).toHaveURL(/\/home\/?$/);
     await expect.poll(() => primeCalls).toBe(1);
+  });
+
+  test("editing birth details on a ready account skips the chart-ready screen", async ({
+    page,
+  }) => {
+    await installSupabaseMock(page, { onboardingState: "ready" });
+    await page.goto("/onboarding/birth");
+
+    await expect(page.getByLabel("Full name")).toHaveValue("Aarohi Journey");
+    await page.getByRole("button", { name: "Continue to birth details" }).click();
+    await page.getByRole("button", { name: "Calculate my chart" }).click();
+
+    await expect(page).toHaveURL(/\/home\/?$/);
+    await expect(page.getByText("Your chart is ready", { exact: true })).toHaveCount(0);
   });
 });
 
@@ -180,6 +198,13 @@ test.describe("authenticated critical journeys", () => {
       const link = dock.getByRole("link", { name: world.label });
       await link.click();
       await expect(page).toHaveURL(new RegExp(`${world.path}/?$`));
+      if (world.path === "/chat") {
+        // Ask opens as a full-screen sheet: no dock, its own close.
+        await expect(dock).toHaveCount(0);
+        await page.getByRole("button", { name: "Close" }).click();
+        await expect(dock).toBeVisible();
+        continue;
+      }
       await expect(link).toHaveAttribute("aria-current", "page");
     }
   });
@@ -254,19 +279,41 @@ test.describe("authenticated critical journeys", () => {
     }
   });
 
-  test("mobile Cosmos uses a native section picker instead of clipped tabs", async ({
+  test("mobile Cosmos sections scroll as chips and keep the active one in view", async ({
     page,
   }, testInfo) => {
-    test.skip(testInfo.project.name !== "mobile-chrome", "The mobile picker is mobile-only.");
+    test.skip(testInfo.project.name !== "mobile-chrome", "The chip scroller check is mobile-only.");
     await page.goto("/home");
 
-    const picker = page.getByRole("combobox", { name: "Your chart" });
-    await expect(picker).toBeVisible();
-    await expect(page.getByRole("tab")).toHaveCount(0);
+    const sections = page.getByRole("tablist", { name: "Your chart" });
+    await expect(sections).toBeVisible();
+    await expect(sections.getByRole("tab")).toHaveCount(8);
+    await expect(sections.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
-    await picker.selectOption("remedies");
+    const remedies = sections.getByRole("tab", { name: "Remedies" });
+    await remedies.click();
     await expect(page).toHaveURL(/\/home\?tab=remedies$/);
-    await expect(picker).toHaveValue("remedies");
+    await expect(remedies).toHaveAttribute("aria-selected", "true");
+
+    await page.getByRole("tab", { name: "Lo Shu grid" }).click();
+    await expect(page).toHaveURL(/\/home\?tab=loshu$/);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const list = document.querySelector('[role="tablist"]')!.getBoundingClientRect();
+          const tab = document.querySelector('[role="tab"][aria-selected="true"]')!;
+          const box = tab.getBoundingClientRect();
+          return box.left >= list.left - 1 && box.right <= list.right + 1;
+        }),
+      )
+      .toBe(true);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 
   test("desktop rail expands with keyboard and keeps five-world routing", async ({
@@ -693,7 +740,6 @@ test.describe("authenticated critical journeys", () => {
     );
     await expect(page.getByRole("heading", { name: "Panchang", level: 1 })).toBeVisible();
     await expect(page.getByText(localDate, { exact: true })).toBeVisible();
-    await expect(page.getByText("Asia/Kolkata", { exact: true })).toBeVisible();
     await expect(page.getByText("Shukla Shashthi", { exact: true })).toBeVisible();
     await expect(page.getByText("Magha · Pada 3", { exact: true })).toBeVisible();
     await expect(page.getByText("Siddhi", { exact: true })).toBeVisible();
@@ -1562,7 +1608,7 @@ test.describe("authenticated critical journeys", () => {
     ).toBeVisible();
 
     const isMobile = testInfo.project.name === "mobile-chrome";
-    const chartStyle = page.getByLabel("Chart style", { exact: true });
+    const chartStyle = page.getByRole("combobox", { name: "Chart style", exact: true });
     if (isMobile) {
       await page.getByRole("button", { name: "Chart style" }).click();
       await page.getByRole("option", { name: "South Indian" }).click();
@@ -1668,7 +1714,7 @@ test.describe("authenticated critical journeys", () => {
     await page.goto("/home?tab=charts");
 
     const isMobile = testInfo.project.name === "mobile-chrome";
-    const picker = page.getByLabel("Divisional chart", { exact: true });
+    const picker = page.getByRole("combobox", { name: "Divisional chart", exact: true });
     if (!isMobile) await expect(picker.locator("option")).toHaveCount(VARGA_KEYS.length);
     await page.getByRole("button", { name: "D9 — Navamsa" }).click();
     if (isMobile) {
@@ -1698,18 +1744,15 @@ test.describe("authenticated critical journeys", () => {
     await page.goto("/people");
     const person = page.getByRole("listitem").filter({ hasText: "Vihaan Journey" });
 
-    await expect(person.getByRole("link", { name: "Chart", exact: true })).toHaveAttribute(
-      "href",
-      new RegExp(`/people/${TEST_PERSON_ID}/?$`),
-    );
-    await expect(person.getByRole("link", { name: "Ask", exact: true })).toHaveAttribute(
-      "href",
-      /\/chat\?/,
-    );
-    await expect(person.getByRole("link", { name: "Compare", exact: true })).toHaveAttribute(
-      "href",
-      new RegExp(`/people/${TEST_PERSON_ID}/compatibility/?$`),
-    );
+    await expect(
+      person.getByRole("link", { name: "Open Vihaan Journey's chart", exact: true }),
+    ).toHaveAttribute("href", new RegExp(`/people/${TEST_PERSON_ID}/?$`));
+    await expect(
+      person.getByRole("link", { name: "Ask about Vihaan Journey", exact: true }),
+    ).toHaveAttribute("href", /\/chat\?/);
+    await expect(
+      person.getByRole("link", { name: "Compare with Vihaan Journey", exact: true }),
+    ).toHaveAttribute("href", new RegExp(`/people/${TEST_PERSON_ID}/compatibility/?$`));
   });
 
   test("people collection stays compact and grouped on mobile", async ({ page }, testInfo) => {

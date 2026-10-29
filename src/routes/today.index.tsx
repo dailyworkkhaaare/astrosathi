@@ -127,14 +127,12 @@ function TodayPage() {
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {refreshing ? t("today.refreshing") : ""}
       </p>
-      <header className="motion-fade-up flex items-start justify-between gap-3">
+      <header className="motion-fade-up flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            <span>{dateLabel}</span>
-          </div>
-          <h1 className="mt-1 font-display text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-            {t("today.title")}
-          </h1>
+          <p className="text-[0.8125rem] font-semibold tracking-[0.04em] text-muted-foreground">
+            {dateLabel}
+          </p>
+          <h1 className="large-title mt-0.5 text-foreground">{t("today.title")}</h1>
         </div>
         <button
           type="button"
@@ -143,19 +141,19 @@ function TodayPage() {
           aria-label={t("today.refresh")}
           aria-busy={refreshing}
           title={t("today.refresh")}
-          className="tap-press mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-[var(--shadow-soft)] transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70"
+          className="tap-press -mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70"
         >
           <RefreshCw size={17} aria-hidden="true" className={refreshing ? "animate-spin" : ""} />
         </button>
       </header>
 
-      <div className="motion-fade-up motion-delay-1">
+      <div className="motion-fade-up motion-delay-1 -mt-3">
         <DailySignalHero />
       </div>
 
       <div className="motion-fade-up motion-delay-2 space-y-4">
         <TodayAtAGlance />
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
           {t("todayOverview.currentTiming")}
         </p>
         <TransitHighlightBand />
@@ -163,21 +161,21 @@ function TodayPage() {
       </div>
 
       <div className="motion-fade-up motion-delay-3 space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
           {t("todayOverview.supporting")}
         </p>
-        <div className="grid items-start gap-6 md:grid-cols-2">
+        <div className="grid items-start gap-3 md:grid-cols-2">
           <PanchangSummaryCard />
           <DailyMantraSection />
         </div>
       </div>
 
-      <div className="motion-fade-up motion-delay-4 space-y-4 border-t border-border/70 pt-8">
+      <div className="motion-fade-up motion-delay-4 space-y-2">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
             {t("todayOverview.experimental")}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-0.5 px-4 text-xs text-muted-foreground">
             {t("todayOverview.experimentalNote")}
           </p>
         </div>

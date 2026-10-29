@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Gauge, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronRight, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useBarometer, type BarometerAsset, type BarometerBias } from "@/lib/queries";
@@ -14,86 +14,62 @@ export function BarometerSummaryCard() {
   const unavailable = !loading && (hasError || isEmpty);
 
   return (
-    <section
-      aria-labelledby="barometer-summary-heading"
-      className={`rounded-2xl border border-border bg-card shadow-[var(--shadow-soft)] ${unavailable ? "p-4" : "p-5"}`}
-    >
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
-          <Gauge size={15} className="text-accent" aria-hidden="true" />
-        </span>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-accent">
-            {t("sections.market.experimentalLabel")}
-          </p>
-          <h2
-            id="barometer-summary-heading"
-            className="mt-0.5 text-base font-semibold text-foreground"
-          >
-            {t("sections.barometer.title")}
-          </h2>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="mt-4 flex gap-3" aria-hidden="true">
-          <div className="h-8 w-24 animate-pulse rounded-full bg-muted" />
-          <div className="h-8 w-24 animate-pulse rounded-full bg-muted" />
-          <div className="h-8 w-24 animate-pulse rounded-full bg-muted" />
-        </div>
-      ) : unavailable ? (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-background/60 px-3 py-3">
-          <p className="min-w-0 flex-1 text-sm leading-relaxed text-muted-foreground">
+    <section aria-labelledby="barometer-summary-heading">
+      <h2 id="barometer-summary-heading" className="sr-only">
+        {t("sections.barometer.title")}
+      </h2>
+      <ul className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]">
+        {loading ? (
+          <li className="flex min-h-[3.125rem] items-center gap-3 px-4" aria-hidden="true">
+            <span className="h-4 w-24 motion-safe:animate-pulse rounded bg-muted" />
+            <span className="ml-auto h-6 w-20 motion-safe:animate-pulse rounded-full bg-muted" />
+          </li>
+        ) : unavailable ? (
+          <li className="flex min-h-[3.125rem] items-center px-4 py-3 text-sm leading-relaxed text-muted-foreground">
             {hasError ? t("sections.barometer.loadError") : t("sections.barometer.empty")}
-          </p>
+          </li>
+        ) : (
+          assets.map((asset) => <AssetRow key={asset.assetKey} asset={asset} t={t} />)
+        )}
+        <li>
           <Link
             to="/today/markets"
-            className="tap-press inline-flex min-h-10 shrink-0 items-center gap-1 text-xs font-semibold text-accent"
-          >
-            {t("sections.barometer.viewFull")}
-            <ChevronRight size={15} aria-hidden="true" />
-          </Link>
-        </div>
-      ) : (
-        <>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {assets.map((asset) => (
-              <AssetChip key={asset.assetKey} asset={asset} t={t} />
-            ))}
-          </div>
-          <Link
-            to="/today/markets"
-            className="tap-press mt-4 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-accent"
+            className="tap-press flex min-h-[3.125rem] items-center justify-between gap-3 px-4 text-[0.9375rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
             {t("sections.barometer.viewFull")}
             <ChevronRight size={16} aria-hidden="true" />
           </Link>
-        </>
-      )}
+        </li>
+      </ul>
     </section>
   );
 }
 
-function AssetChip({ asset, t }: { asset: BarometerAsset; t: (key: string) => string }) {
+function AssetRow({ asset, t }: { asset: BarometerAsset; t: (key: string) => string }) {
   const bias: BarometerBias = asset.bias;
   const Icon = bias === "bullish" ? TrendingUp : bias === "bearish" ? TrendingDown : Minus;
-  const classes =
+  const pill =
     bias === "bullish"
-      ? "border-accent/30 bg-accent/10 text-accent"
+      ? "bg-feedback-success/15 text-feedback-success"
       : bias === "bearish"
-        ? "border-border bg-card text-foreground"
-        : "border-border bg-muted/50 text-muted-foreground";
+        ? "bg-feedback-warning/15 text-feedback-warning"
+        : "bg-foreground/[0.08] text-muted-foreground";
   const pct = Math.round(Math.max(0, Math.min(1, asset.fusedProbability)) * 100);
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${classes}`}
-    >
-      <Icon size={13} aria-hidden="true" />
-      {asset.assetKey === "mcxgold"
-        ? t("sections.barometer.assets.bullion")
-        : t(`sections.barometer.assets.${asset.assetKey}`)}{" "}
-      · {pct}%
-    </span>
+    <li className="flex min-h-[3.125rem] items-center gap-3 px-4 py-2">
+      <span className="min-w-0 flex-1 text-base text-foreground">
+        {asset.assetKey === "mcxgold"
+          ? t("sections.barometer.assets.bullion")
+          : t(`sections.barometer.assets.${asset.assetKey}`)}
+      </span>
+      <span className="text-[0.8125rem] tabular-nums text-muted-foreground">{pct}%</span>
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.8125rem] font-semibold ${pill}`}
+      >
+        <Icon size={13} strokeWidth={2.6} aria-hidden="true" />
+        {t(`sections.barometer.bias.${bias}`)}
+      </span>
+    </li>
   );
 }

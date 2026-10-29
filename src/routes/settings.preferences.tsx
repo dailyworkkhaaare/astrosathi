@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Languages, Palette, SlidersHorizontal, Vibrate } from "lucide-react";
+import { Check } from "lucide-react";
 
 import {
   Divider,
@@ -48,73 +48,46 @@ function PreferencesPage() {
   };
 
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
+    <section className="mx-auto max-w-2xl space-y-7">
       <SettingsBackHeader
-        title={t("settings.preferences.title")}
+        title={t("settings.prefs.title")}
         backLabel={t("settings.memory.back")}
-        eyebrow={t("settings.preferences.eyebrow")}
         subtitle={t("settings.preferences.subtitle")}
       />
 
       <Group
         title={t("settings.preferences.languageTitle")}
-        icon={<Languages size={14} aria-hidden="true" />}
+        footer={t("settings.preferences.languageHint")}
         delay={1}
       >
-        <div className="px-4 pb-4 pt-3">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {t("settings.preferences.languageHint")}
-          </p>
-          <div
-            className="mt-3 grid gap-2 sm:grid-cols-3"
-            role="radiogroup"
-            aria-label={t("settings.prefs.language")}
-          >
-            {SUPPORTED_LANGUAGES.map((option) => {
-              const selected = option === currentLanguage;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setLanguage(option)}
-                  lang={option}
-                  className={`tap-press flex min-h-11 items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    selected
-                      ? "border-primary/60 bg-primary/10 text-foreground"
-                      : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                  }`}
-                >
-                  <span>{t(`languages.${option}`)}</span>
-                  <span
-                    aria-hidden="true"
-                    className={`grid h-5 w-5 place-items-center rounded-full border ${
-                      selected
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border text-transparent"
-                    }`}
-                  >
-                    <Check size={12} strokeWidth={3} />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        <div role="radiogroup" aria-label={t("settings.prefs.language")} className="list-hairline">
+          {SUPPORTED_LANGUAGES.map((option) => {
+            const selected = option === currentLanguage;
+            return (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setLanguage(option)}
+                lang={option}
+                className="tap-press flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2 text-left text-[1.0625rem] text-foreground transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              >
+                <span>{t(`languages.${option}`)}</span>
+                {selected ? (
+                  <Check size={20} strokeWidth={2.5} aria-hidden="true" className="text-accent" />
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       </Group>
 
       <Group
         title={t("settings.preferences.appearanceTitle")}
-        icon={<Palette size={14} aria-hidden="true" />}
+        footer={t("settings.preferences.themeHint")}
         delay={2}
       >
-        <div className="px-4 pb-3 pt-3">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {t("settings.preferences.themeHint")}
-          </p>
-        </div>
-        <Divider />
         <Row label={t("settings.prefs.theme")}>
           <SegmentedGroup<Theme>
             name="theme"
@@ -131,15 +104,9 @@ function PreferencesPage() {
 
       <Group
         title={t("settings.preferences.guidanceTitle")}
-        icon={<SlidersHorizontal size={14} aria-hidden="true" />}
+        footer={t("settings.preferences.guidanceHint")}
         delay={3}
       >
-        <div className="px-4 pb-3 pt-3">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {t("settings.preferences.guidanceHint")}
-          </p>
-        </div>
-        <Divider />
         <Row label={t("settings.prefs.tone")}>
           <SegmentedGroup<Tone>
             name="tone"
@@ -169,16 +136,13 @@ function PreferencesPage() {
 
       <Group
         title={t("settings.preferences.feedbackTitle")}
-        icon={<Vibrate size={14} aria-hidden="true" />}
+        footer={t("settings.prefs.hapticsHint")}
         delay={4}
       >
-        <div className="flex min-h-12 items-center justify-between gap-4 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">{t("settings.prefs.haptics")}</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-              {t("settings.prefs.hapticsHint")}
-            </p>
-          </div>
+        <div className="flex min-h-11 items-center justify-between gap-3 py-1.5 pl-4 pr-2">
+          <label htmlFor="pref-haptics" className="min-w-0 text-[1.0625rem] text-foreground">
+            {t("settings.prefs.haptics")}
+          </label>
           <Toggle
             id="pref-haptics"
             ariaLabel={t("settings.prefs.haptics")}

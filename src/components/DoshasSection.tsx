@@ -14,24 +14,21 @@ type KaalSarpData = {
 export function DoshasSection() {
   const { t } = useTranslation();
   return (
-    <section
-      aria-labelledby="doshas-heading"
-      className="rounded-2xl border border-border bg-card p-5"
-    >
-      <header>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-          {t("sections.doshas.eyebrow")}
-        </p>
-        <h2 id="doshas-heading" className="text-lg font-semibold text-foreground">
+    <section aria-labelledby="doshas-heading">
+      <header className="px-1">
+        <p className="text-xs font-semibold text-accent">{t("sections.doshas.eyebrow")}</p>
+        <h2
+          id="doshas-heading"
+          className="mt-0.5 text-xl font-semibold tracking-tight text-foreground"
+        >
           {t("sections.doshas.title")}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t("sections.doshas.subtitle")}</p>
-        <p className="mt-3 max-w-3xl border-l-2 border-primary/35 pl-3 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-0.5 max-w-3xl text-xs leading-relaxed text-muted-foreground">
           {t("sections.doshas.scope")}
         </p>
       </header>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid items-start gap-3">
         <div className="motion-fade-up motion-delay-1">
           <MangalCard />
         </div>
@@ -61,14 +58,17 @@ function MangalCard() {
       loading={q.isPending}
       error={q.isError || !!q.data?.errorCode || (!q.isPending && !d)}
       onRetry={() => q.refetch()}
+      status={
+        d
+          ? {
+              active: d.has_dosha,
+              label: d.has_dosha ? t("sections.doshas.present") : t("sections.doshas.notPresent"),
+            }
+          : null
+      }
     >
       {d && (
         <>
-          <StatusBlock
-            active={d.has_dosha}
-            activeLabel={t("sections.doshas.present")}
-            inactiveLabel={t("sections.doshas.notPresent")}
-          />
           {d.description && <DescriptionBlock text={d.description} />}
           {d.has_dosha && <DoshaRemedySummary doshaKey="mangal_dosha" />}
         </>
@@ -90,14 +90,17 @@ function KaalSarpCard() {
       loading={q.isPending}
       error={q.isError || !!q.data?.errorCode || (!q.isPending && !d)}
       onRetry={() => q.refetch()}
+      status={
+        d
+          ? {
+              active: d.has_dosha,
+              label: d.has_dosha ? t("sections.doshas.present") : t("sections.doshas.notPresent"),
+            }
+          : null
+      }
     >
       {d && (
         <>
-          <StatusBlock
-            active={d.has_dosha}
-            activeLabel={t("sections.doshas.present")}
-            inactiveLabel={t("sections.doshas.notPresent")}
-          />
           {d.description && <DescriptionBlock text={d.description} />}
           {typeLine && <MetaLine label={t("sections.doshas.typeLabel")} value={typeLine} />}
           {d.has_dosha && <DoshaRemedySummary doshaKey="kaal_sarp_dosha" />}
@@ -218,14 +221,17 @@ function SadeSatiCard() {
         planetsQ.refetch();
         transitsQ.refetch();
       }}
+      status={
+        canCompute
+          ? {
+              active: inSadeSati,
+              label: inSadeSati ? t("sections.doshas.active") : t("sections.doshas.notActive"),
+            }
+          : null
+      }
     >
       {canCompute && (
         <>
-          <StatusBlock
-            active={inSadeSati}
-            activeLabel={t("sections.doshas.active")}
-            inactiveLabel={t("sections.doshas.notActive")}
-          />
           {inSadeSati && phaseLabelKey && (
             <MetaLine label={t("sections.doshas.phaseLabel")} value={t(phaseLabelKey)} />
           )}
@@ -315,6 +321,7 @@ function DoshaCard({
   loading,
   error,
   onRetry,
+  status,
   children,
 }: {
   title: string;
@@ -324,74 +331,55 @@ function DoshaCard({
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  status: { active: boolean; label: string } | null;
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
   return (
-    <article className="flex flex-col gap-4 rounded-xl border border-border bg-background p-4">
+    <article className="flex flex-col gap-3 rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)]">
       <header>
-        <h3 className="text-base font-semibold text-foreground">
-          {title}
-          {alias && (
-            <span className="ml-2 align-middle text-xs font-normal text-muted-foreground">
-              ({alias})
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-[1.0625rem] font-semibold text-foreground">
+            {title}
+            {alias && (
+              <span className="ml-1.5 align-middle text-xs font-normal text-muted-foreground">
+                ({alias})
+              </span>
+            )}
+          </h3>
+          {status && !loading && !error ? (
+            <span
+              className={
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold " +
+                (status.active
+                  ? "bg-accent/15 text-accent"
+                  : "bg-foreground/[0.08] text-muted-foreground")
+              }
+            >
+              <span
+                aria-hidden="true"
+                className={
+                  "h-1.5 w-1.5 rounded-full " +
+                  (status.active ? "bg-accent" : "bg-muted-foreground/70")
+                }
+              />
+              <span className="sr-only">{t("sections.doshas.calculationStatus")}: </span>
+              <span>{status.label}</span>
             </span>
-          )}
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-          <span className="font-semibold text-foreground">{t("sections.doshas.basisLabel")}:</span>{" "}
-          {basis}
-        </p>
+          ) : null}
+        </div>
+        <p className="mt-0.5 text-[0.8125rem] text-muted-foreground">{subtitle}</p>
       </header>
 
       {loading && <Skeleton />}
       {!loading && error && <InlineError onRetry={onRetry} />}
       {!loading && !error && <div className="flex flex-col gap-3">{children}</div>}
-    </article>
-  );
-}
 
-function StatusBlock({
-  active,
-  activeLabel,
-  inactiveLabel,
-}: {
-  active: boolean;
-  activeLabel: string;
-  inactiveLabel: string;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div>
-      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {t("sections.doshas.calculationStatus")}
+      <p className="border-t border-[color:var(--as-list-separator)] pt-2.5 text-xs leading-relaxed text-muted-foreground">
+        <span className="font-semibold text-foreground">{t("sections.doshas.basisLabel")}:</span>{" "}
+        {basis}
       </p>
-      <Badge active={active} activeLabel={activeLabel} inactiveLabel={inactiveLabel} />
-    </div>
-  );
-}
-
-function Badge({
-  active,
-  activeLabel,
-  inactiveLabel,
-}: {
-  active: boolean;
-  activeLabel: string;
-  inactiveLabel: string;
-}) {
-  const tone = active
-    ? "border-primary/35 bg-primary/10 text-primary"
-    : "border-border bg-muted/50 text-muted-foreground";
-  const dot = active ? "bg-primary" : "bg-muted-foreground/70";
-  return (
-    <span
-      className={`inline-flex w-fit items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide ${tone}`}
-    >
-      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-      {active ? activeLabel : inactiveLabel}
-    </span>
+    </article>
   );
 }
 
@@ -402,8 +390,8 @@ function Body({ text }: { text: string }) {
 function DescriptionBlock({ text }: { text: string }) {
   const { t } = useTranslation();
   return (
-    <div className="border-l-2 border-border pl-3">
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+    <div>
+      <p className="mb-0.5 text-xs font-semibold text-muted-foreground">
         {t("sections.doshas.detailsFromCalculation")}
       </p>
       <Body text={text} />
@@ -559,10 +547,7 @@ function Skeleton() {
 function InlineError({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
   return (
-    <div
-      role="alert"
-      className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-    >
+    <div role="alert" className="flex flex-col gap-2 rounded-[0.875rem] bg-destructive/[0.08] p-3">
       <div className="flex items-start gap-2 text-sm text-foreground">
         <AlertTriangle size={16} className="text-destructive-strong" aria-hidden="true" />
         <span>{t("sections.doshas.loadError")}</span>
@@ -570,7 +555,7 @@ function InlineError({ onRetry }: { onRetry: () => void }) {
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex min-h-11 w-fit items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="tap-press -ml-2 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-sm font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <RefreshCw size={14} aria-hidden="true" />
         {t("sections.doshas.retry")}

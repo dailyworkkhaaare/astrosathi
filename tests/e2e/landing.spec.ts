@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { installClientPreferences, type TestLocale } from "./support/mock-supabase";
 
@@ -34,13 +34,19 @@ for (const locale of Object.keys(COPY) as TestLocale[]) {
 
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await expect(page.getByRole("heading", { level: 1, name: COPY[locale].title })).toBeVisible();
-    await expect(page.getByRole("heading", { name: COPY[locale].story })).toBeVisible();
-    await expect(page.getByRole("heading", { name: COPY[locale].features })).toBeVisible();
-    await expect(page.getByRole("heading", { name: COPY[locale].trust })).toBeVisible();
-    await expect(page.getByTestId("kundli-chat-preview")).toBeVisible();
+    if (isPhone(page)) {
+      // Phones get the native welcome screen instead of the long-form landing.
+      await expect(page.getByTestId("welcome-preview")).toBeVisible();
+      await expect(page.getByRole("heading", { name: COPY[locale].story })).toHaveCount(0);
+    } else {
+      await expect(page.getByRole("heading", { name: COPY[locale].story })).toBeVisible();
+      await expect(page.getByRole("heading", { name: COPY[locale].features })).toBeVisible();
+      await expect(page.getByRole("heading", { name: COPY[locale].trust })).toBeVisible();
+      await expect(page.getByTestId("kundli-chat-preview")).toBeVisible();
+    }
 
-    await expect(page.locator('a[href="/language"]').first()).toBeVisible();
-    await expect(page.locator('a[href="/auth"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/language"]:visible').first()).toBeVisible();
+    await expect(page.locator('a[href="/auth"]:visible').first()).toBeVisible();
 
     const overflow = await page.evaluate(() => ({
       documentWidth: document.documentElement.scrollWidth,
@@ -53,10 +59,14 @@ for (const locale of Object.keys(COPY) as TestLocale[]) {
 test("landing preview is lightweight and clearly non-live", async ({ page }) => {
   await page.goto("/");
 
-  const preview = page.getByTestId("kundli-chat-preview");
+  const preview = page.getByTestId(isPhone(page) ? "welcome-preview" : "kundli-chat-preview");
   await expect(preview).toHaveAttribute("role", "img");
   await expect(preview).toHaveAttribute("aria-label", /Illustrative product preview/);
   await expect(preview.getByText("Illustrative", { exact: true })).toBeVisible();
   await expect(page.locator("video, canvas")).toHaveCount(0);
   await expect(page.locator('img[src^="http"]')).toHaveCount(0);
 });
+
+function isPhone(page: Page) {
+  return (page.viewportSize()?.width ?? 1280) < 768;
+}

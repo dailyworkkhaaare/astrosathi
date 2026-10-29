@@ -8,21 +8,21 @@ import {
   CalendarDays,
   ChevronRight,
   FileText,
+  Info,
   LogOut,
+  MessageCircle,
   Palette,
-  ScrollText,
+  ShieldCheck,
   Sparkles,
   Trash2,
-  UserCircle,
+  Users,
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
-import { Button } from "@/components/ui/button";
-import { WhatsAppGuidanceCard } from "@/components/WhatsAppGuidanceCard";
-import { ConfirmDialog, Divider, Group, Toggle } from "@/components/settings/primitives";
+import { AstroArt } from "@/components/AstroArt";
+import { ConfirmDialog, Group, IconTile, Toggle } from "@/components/settings/primitives";
 import { clearSession, getSession, mockAuth } from "@/lib/auth";
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
-import type { SignKey } from "@/lib/chart-types";
 import {
   getPreferences,
   loadPreferencesFromProfile,
@@ -30,21 +30,6 @@ import {
   APP_VERSION,
   type Preferences,
 } from "@/lib/preferences";
-
-const SIGN_GLYPHS: Record<SignKey, string> = {
-  aries: "♈",
-  taurus: "♉",
-  gemini: "♊",
-  cancer: "♋",
-  leo: "♌",
-  virgo: "♍",
-  libra: "♎",
-  scorpio: "♏",
-  sagittarius: "♐",
-  capricorn: "♑",
-  aquarius: "♒",
-  pisces: "♓",
-};
 
 export const Route = createFileRoute("/settings/")({
   head: () => ({
@@ -110,241 +95,150 @@ function SettingsPage() {
 
   const moonPlanet = planetsQuery.data?.planets?.find((p) => p.key === "moon");
   const moonSign = moonPlanet?.signKey ?? null;
-  const moonGlyph = moonSign ? SIGN_GLYPHS[moonSign] : null;
 
   const displayName =
     prefs.display_name || session?.name || birth?.name || t("settings.profile.nameFallback");
   const displayEmail = session?.email || t("settings.profile.emailFallback");
 
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
+    <section className="mx-auto max-w-2xl space-y-7">
       <header className="motion-fade-up">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-          {t("settings.eyebrow")}
-        </p>
-        <h1 className="font-display text-3xl leading-tight tracking-tight text-foreground sm:text-4xl">
-          {t("settings.title")}
-        </h1>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-          {t("settings.subtitle")}
-        </p>
+        <h1 className="large-title text-foreground">{t("settings.title")}</h1>
       </header>
 
-      {/* Profile */}
-      <Group
-        title={t("settings.profile.title")}
-        icon={<UserCircle size={14} aria-hidden="true" />}
-        delay={1}
+      <Link
+        to="/onboarding/birth"
+        className="motion-fade-up tap-press flex min-h-[4.75rem] items-center gap-3.5 rounded-[1.25rem] bg-card px-4 py-3 shadow-[var(--as-elevation-1)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="flex items-center gap-3 px-4 py-3 min-h-11">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent/15 text-primary">
-            {moonGlyph ? (
-              <span className="text-xl leading-none">{moonGlyph}</span>
-            ) : (
-              <span className="font-display text-lg">
-                {(displayName?.trim()?.[0] ?? "?").toUpperCase()}
-              </span>
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-base font-medium text-foreground">{displayName}</p>
-            <p className="truncate text-sm text-muted-foreground" dir="ltr">
-              {displayEmail}
-            </p>
-          </div>
-        </div>
-        <Divider />
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/onboarding/birth" })}
-          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        >
-          <span className="inline-flex items-center gap-2">
-            <CalendarDays size={14} aria-hidden="true" className="text-muted-foreground" />
-            <span>
-              {t("settings.profile.editBirth")}
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t("settings.profile.birthHint")}
-              </span>
-            </span>
+        {moonSign ? (
+          <AstroArt kind="sign" name={moonSign} size={52} priority />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="grid h-[3.25rem] w-[3.25rem] shrink-0 place-items-center rounded-full bg-accent/15 text-xl font-semibold text-accent"
+          >
+            {(displayName?.trim()?.[0] ?? "?").toUpperCase()}
           </span>
-          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </button>
-      </Group>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[1.0625rem] font-semibold text-foreground">
+            {displayName}
+          </span>
+          <span className="block truncate text-[0.8125rem] text-muted-foreground" dir="ltr">
+            {displayEmail}
+          </span>
+        </span>
+        <ChevronRight size={18} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+      </Link>
 
-      {/* Preferences */}
-      <Group
-        title={t("settings.experience.title")}
-        icon={<Palette size={14} aria-hidden="true" />}
-        delay={2}
-      >
-        <Link
-          to="/settings/preferences"
-          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        >
-          <span className="inline-flex items-center gap-2">
-            <Palette size={14} aria-hidden="true" className="text-muted-foreground" />
-            <span>
-              {t("settings.prefs.title")}
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t("settings.experience.hint")}
-              </span>
-            </span>
-          </span>
-          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </Link>
-      </Group>
-
-      <Group
-        title={t("settings.profile.memory")}
-        icon={<Brain size={14} aria-hidden="true" />}
-        delay={3}
-      >
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/settings/memory" })}
-          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        >
-          <span className="inline-flex items-center gap-2">
-            <Brain size={14} aria-hidden="true" className="text-muted-foreground" />
-            <span>
-              {t("settings.profile.memory")}
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t("settings.profile.memoryHint")}
-              </span>
-            </span>
-          </span>
-          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </button>
-        <Divider />
-        <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
-          <div className="min-w-0">
-            <label htmlFor="pref-memory" className="block text-sm font-medium text-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <Sparkles size={13} aria-hidden="true" className="text-accent" />
-                {t("settings.prefs.memory")}
-              </span>
+      <div className="motion-fade-up overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]">
+        <div className={ROWS}>
+          <SettingsLink
+            to="/onboarding/birth"
+            icon={<CalendarDays size={17} />}
+            label={t("settings.profile.editBirth")}
+          />
+          <SettingsLink
+            to="/people"
+            icon={<Users size={17} />}
+            label={t("settings.profile.people")}
+          />
+          <SettingsLink
+            to="/settings/memory"
+            icon={<Brain size={17} />}
+            label={t("settings.profile.memory")}
+          />
+          <div className="flex min-h-12 items-center gap-3.5 py-1 pl-4 pr-2">
+            <IconTile>
+              <Sparkles size={17} />
+            </IconTile>
+            <label htmlFor="pref-memory" className="min-w-0 flex-1 text-base text-foreground">
+              {t("settings.prefs.memory")}
             </label>
-            <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground truncate">
-              {t("settings.prefs.memoryHelp")}
-            </p>
+            <Toggle
+              id="pref-memory"
+              ariaLabel={t("settings.prefs.memory")}
+              checked={prefs.memory_opt_in}
+              onChange={onMemoryOptInChange}
+            />
           </div>
-          <Toggle
-            id="pref-memory"
-            ariaLabel={t("settings.prefs.memory")}
-            checked={prefs.memory_opt_in}
-            onChange={onMemoryOptInChange}
+          <SettingsLink
+            to="/settings/proactive"
+            icon={<Bell size={17} />}
+            label={t("settings.profile.proactive")}
+          />
+        </div>
+      </div>
+
+      <Group title={t("settings.experience.title")}>
+        <div className={ROWS}>
+          <SettingsLink
+            to="/settings/preferences"
+            icon={<Palette size={17} />}
+            label={t("settings.prefs.title")}
+          />
+          <SettingsLink
+            to="/settings/voice"
+            icon={<AudioLines size={17} />}
+            label={t("voice.settingsTitle")}
+          />
+          <SettingsLink
+            to="/settings/whatsapp"
+            icon={<MessageCircle size={17} />}
+            label={t("settings.whatsapp.title")}
           />
         </div>
       </Group>
 
-      <Group
-        title={t("settings.guidance.title")}
-        icon={<Bell size={14} aria-hidden="true" />}
-        delay={4}
-      >
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/settings/proactive" })}
-          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        >
-          <span className="inline-flex items-center gap-2">
-            <Bell size={14} aria-hidden="true" className="text-muted-foreground" />
-            <span>
-              {t("settings.profile.proactive")}
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t("settings.profile.proactiveHint")}
-              </span>
+      <Group title={t("settings.legal.title")}>
+        <div className={ROWS}>
+          <SettingsLink
+            to="/terms"
+            icon={<FileText size={17} />}
+            label={t("settings.legal.terms")}
+          />
+          <SettingsLink
+            to="/privacy"
+            icon={<ShieldCheck size={17} />}
+            label={t("settings.legal.privacy")}
+          />
+          <div className="flex min-h-12 items-center gap-3.5 px-4">
+            <IconTile>
+              <Info size={17} />
+            </IconTile>
+            <span className="min-w-0 flex-1 text-base text-foreground">
+              {t("settings.versionLabel")}
             </span>
-          </span>
-          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </button>
-      </Group>
-
-      <WhatsAppGuidanceCard />
-
-      <Group title={t("settings.voice.title")} icon={<AudioLines size={14} aria-hidden="true" />}>
-        <button
-          type="button"
-          onClick={() => navigate({ to: "/settings/voice" })}
-          className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-        >
-          <span className="inline-flex items-center gap-2">
-            <AudioLines size={14} aria-hidden="true" className="text-muted-foreground" />
-            <span>
-              {t("voice.settingsTitle")}
-              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                {t("voice.settingsHint")}
-              </span>
+            <span className="shrink-0 text-[0.9375rem] tabular-nums text-muted-foreground">
+              {t("settings.version", { v: APP_VERSION })}
             </span>
-          </span>
-          <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
-        </button>
-      </Group>
-
-      {/* Privacy & governance */}
-      <Group
-        title={t("settings.governance.title")}
-        icon={<ScrollText size={14} aria-hidden="true" />}
-      >
-        <LegalRow
-          to="/terms"
-          label={t("settings.legal.terms")}
-          icon={<FileText size={14} aria-hidden="true" />}
-        />
-        <Divider />
-        <LegalRow to="/privacy" label={t("settings.legal.privacy")} icon={<ShieldIcon />} />
-        <Divider />
-        <div className="px-4 py-3">
-          <p className="text-sm font-medium text-foreground">{t("settings.about")}</p>
-          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-            {t("settings.aboutBody")}
-          </p>
-        </div>
-        <Divider />
-        <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-3">
-          <span className="text-sm font-medium text-foreground">{t("settings.versionLabel")}</span>
-          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            {t("settings.version", { v: APP_VERSION })}
-          </span>
+          </div>
         </div>
       </Group>
 
-      {/* Account */}
-      <Group title={t("settings.account.title")} icon={<LogOut size={14} aria-hidden="true" />}>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onSignOut}
-          className="h-auto min-h-11 w-full justify-start gap-2 rounded-none px-4 py-3 text-left font-medium text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <LogOut size={15} aria-hidden="true" className="text-muted-foreground" />
-          <span>
-            {t("settings.account.signOut")}
-            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-              {t("settings.account.signOutHint")}
+      <Group title={t("settings.account.title")}>
+        <div className={ROWS}>
+          <button type="button" onClick={onSignOut} className={ROW_BUTTON}>
+            <IconTile>
+              <LogOut size={17} />
+            </IconTile>
+            <span className="min-w-0 flex-1 text-base text-foreground">
+              {t("settings.account.signOut")}
             </span>
-          </span>
-        </Button>
-        <Divider />
-        <div className="px-4 py-3">
-          <p className="text-sm font-semibold text-foreground">
-            {t("settings.account.localDataTitle")}
-          </p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            {t("settings.account.localDataHint")}
-          </p>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setConfirmDelete(true)}
-            className="mt-3 h-auto min-h-11 w-full justify-start gap-2 rounded-md border border-destructive/30 px-3 py-2 text-left font-medium text-destructive-strong hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Trash2 size={15} aria-hidden="true" />
-            {t("settings.account.delete")}
-          </Button>
+          </button>
+          <button type="button" onClick={() => setConfirmDelete(true)} className={ROW_BUTTON}>
+            <IconTile tone="warning">
+              <Trash2 size={17} />
+            </IconTile>
+            <span className="min-w-0 flex-1 text-base text-destructive-strong">
+              {t("settings.account.delete")}
+            </span>
+          </button>
         </div>
       </Group>
+      <p className="-mt-5 px-4 text-xs leading-relaxed text-muted-foreground">
+        {t("settings.account.localDataHint")}
+      </p>
 
       {confirmDelete && (
         <ConfirmDialog
@@ -361,39 +255,33 @@ function SettingsPage() {
   );
 }
 
-function LegalRow({
+const ROWS = "list-hairline [--list-inset:3.75rem]";
+const ROW_BUTTON =
+  "tap-press flex min-h-12 w-full items-center gap-3.5 px-4 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
+
+function SettingsLink({
   to,
-  label,
   icon,
+  label,
 }: {
-  to: "/terms" | "/privacy";
+  to:
+    | "/onboarding/birth"
+    | "/people"
+    | "/settings/memory"
+    | "/settings/proactive"
+    | "/settings/preferences"
+    | "/settings/voice"
+    | "/settings/whatsapp"
+    | "/terms"
+    | "/privacy";
+  icon: ReactNode;
   label: string;
-  icon?: ReactNode;
 }) {
   return (
-    <Link
-      to={to}
-      className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-    >
-      <span className="inline-flex items-center gap-2">
-        {icon ? <span className="text-muted-foreground">{icon}</span> : null}
-        {label}
-      </span>
-      <ChevronRight size={16} aria-hidden="true" className="text-muted-foreground" />
+    <Link to={to} className={ROW_BUTTON}>
+      <IconTile>{icon}</IconTile>
+      <span className="min-w-0 flex-1 text-base text-foreground">{label}</span>
+      <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
     </Link>
-  );
-}
-
-function ShieldIcon() {
-  // Kept as a tiny local helper so we don't need another lucide import above.
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 3l8 3v6c0 4.5-3.3 8.4-8 9-4.7-.6-8-4.5-8-9V6l8-3z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

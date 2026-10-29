@@ -2,6 +2,7 @@
   "common": {
     "continue": "Continue",
     "back": "Back",
+    "stepOf": "Step {{current}} of {{total}}",
     "language": "Language",
     "terms": "Terms",
     "privacy": "Privacy"
@@ -95,7 +96,9 @@
     "trustNoFear": "No fear-based readings",
     "trustNoFearBody": "Guidance avoids alarming claims and leaves decisions in your hands.",
     "trustDisclaimer": "Clear in its scope",
-    "trustDisclaimerBody": "For reflection — not a substitute for professional advice."
+    "trustDisclaimerBody": "For reflection — not a substitute for professional advice.",
+    "welcomeSubtitle": "Chat with your kundli, in your language.",
+    "welcomeAnswer": "Your Moon favours patience this week. Decide slowly."
   },
   "language": {
     "title": "Choose your language",
@@ -177,7 +180,7 @@
       "doneTitle": "Your password is updated",
       "done": "Everything is ready. Taking you back to your chart…"
     },
-    "privacyNote": "Your details stay private — used only to cast your chart."
+    "privacyNote": "Your details stay private, used only to cast your chart."
   },
   "consent": {
     "eyebrow": "Your choices, clearly explained",
@@ -238,6 +241,7 @@
     "genderPreferNotToSay": "Prefer not to say",
     "genderHelp": "Used for your Feng Shui Kua directions.",
     "timeUnknown": "I don't know my birth time",
+    "timeUnknownOther": "Birth time unknown",
     "placeHelp": "Tip: English or romanized place names work best (e.g. \"Pune, Maharashtra\").",
     "reassurance": "Birth time can be approximate — you can update it later in Settings.",
     "timeUnknownNote": "Some time-sensitive details (like ascendant and moon-timing) may be limited.",
@@ -252,7 +256,24 @@
     "castingTitle": "Casting your chart…",
     "castingSubtitle": "Reading the sky over {{place}}, {{date}}",
     "castingDetail": "Your birth details are becoming the coordinates for your personal chart.",
-    "castingStatus": "Saving your details securely"
+    "castingStatus": "Saving your details securely",
+    "ready": {
+      "eyebrow": "Your chart is ready",
+      "title": "Welcome, {{name}}",
+      "titleNoName": "Welcome",
+      "subtitle": "Your three key placements.",
+      "lagna": "Lagna",
+      "nakshatra": "Nakshatra",
+      "pada": "Pada {{pada}}",
+      "lagnaArt": "{{sign}}, your Lagna",
+      "tryAsking": "Try asking",
+      "askNakshatra": "What does my {{nakshatra}} Moon say about me?",
+      "askMoon": "What does my Moon sign say about me?",
+      "askDasha": "What is my current dasha about?",
+      "askWeek": "What should I watch this week?",
+      "askFirst": "Ask your first question",
+      "explore": "Explore my chart"
+    }
   },
   "today": {
     "title": "Today",
@@ -288,7 +309,7 @@
     "supporting": "Support for your day",
     "smallNotes": "Small notes for today",
     "experimental": "Experimental market lens",
-    "experimentalNote": "A separate astrological signal for reflection—not financial advice or a price forecast.",
+    "experimentalNote": "A separate astrological signal for reflection, not financial advice or a price forecast.",
     "loading": "Loading your daily signal",
     "unavailableTitle": "Your daily signal could not be loaded",
     "completeTitle": "Complete your chart for a personal daily signal",
@@ -394,6 +415,13 @@
           "title": "Strength",
           "description": "See your Ashtakavarga house support in detail."
         }
+      },
+      "ask": {
+        "label": "Ask",
+        "title": "Ask your chart anything",
+        "subtitle": "Answers grounded in your Kundli.",
+        "sample": "Why do I feel stuck in my career this year?",
+        "placeholder": "Type your question"
       }
     },
     "varga": {
@@ -680,8 +708,10 @@
     },
     "assistantName": "AstroSaathi",
     "newChat": "New chat",
-    "searchPlaceholder": "Search chats, topics, or people",
+    "searchPlaceholder": "Search chats or topics",
     "clearSearch": "Clear search",
+    "searchNoMatch": "No chats match \"{{query}}\"",
+    "searchNoMatchHint": "Try a planet, a person or a topic.",
     "openSidebar": "Open sidebar",
     "closeSidebar": "Close sidebar",
     "toggleSidebar": "Toggle sidebar",
@@ -699,15 +729,17 @@
     "you": "You",
     "interpretationLabel": "AstroSaathi interpretation",
     "evidenceLabel": "Applied evidence",
-    "evidenceSourceCount": "{{count}} source(s)",
+    "evidenceSourceCount_one": "{{count}} source",
+    "evidenceSourceCount_other": "{{count}} sources",
     "evidenceUnavailable": "The chart was not available for this reply.",
     "evidenceDasha": "Vimśottarī daśā period",
     "evidenceTransits": "Current transits (gochara)",
     "evidenceNakshatra": "Nakshatra placement",
     "emptyEyebrow": "Ask AstroSaathi",
     "emptyGreeting": "How can I help with your chart today?",
-    "emptyHint": "Explore what your chart may reveal. Choose a prompt or ask in your own words.",
+    "emptyHint": "Pick a prompt or ask in your own words.",
     "suggestionsLabel": "Suggested prompts",
+    "tryAsking": "Try asking",
     "suggestions": {
       "moonSign": "The Moon is in {{sign}} ({{nakshatra}}) today — what does that mean for me?",
       "moonHouse": "How does today's Moon in my {{house}} house affect me?",
@@ -752,7 +784,9 @@
       "w2": "Best day to start a business",
       "w3": "Understanding my nakshatra",
       "w4": "Compatibility with a Leo partner"
-    }
+    },
+    "close": "Close",
+    "done": "Done"
   },
   "feedback": {
     "actions": "Response actions",
@@ -798,7 +832,7 @@
       "peopleHint": "Saved charts for family, friends & partners.",
       "memory": "Memory & Privacy",
       "memoryHint": "See, edit or delete what AstroSaathi remembers about you.",
-      "proactive": "Nudges",
+      "proactive": "Guidance",
       "proactiveHint": "Set how often you hear from AstroSaathi, and about what."
     },
     "prefs": {
@@ -821,7 +855,7 @@
       "lengthConcise": "Concise",
       "lengthBalanced": "Balanced",
       "haptics": "Haptic feedback",
-      "hapticsHint": "Feel a light touch for selections, saved changes, and important warnings.",
+      "hapticsHint": "A light touch for selections, saves and warnings.",
       "memory": "Remember our conversations",
       "memoryHelp": "Personalize guidance based on past chats."
     },
@@ -832,13 +866,13 @@
     "preferences": {
       "eyebrow": "Make it yours",
       "title": "Experience preferences",
-      "subtitle": "Choose how AstroSaathi looks, speaks, and feels most natural to you.",
+      "subtitle": "How AstroSaathi looks and speaks to you.",
       "languageTitle": "Language",
-      "languageHint": "Your choice is used across AstroSaathi and saved for your next visit.",
+      "languageHint": "Saved for your next visit.",
       "appearanceTitle": "Appearance",
-      "themeHint": "System follows this device’s appearance. Changing appearance never changes your chart or guidance.",
+      "themeHint": "System follows this device. Your chart stays the same.",
       "guidanceTitle": "Guidance style",
-      "guidanceHint": "These choices shape the tone and length of future AstroSaathi responses.",
+      "guidanceHint": "Shapes the tone and length of future replies.",
       "feedbackTitle": "Device feedback"
     },
     "guidance": {
@@ -989,9 +1023,9 @@
       }
     },
     "proactive": {
-      "title": "Proactive nudges",
+      "title": "Guidance",
       "back": "Back",
-      "enabled": "Proactive nudges",
+      "enabled": "Guidance notes",
       "enabledHint": "Let AstroSaathi surface gentle notes when your daśā, transits, or life-event context shift.",
       "enabledDetail": "Turning this off pauses future guidance without deleting nudges already in your feed.",
       "enabledStatusOn": "Guidance on",
@@ -1014,6 +1048,8 @@
         "unavailable": "This browser cannot request device alerts. Your nudge feed still works here."
       },
       "frequency": "How often",
+      "frequencyLabel": "Maximum",
+      "settingsAria": "Guidance settings",
       "frequencyHint": "Maximum notes per week. AstroSaathi stays within this cap even during busy sky periods.",
       "frequencyDetail": "This is a cap, not a promise. Relevant guidance may arrive less often.",
       "frequencyOff": "Off",
@@ -1468,7 +1504,7 @@
     "ashtakavarga": {
       "eyebrow": "House support, at a glance",
       "sarvashtakavargaTitle": "Sarvashtakavarga",
-      "sarvashtakavargaSubtitle": "Combined benefic points (bindus) each sign receives across all planets — higher means a stronger house.",
+      "sarvashtakavargaSubtitle": "Combined benefic points (bindus) each sign receives across all planets. Higher means a stronger house.",
       "sarvashtakavargaScope": "Bindus are a traditional measure of house support; they do not predict a fixed outcome.",
       "sarvashtakavargaHeatmap": "Combined house support map",
       "planetLens": "Planet lens",
@@ -1694,11 +1730,16 @@
     "myself": "Myself",
     "myselfHint": "Your own chart",
     "addPerson": "Add person",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
     "limitReached": "You've saved the maximum of 10 people.",
+    "limitHint": "Remove someone to add another.",
     "savedPeople": "Saved people",
     "savedPeopleTitle": "Your constellation",
-    "count": "{{count}} of {{limit}} saved",
+    "count": "{{count}} of {{limit}}",
     "listAria": "{{count}} saved people",
+    "separateNote": "Each chart stays separate from yours.",
     "birthTimeKnown": "Birth time recorded",
     "birthTimeUnknown": "Birth time unknown",
     "quickActions": {
@@ -1712,7 +1753,7 @@
     },
     "loading": "Loading saved people",
     "emptyTitle": "Your circle is waiting",
-    "empty": "No saved people yet. Add someone to see their chart.",
+    "empty": "Add someone to see their chart.",
     "relationLabel": "Relation",
     "relations": {
       "wife": "Wife",
@@ -1770,10 +1811,13 @@
       "deleteConfirmTitle": "Delete this person?",
       "deleteConfirmBody": "This removes their saved birth details and charts. This can't be undone.",
       "deleteConfirm": "Delete",
-      "deleteCancel": "Cancel"
+      "deleteCancel": "Cancel",
+      "deletePerson": "Delete person",
+      "deleteNote": "Your own chart stays as it is."
     },
     "detail": {
       "back": "People",
+      "edit": "Edit",
       "eyebrow": "Saved person",
       "loading": "Reading this saved chart…",
       "loadingBody": "Their chart remains separate from your own.",
@@ -1782,11 +1826,13 @@
       "chartTitle": "{{name}}'s chart",
       "chartReady": "This chart is calculated from the saved birth details above.",
       "chartLimited": "This chart is available, with house-based detail limited because the birth time is unknown.",
+      "timeUnknownShort": "Birth time unknown · house details limited",
       "placementsEyebrow": "Chart at a glance",
       "placementsTitle": "Core placements",
       "placementsSource": "Calculated chart facts",
       "actionsEyebrow": "Explore together",
       "actionsTitle": "Choose a next step",
+      "explore": "Explore",
       "compatibilityUnavailable": "Compatibility is not available for this relation",
       "compatibilityUnavailableHint": "Compatibility currently supports a spouse or partner relationship.",
       "timingEyebrow": "Current timing",
@@ -1825,8 +1871,8 @@
       "errors": {
         "no_self_profile": "Complete your own birth details first to see compatibility.",
         "not_compat_eligible": "Compatibility is only available for a spouse or partner.",
-        "missing_self_coordinates": "Your birth place is missing — add it to your profile to see compatibility.",
-        "missing_partner_coordinates": "{{partner}}'s birth place is missing — edit their details to see compatibility."
+        "missing_self_coordinates": "Your birth place is missing. Add it to your profile to see compatibility.",
+        "missing_partner_coordinates": "{{partner}}'s birth place is missing. Edit their details to see compatibility."
       },
       "gunaMilan": {
         "eyebrow": "Traditional measure",
@@ -1868,7 +1914,7 @@
         },
         "gana": {
           "name": "Gana",
-          "meaning": "Compares temperament — calm, active or intense energies."
+          "meaning": "Compares temperament: calm, active or intense energies."
         },
         "bhakoot": {
           "name": "Bhakoot",
@@ -1878,6 +1924,12 @@
           "name": "Nadi",
           "meaning": "Checks genetic and health compatibility, the most heavily weighted kuta."
         }
+      },
+      "kutaSheet": {
+        "position": "{{n}} of {{total}}",
+        "previous": "Previous",
+        "next": "Next",
+        "close": "Close"
       },
       "mangal": {
         "eyebrow": "Traditional comparison",
@@ -1935,9 +1987,12 @@
     },
     "currentChapter": "Current chapter",
     "currentChapterHint": "The timing active in your chart right now",
+    "since": "since {{date}}",
+    "yearOf": "Year {{n}} of {{total}}",
     "viewTimeline": "View timeline",
     "viewJournal": "Open journal",
     "viewGuidance": "View guidance",
+    "seeAll": "See all",
     "loading": "Reading your journey…",
     "moduleError": "This part couldn't load",
     "moduleErrorBody": "Your other Journey records are unchanged.",
@@ -1951,6 +2006,7 @@
       "description": "Review the draft before opening Ask.",
       "about": "About",
       "aboutSelf": "My chart",
+      "alwaysIncluded": "Always included",
       "when": "When",
       "from": "From",
       "eventSource": "Life event",
@@ -1992,6 +2048,18 @@
     "title": "Life Timeline",
     "subtitle": "Your life, mapped against the sky",
     "timelineAria": "Life events in chronological order",
+    "filterLabel": "Filter by area",
+    "filterAll": "All",
+    "groupSpan": "{{start}} to {{end}}",
+    "groupNow": "Now · {{span}}",
+    "unplaced": "Not yet placed",
+    "rowOptions": "Options for {{title}}",
+    "privacy": "Only you can see your timeline.",
+    "findPattern": {
+      "title": "Find the pattern",
+      "body": "Ask how your daśās shaped these years",
+      "seed": "Looking at the milestones on my life timeline, how have my daśās shaped these years?"
+    },
     "loading": "Reading your timeline…",
     "loadingBody": "Your milestones will appear here.",
     "loadError": "Timeline unavailable",
@@ -2009,8 +2077,8 @@
     "refreshAstrology": "Refresh astrology",
     "approxTag": "approx.",
     "empty": {
-      "title": "Your story hasn't been mapped yet",
-      "body": "Add a milestone, like a job, move, or marriage. AstroSaathi maps it to your daśā and transits, and quietly notices events you mention in chat."
+      "title": "Your timeline starts here",
+      "body": "Add a milestone, big or small."
     },
     "fields": {
       "title": "Title",
@@ -2049,7 +2117,11 @@
       "timingHint": "Choose the accuracy you remember. Your timeline will keep that same precision.",
       "experience": "Your experience",
       "experienceHint": "Optional. This does not change the astrological context.",
-      "contextNote": "Your milestone saves first. If astrology needs a retry, the event remains yours."
+      "contextNote": "Your milestone saves first. If astrology needs a retry, the event remains yours.",
+      "titlePlaceholder": "What happened?",
+      "notePlaceholder": "Add a note (optional)",
+      "fallsIn": "Falls in {{lords}}",
+      "privacy": "Only you can see this."
     },
     "errors": {
       "titleRequired": "Please add a title.",
@@ -2094,8 +2166,9 @@
     "entryHint": "Your milestones, mapped against your daśā and transits."
   },
   "nudges": {
-    "title": "Nudges",
-    "subtitle": "Gentle notes from your chart, when the sky changes",
+    "title": "Guidance",
+    "subtitle": "Quiet notes when your sky shifts.",
+    "newLabel": "New",
     "entryLabel": "Nudges",
     "entryHint": "Timely notes when your daśā or transits shift.",
     "kinds": {
@@ -2116,7 +2189,7 @@
     "dismiss": "Dismiss",
     "empty": {
       "title": "All quiet under the sky",
-      "body": "You'll see gentle notes here when your daśā shifts or a major transit is worth a moment."
+      "body": "We'll note the next shift here."
     },
     "loading": "Reading the sky…",
     "loadError": "Couldn't load nudges. Please try again.",
@@ -2137,7 +2210,7 @@
   },
   "journal": {
     "title": "Reflection Journal",
-    "subtitle": "Your private record of what you noticed, felt, and want to remember.",
+    "subtitle": "How the days felt, beside your chart.",
     "eyebrow": "Your reflections",
     "entryLabel": "Reflection Journal",
     "entryHint": "Note how each period actually felt, with the sky of that day.",
@@ -2151,11 +2224,16 @@
     "confirmDeleteBody": "This reflection and its astrology context will be permanently removed.",
     "empty": {
       "title": "Nothing written yet",
-      "body": "Add your first reflection and we'll stamp it with the daśā and transits of that day."
+      "body": "Write when something stands out."
     },
     "composerTitle": "Write for yourself",
     "composerHint": "Your words are saved privately. The day's astrological context stays separate.",
     "timelineAria": "Reflections by month",
+    "searchLabel": "Search reflections",
+    "searchPlaceholder": "Search",
+    "noMatches": "No matches",
+    "noMatchesHint": "Try another word.",
+    "privacy": "Only you can see your reflections.",
     "loading": "Opening your reflections…",
     "loadingBody": "Your saved writing will appear here.",
     "loadError": "Reflections unavailable",
@@ -2165,7 +2243,7 @@
       "title": "Title",
       "titlePlaceholder": "A word or two",
       "content": "What happened, what shifted",
-      "contentPlaceholder": "Write freely — a few lines is enough.",
+      "contentPlaceholder": "What's on your mind?",
       "mood": "Mood",
       "tags": "Tags",
       "tagsHint": "Enter or comma to add",
@@ -2199,6 +2277,7 @@
     "placingInChart": "Reading the sky…",
     "refreshAstrology": "Refresh",
     "removeTag": "Remove {{tag}}",
+    "moodNone": "No mood",
     "form": {
       "eyebrow": "Private reflection",
       "intro": "Write in your own words. Your reflection is saved before its timing context is added.",
@@ -2234,12 +2313,15 @@
     "playError": "Couldn't play audio.",
     "settingsTitle": "Voice",
     "settingsHint": "Speak your questions and tap to hear replies aloud.",
+    "groupInput": "Speaking",
+    "groupOutput": "Read aloud",
     "inputEnabled": "Voice input (microphone)",
     "inputEnabledHelp": "Show the mic button in the chat composer.",
     "inputStatusOn": "Mic available",
     "inputStatusOff": "Mic hidden",
     "sttLang": "Speech language",
     "sttLangHelp": "The language you'll speak in. Auto follows the app language.",
+    "sttLangAuto": "Auto",
     "sttLangOptions": {
       "auto": "Auto (follow app language)",
       "en": "English",
@@ -2258,12 +2340,12 @@
     "pace": "Read-aloud speed",
     "paceHelp": "How fast replies are read aloud.",
     "previewTitle": "Preview read-aloud",
-    "previewHint": "Play a short sample with your selected voice and speed. This does not record your microphone.",
+    "previewHint": "Plays a short sample with this voice and speed.",
     "previewPlay": "Play preview",
     "previewLoading": "Preparing preview…",
     "previewStop": "Stop preview",
     "previewError": "Couldn't prepare the preview. Please try again.",
     "previewText": "A calm moment can make space for a clear question.",
-    "languageNote": "Voice is powered by Sarvam. Nothing is recorded — audio streams through and is discarded. Preferences are saved on this device."
+    "languageNote": "Voice is powered by Sarvam. Audio streams through and is never stored. Preferences stay on this device."
   }
 }

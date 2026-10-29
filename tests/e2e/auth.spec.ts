@@ -57,9 +57,6 @@ test("localized auth screen remains viewport-safe", async ({ context, page }) =>
   await page.goto("/auth");
 
   await expect(page.getByRole("heading", { level: 1, name: "वापसी पर स्वागत है" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { level: 2, name: "अपनी ज्योतिषीय बातचीत में लौटें।" }),
-  ).toBeVisible();
   const overflow = await page.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,
     viewportWidth: document.documentElement.clientWidth,

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { AstroArt } from "@/components/AstroArt";
 import { BrandMark } from "@/components/BrandMark";
 import { ContextDock } from "@/components/layout/ContextDock";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -36,7 +37,12 @@ import {
 import { readStoredLanguage, setLanguage } from "@/i18n";
 import { mockAuth, useAuthSession, type MockUser } from "@/lib/auth";
 import type { SignKey } from "@/lib/chart-types";
-import { syncNativeSystemBars, triggerHaptic } from "@/lib/native-device";
+import {
+  getAppPlatform,
+  syncNativeSystemBars,
+  triggerHaptic,
+  type AppPlatform,
+} from "@/lib/native-device";
 import { applyTheme, bindSystemThemeListener, getPreferences } from "@/lib/preferences";
 import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
 
@@ -104,6 +110,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/auth" ||
     pathname === "/auth/callback" ||
     pathname === "/language" ||
+    pathname === "/onboarding/consent" ||
+    pathname === "/onboarding/birth" ||
     pathname === "/reset-password"
   ) {
     return (
@@ -120,7 +128,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {!isChat && !showNav && (
           <header
-            className="sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur"
+            className={
+              "sticky top-0 z-10 border-b border-border/60 bg-background/80 backdrop-blur" +
+              // Phones get a full-screen native welcome on the landing page.
+              (isLanding ? " max-md:hidden" : "")
+            }
             style={{ paddingTop: "env(safe-area-inset-top)" }}
           >
             <div
@@ -149,6 +161,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               : "relative mx-auto w-full px-4 pb-8 sm:px-6 " +
                 (isLanding ? "max-w-[94rem] " : "max-w-4xl ") +
                 "pt-[calc(2.5rem+var(--as-safe-top))] md:pt-12 " +
+                (isLanding ? "max-md:pt-[calc(1rem+var(--as-safe-top))] " : "") +
                 (showNav
                   ? "pb-[calc(var(--mobile-tabbar-h)+var(--as-safe-bottom)+1rem)] md:pb-8"
                   : "")
@@ -166,7 +179,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <HydrationSkeleton />
           )}
         </main>
-        {showNav && <MobileTabBar pathname={pathname} />}
+        {/* Chat is a full-screen sheet with its own close; no tab bar there. */}
+        {showNav && !isChat && <MobileTabBar pathname={pathname} />}
       </div>
     </div>
   );
@@ -202,7 +216,8 @@ function isActive(pathname: string, to: string) {
       pathname.startsWith("/journey/") ||
       pathname === "/life" ||
       pathname.startsWith("/life/") ||
-      pathname === "/journal"
+      pathname === "/journal" ||
+      pathname === "/nudges"
     );
   if (to === "/people") return pathname === "/people" || pathname.startsWith("/people/");
   return false;
@@ -219,6 +234,7 @@ function supportsContextDock(pathname: string) {
     pathname === "/life" ||
     pathname.startsWith("/life/") ||
     pathname === "/journal" ||
+    pathname === "/nudges" ||
     pathname === "/people" ||
     pathname.startsWith("/people/")
   );
@@ -346,6 +362,7 @@ function useMoonSignAvatar(user: MockUser) {
     label: moonLabel ? `${t("nav.profileSettings")} · ${moonLabel}` : t("nav.profileSettings"),
     title: moonLabel ?? t("nav.profileSettings"),
     value: moonSignKey ? SIGN_GLYPHS[moonSignKey] : avatarFallback(user),
+    moonSignKey,
     hasMoonSign: !!moonSignKey,
   };
 }
@@ -357,6 +374,20 @@ function MoonSignAvatar({
   avatar: ReturnType<typeof useMoonSignAvatar>;
   size?: "default" | "mobile";
 }) {
+  if (avatar.moonSignKey) {
+    // The gold Moon-sign coin replaces the text glyph, which some platforms
+    // render as a colour emoji.
+    return (
+      <span className="relative shrink-0" aria-hidden="true" title={avatar.title}>
+        <AstroArt
+          kind="sign"
+          name={avatar.moonSignKey}
+          size={size === "mobile" ? 40 : 32}
+          priority
+        />
+      </span>
+    );
+  }
   return (
     <span
       className={
@@ -471,7 +502,12 @@ function MobileProfileLauncher({ user }: { user: MockUser }) {
             type="button"
             aria-label={avatar.label}
             title={avatar.title}
-            className="tap-press grid h-11 w-11 place-items-center rounded-full border border-border/70 bg-card/85 shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={
+              "tap-press grid h-11 w-11 place-items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              (avatar.hasMoonSign
+                ? ""
+                : "border border-border/70 bg-card/85 shadow-[var(--shadow-soft)] backdrop-blur")
+            }
           >
             <MoonSignAvatar avatar={avatar} size="mobile" />
           </button>
@@ -522,54 +558,105 @@ function MobileProfileLink({
 
 function MobileTabBar({ pathname }: { pathname: string }) {
   const { t } = useTranslation();
+  const [platform, setPlatform] = useState<AppPlatform>("web");
+  useEffect(() => setPlatform(getAppPlatform()), []);
+  const android = platform === "android";
+  const worlds = MOBILE_WORLD_ITEMS.filter((item) => item.emphasis !== "ask");
+  const ask = MOBILE_WORLD_ITEMS.find((item) => item.emphasis === "ask");
+
   return (
-    <nav
-      aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur md:hidden"
-      style={{ paddingBottom: "var(--as-safe-bottom)" }}
-    >
-      <ul className="mx-auto flex max-w-md items-stretch justify-around px-2 pt-1.5 pb-1.5">
-        {MOBILE_WORLD_ITEMS.map(({ to, labelKey, accessibleLabelKey, icon: Icon, emphasis }) => {
-          const active = isActive(pathname, to);
-          const isAsk = emphasis === "ask";
-          const label = t(labelKey);
-          const accessibleLabel = t(accessibleLabelKey);
-          return (
-            <li key={to} className="flex-1">
-              <Link
-                to={to}
-                aria-current={active ? "page" : undefined}
-                aria-label={accessibleLabel}
-                onClick={() => void triggerHaptic(active ? "light" : "selection")}
-                className={
-                  "tap-press flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                  (active
-                    ? "text-accent font-semibold"
-                    : "text-muted-foreground hover:text-foreground")
-                }
-                style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
-              >
-                <span
-                  className={
-                    "motion-morph flex h-8 w-11 items-center justify-center " +
-                    (isAsk ? "rounded-2xl " : "rounded-full ") +
-                    (active
-                      ? isAsk
-                        ? "bg-[var(--as-color-action-intelligence)] text-white shadow-[var(--as-elevation-glow)]"
-                        : "bg-accent/15"
-                      : isAsk
-                        ? "bg-[var(--as-color-action-intelligence)]/15 text-[var(--as-color-action-intelligence)]"
-                        : "")
+    <>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-10 h-[calc(7rem+var(--as-safe-bottom))] bg-gradient-to-t from-background via-background/80 to-transparent md:hidden"
+      />
+      <nav
+        aria-label="Primary"
+        data-platform={platform}
+        className="fixed inset-x-0 bottom-0 z-20 px-4 md:hidden"
+        style={{ paddingBottom: "max(var(--as-safe-bottom), 0.75rem)" }}
+      >
+        <div className="mx-auto flex max-w-md items-center gap-2.5">
+          <ul
+            className={
+              "flex min-w-0 flex-1 items-stretch " +
+              (android
+                ? "h-[68px] rounded-[34px] bg-surface-raised px-1 shadow-[var(--as-elevation-2)]"
+                : "glass-specular h-[62px] rounded-full border border-border-strong/40 p-1 shadow-[var(--as-elevation-3)]")
+            }
+            style={
+              android
+                ? undefined
+                : {
+                    backgroundColor: "var(--as-glass-control-fill)",
+                    backdropFilter:
+                      "blur(var(--as-glass-control-blur)) saturate(var(--as-glass-control-saturate))",
+                    WebkitBackdropFilter:
+                      "blur(var(--as-glass-control-blur)) saturate(var(--as-glass-control-saturate))",
                   }
-                >
-                  <Icon size={20} aria-hidden="true" />
-                </span>
-                <span>{label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+            }
+          >
+            {worlds.map(({ to, labelKey, accessibleLabelKey, icon: Icon }) => {
+              const active = isActive(pathname, to);
+              return (
+                <li key={to} className="flex min-w-0 flex-1">
+                  <Link
+                    to={to}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={t(accessibleLabelKey)}
+                    onClick={() => void triggerHaptic(active ? "light" : "selection")}
+                    className={
+                      "tap-press flex min-w-0 flex-1 flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                      (android
+                        ? "gap-1 rounded-[30px] text-xs " +
+                          (active
+                            ? "font-semibold text-foreground"
+                            : "font-medium text-muted-foreground")
+                        : "motion-morph gap-0.5 rounded-full text-[10px] " +
+                          (active
+                            ? "bg-foreground/[0.12] font-semibold text-accent"
+                            : "font-medium text-muted-foreground hover:text-foreground"))
+                    }
+                    style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                  >
+                    {android ? (
+                      <span
+                        className={
+                          "motion-morph flex h-[30px] w-[52px] items-center justify-center rounded-full " +
+                          (active ? "bg-accent/20 text-accent" : "")
+                        }
+                      >
+                        <Icon size={22} aria-hidden="true" />
+                      </span>
+                    ) : (
+                      <Icon size={22} aria-hidden="true" />
+                    )}
+                    <span className="max-w-full truncate px-1">{t(labelKey)}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {ask ? (
+            <Link
+              to={ask.to}
+              aria-current={isActive(pathname, ask.to) ? "page" : undefined}
+              aria-label={t(ask.accessibleLabelKey)}
+              onClick={() => void triggerHaptic(isActive(pathname, ask.to) ? "light" : "selection")}
+              className={
+                "tap-press flex shrink-0 flex-col items-center justify-center gap-0.5 bg-[var(--as-color-action-ask)] font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background " +
+                (android
+                  ? "h-16 w-16 rounded-[20px] text-[11px] shadow-[var(--as-elevation-2)]"
+                  : "glass-specular h-[62px] w-[62px] rounded-full border border-white/25 text-[10px] shadow-[var(--as-elevation-3)]")
+              }
+              style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+            >
+              <ask.icon size={android ? 24 : 22} aria-hidden="true" />
+              <span>{t(ask.labelKey)}</span>
+            </Link>
+          ) : null}
+        </div>
+      </nav>
+    </>
   );
 }

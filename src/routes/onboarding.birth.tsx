@@ -1,16 +1,23 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, CalendarDays, Clock3, MapPin, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ShieldCheck, Sparkles } from "lucide-react";
 import { useRequireAuth } from "@/lib/require-auth";
+import { AstroArt } from "@/components/AstroArt";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { Button } from "@/components/ui/button";
 import { BirthDetailsForm, type BirthDetailsValue } from "@/components/BirthDetailsForm";
 
 import { supabase } from "@/integrations/supabase/client";
-import { getBirthProfile, saveBirthProfile, type BirthProfile } from "@/lib/birth-profile";
+import { GRAHA_ART } from "@/lib/astro-art";
+import {
+  getBirthProfile,
+  getOnboardingState,
+  saveBirthProfile,
+  type BirthProfile,
+} from "@/lib/birth-profile";
 import { triggerHaptic } from "@/lib/native-device";
-import { useChartGatewayCacheControls } from "@/lib/queries";
+import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
 
 export const Route = createFileRoute("/onboarding/birth")({
   head: () => ({
@@ -33,7 +40,7 @@ export const Route = createFileRoute("/onboarding/birth")({
 
 function BirthPage() {
   useRequireAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const cache = useChartGatewayCacheControls();
   // Snapshot of the profile as loaded, so on save we can tell whether anything
@@ -62,10 +69,16 @@ function BirthPage() {
     setForm((prev) => ({ ...prev, ...patch }));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [stage, setStage] = useState<"identity" | "birth">("identity");
+  const [stage, setStage] = useState<"identity" | "birth" | "ready">("identity");
+  // First-time onboarding ends on "Your chart is ready"; editing from Settings
+  // keeps going straight home.
+  const firstRunRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
+    void getOnboardingState().then((state) => {
+      if (!cancelled) firstRunRef.current = state === "birth_pending";
+    });
     void getBirthProfile().then((existing) => {
       if (cancelled || !existing) return;
       originalRef.current = existing;
@@ -171,6 +184,11 @@ function BirthPage() {
         cache.invalidate();
       }
       void triggerHaptic("success");
+      if (firstRunRef.current) {
+        setStage("ready");
+        setSubmitting(false);
+        return;
+      }
       navigate({ to: "/home" });
     } catch {
       void triggerHaptic("error");
@@ -191,166 +209,347 @@ function BirthPage() {
     }
   };
 
+  if (stage === "ready") return <ChartReady name={form.name} />;
+
   if (submitting) {
     return (
-      <OnboardingShell
-        step={2}
-        eyebrow={t("birth.title")}
+      <CastingCeremony
         title={t("birth.castingTitle")}
-        subtitle={t("birth.castingSubtitle", { place: form.place.trim(), date: form.dob })}
-      >
-        <CastingCeremony />
-      </OnboardingShell>
+        subtitle={t("birth.castingSubtitle", {
+          place: form.place.trim(),
+          date: formatBirthDate(form.dob, i18n.language),
+        })}
+      />
     );
   }
 
-  return (
-    <OnboardingShell
-      step={2}
-      eyebrow={t("birth.title")}
-      title={t("birth.title")}
-      subtitle={stage === "identity" ? t("birth.identitySubtitle") : t("birth.subtitle")}
-    >
-      <form className="space-y-6" onSubmit={onSubmit} noValidate>
-        <div
-          className="flex items-center gap-2"
-          aria-label={t("birth.stageProgress", { current: stage === "identity" ? 1 : 2, total: 2 })}
-        >
-          {["identity", "birth"].map((item) => {
-            const active = item === stage;
-            const complete = stage === "birth" && item === "identity";
-            return (
-              <span
-                key={item}
-                className={`h-1.5 rounded-full transition-all ${
-                  active ? "w-10 bg-accent" : complete ? "w-6 bg-accent/60" : "w-6 bg-border"
-                }`}
-                aria-hidden="true"
-              />
-            );
-          })}
-          <span className="ml-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {stage === "identity" ? t("birth.stageIdentity") : t("birth.stageBirth")}
-          </span>
-        </div>
+  const identity = stage === "identity";
 
-        {stage === "identity" ? (
-          <>
-            <div className="rounded-lg border border-border bg-card/60 p-4">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {t("birth.identityWhy")}
-              </p>
-            </div>
+  return (
+    <main className={MAIN_CLASS}>
+      <OnboardingShell
+        step={identity ? 4 : 5}
+        eyebrow={identity ? t("birth.stageIdentity") : t("birth.stageBirth")}
+        title={t("birth.title")}
+        // From identity, back leaves the page (consent, or Settings when editing).
+        onBack={
+          identity
+            ? undefined
+            : () => {
+                void triggerHaptic("selection");
+                setStage("identity");
+              }
+        }
+        subtitle={identity ? t("birth.identitySubtitle") : t("birth.subtitle")}
+        footer={
+          identity ? (
+            <Button
+              type="submit"
+              form="birth-identity-form"
+              variant="primary"
+              className="min-h-[3.375rem] w-full rounded-full text-[1.0625rem] font-semibold"
+            >
+              {t("birth.continueToBirth")}
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              form="birth-form"
+              variant="primary"
+              disabled={submitting}
+              className="min-h-[3.375rem] w-full rounded-full border border-[var(--as-color-solar-saffron-600)] bg-[var(--as-color-action-warm)] px-6 text-[1.0625rem] font-semibold text-[var(--as-color-action-warm-text)] shadow-[var(--as-elevation-glow)] hover:brightness-100 hover:saturate-[1.08]"
+            >
+              <Sparkles size={18} aria-hidden="true" />
+              {submitting ? t("auth.loading") : t("birth.calculateChart")}
+            </Button>
+          )
+        }
+      >
+        {identity ? (
+          <form
+            id="birth-identity-form"
+            onSubmit={(ev) => {
+              ev.preventDefault();
+              continueToBirthDetails();
+            }}
+            noValidate
+          >
             <BirthDetailsForm
               value={form}
               onChange={updateForm}
               errors={errors}
               todayMax={today}
               section="identity"
+              variant="grouped"
             />
-            <Button
-              type="button"
-              variant="primary"
-              onClick={continueToBirthDetails}
-              className="mt-2 h-12 w-full"
-            >
-              {t("birth.continueToBirth")}
-            </Button>
-          </>
+            <p className="px-4 pt-4 text-xs leading-relaxed text-muted-foreground">
+              {t("birth.identityWhy")}
+            </p>
+          </form>
         ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <BirthDetailReason icon={CalendarDays} text={t("birth.dateWhy")} />
-              <BirthDetailReason icon={Clock3} text={t("birth.timeWhy")} />
-              <BirthDetailReason icon={MapPin} text={t("birth.placeWhy")} />
-            </div>
+          <form id="birth-form" onSubmit={onSubmit} noValidate>
             <BirthDetailsForm
               value={form}
               onChange={updateForm}
               errors={errors}
               todayMax={today}
               section="birth"
+              variant="grouped"
             />
-            <p className="flex gap-2 text-xs leading-relaxed text-muted-foreground">
-              <ShieldCheck size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
+            {errors.name ? (
+              <p role="alert" className="px-4 pt-3 text-[0.8125rem] text-destructive-strong">
+                {errors.name}
+              </p>
+            ) : null}
+            <p className="mt-6 flex gap-2 px-4 text-xs leading-relaxed text-muted-foreground">
+              <ShieldCheck size={15} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
               {t("birth.privacyNote")}
             </p>
-            <div className="sticky bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-10 -mx-1 flex flex-col-reverse gap-3 rounded-lg border border-border/80 bg-background/95 p-3 shadow-[var(--shadow-elevated)] backdrop-blur sm:static sm:mx-0 sm:flex-row sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  void triggerHaptic("selection");
-                  setStage("identity");
-                }}
-                className="h-11 border-transparent bg-transparent text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground sm:w-auto"
-              >
-                <ArrowLeft size={16} aria-hidden="true" />
-                {t("birth.back")}
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={submitting}
-                className="h-12 flex-1 rounded-lg border border-[var(--as-color-solar-saffron-600)] bg-[var(--as-color-action-warm)] px-5 text-base font-semibold text-[var(--as-color-action-warm-text)] shadow-[var(--as-elevation-glow)] hover:brightness-100 hover:saturate-[1.08]"
-              >
-                <Sparkles size={18} aria-hidden="true" />
-                {submitting ? t("auth.loading") : t("birth.calculateChart")}
-              </Button>
-            </div>
-          </>
+          </form>
         )}
-      </form>
-    </OnboardingShell>
+      </OnboardingShell>
+    </main>
   );
 }
 
-function CastingCeremony() {
+const MAIN_CLASS =
+  "min-h-dvh w-full bg-background px-4 pt-[calc(var(--as-safe-top)+0.75rem)] text-foreground sm:px-6 md:pt-12";
+
+// Twelve house ticks between the inner (r96) and outer (r130) rings.
+const HOUSE_TICKS = Array.from({ length: 12 }, (_, i) => {
+  const a = (i * Math.PI) / 6;
+  const point = (r: number) =>
+    `${(140 + r * Math.cos(a)).toFixed(1)} ${(140 + r * Math.sin(a)).toFixed(1)}`;
+  return `M${point(104)} L${point(122)}`;
+});
+
+// Grahas sit on the outer ring, 40° apart, starting at the top.
+const GRAHA_SIZE = 40;
+const GRAHA_SLOTS = GRAHA_ART.map((name, i) => {
+  const a = (i * 2 * Math.PI) / GRAHA_ART.length;
+  return {
+    name,
+    left: 140 + 130 * Math.sin(a) - GRAHA_SIZE / 2,
+    top: 140 - 130 * Math.cos(a) - GRAHA_SIZE / 2,
+    delay: 500 + i * 160,
+  };
+});
+
+function formatBirthDate(dob: string, locale: string) {
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${dob}T00:00:00Z`));
+  } catch {
+    return dob;
+  }
+}
+
+function CastingCeremony({ title, subtitle }: { title: string; subtitle: string }) {
   const { t } = useTranslation();
 
   return (
-    <div
-      className="motion-ceremonial flex min-h-[52dvh] flex-col items-center justify-center py-10 text-center"
+    <main
+      className="motion-ceremonial relative flex min-h-dvh w-full flex-col items-center justify-center gap-9 overflow-hidden bg-background px-8 pb-[calc(var(--as-safe-bottom)+2rem)] pt-[calc(var(--as-safe-top)+2rem)] text-center text-foreground"
       role="status"
       aria-live="polite"
     >
-      <div className="relative grid h-60 w-60 place-items-center text-accent" aria-hidden="true">
-        <div className="absolute inset-5 rounded-full border border-accent/15 bg-accent/[0.04] shadow-[var(--as-elevation-glow)]" />
-        <svg viewBox="0 0 240 240" className="absolute inset-0 h-full w-full overflow-visible">
-          <circle className="as-casting-ring as-casting-ring--outer" cx="120" cy="120" r="104" />
-          <circle className="as-casting-ring as-casting-ring--middle" cx="120" cy="120" r="72" />
+      <div
+        className="pointer-events-none absolute left-1/2 top-[calc(50%-4.5rem)] h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_oklab,var(--accent)_16%,transparent)_0%,transparent_62%)]"
+        aria-hidden="true"
+      />
+      <div className="relative h-[280px] w-[280px] text-accent" aria-hidden="true">
+        <svg viewBox="0 0 280 280" className="absolute inset-0 h-full w-full overflow-visible">
+          <circle className="as-casting-ring as-casting-ring--outer" cx="140" cy="140" r="130" />
+          <circle className="as-casting-ring as-casting-ring--middle" cx="140" cy="140" r="96" />
+          <g stroke="currentColor" strokeOpacity="0.35" strokeWidth="1">
+            {HOUSE_TICKS.map((d) => (
+              <path key={d} d={d} />
+            ))}
+          </g>
           <path
-            className="as-casting-orbit"
-            d="M34 120C66 80 174 80 206 120C174 160 66 160 34 120Z"
+            className="as-casting-line"
+            d="M90 170 L118 112 L150 138 L186 96 M150 138 L164 190"
           />
-          <path
-            className="as-casting-orbit as-casting-orbit--tilted"
-            d="M34 120C66 80 174 80 206 120C174 160 66 160 34 120Z"
-          />
-          <circle className="as-casting-star" cx="120" cy="16" r="3" />
-          <circle className="as-casting-star as-casting-star--late" cx="206" cy="120" r="3" />
-          <circle className="as-casting-star as-casting-star--last" cx="120" cy="224" r="3" />
+          <g fill="currentColor">
+            <circle cx="90" cy="170" r="3.5" />
+            <circle cx="118" cy="112" r="4.5" className="text-foreground" fill="currentColor" />
+            <circle cx="150" cy="138" r="3" />
+            <circle cx="186" cy="96" r="4" />
+            <circle cx="164" cy="190" r="3" />
+          </g>
         </svg>
-        <div className="relative grid h-16 w-16 place-items-center rounded-full border border-accent/40 bg-accent/10">
-          <Sparkles className="h-7 w-7" />
+        <div className="as-graha-ring absolute inset-0">
+          {GRAHA_SLOTS.map((slot) => (
+            <span
+              key={slot.name}
+              className="absolute"
+              style={
+                {
+                  left: slot.left,
+                  top: slot.top,
+                  width: GRAHA_SIZE,
+                  height: GRAHA_SIZE,
+                  "--as-graha-delay": `${slot.delay}ms`,
+                } as CSSProperties
+              }
+            >
+              <AstroArt
+                kind="graha"
+                name={slot.name}
+                size={GRAHA_SIZE}
+                priority
+                className="as-graha-pop block"
+              />
+            </span>
+          ))}
         </div>
       </div>
-      <p className="mt-6 max-w-xs text-sm leading-relaxed text-muted-foreground">
-        {t("birth.castingDetail")}
-      </p>
-      <div className="mt-5 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-        {t("birth.castingStatus")}
+
+      <div className="relative flex max-w-sm flex-col items-center gap-2.5">
+        <h1 className="large-title text-foreground">{title}</h1>
+        <p className="text-[0.9375rem] leading-snug text-muted-foreground">{subtitle}</p>
       </div>
-    </div>
+
+      <p className="relative flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <span
+          className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+        {t("birth.castingStatus")}
+      </p>
+    </main>
   );
 }
 
-function BirthDetailReason({ icon: Icon, text }: { icon: typeof CalendarDays; text: string }) {
+function ChartReady({ name }: { name: string }) {
+  const { t } = useTranslation();
+  const planetsQuery = usePlanets();
+  const planets = planetsQuery.data?.planets ?? [];
+  const lagna = planets.find((planet) => /ascend|lagna/i.test(planet.name)) ?? null;
+  const moon = planets.find((planet) => planet.key === "moon") ?? null;
+  const nakshatra = moon?.nakshatraName.trim() ?? "";
+  const firstName = name.trim().split(/\s+/)[0] ?? "";
+  const loading = planetsQuery.isLoading;
+  const showPlacements = loading || !!(lagna?.signKey || moon?.signKey);
+  const lagnaSign = lagna?.signKey ? t(`signs.${lagna.signKey}`) : null;
+
+  const placements = [
+    { key: "lagna", label: t("birth.ready.lagna"), value: lagnaSign, detail: null },
+    {
+      key: "moon",
+      label: t("home.planets.moon"),
+      value: moon?.signKey ? t(`signs.${moon.signKey}`) : null,
+      detail: null,
+    },
+    {
+      key: "nakshatra",
+      label: t("birth.ready.nakshatra"),
+      value: nakshatra || null,
+      detail: moon?.nakshatraPada ? t("birth.ready.pada", { pada: moon.nakshatraPada }) : null,
+    },
+  ];
+  const questions = [
+    nakshatra ? t("birth.ready.askNakshatra", { nakshatra }) : t("birth.ready.askMoon"),
+    t("birth.ready.askDasha"),
+    t("birth.ready.askWeek"),
+  ];
+
   return (
-    <div className="flex min-h-11 items-start gap-2 rounded-xl border border-border bg-card/60 p-3 text-xs leading-relaxed text-muted-foreground">
-      <Icon size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
-      <span>{text}</span>
-    </div>
+    <main className={MAIN_CLASS}>
+      <section className="motion-fade-up mx-auto flex min-h-[calc(100dvh-var(--as-safe-top)-2.5rem)] max-w-xl flex-col md:min-h-0">
+        <header className="relative px-1 pt-6">
+          {lagna?.signKey && lagnaSign ? (
+            <AstroArt
+              kind="sign"
+              name={lagna.signKey}
+              size={96}
+              priority
+              alt={t("birth.ready.lagnaArt", { sign: lagnaSign })}
+              className="absolute -top-1 right-0"
+            />
+          ) : null}
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-feedback-success [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+            <Check size={16} strokeWidth={2.4} aria-hidden="true" />
+            {t("birth.ready.eyebrow")}
+          </p>
+          <h1 className={"large-title mt-2.5 text-foreground " + (lagnaSign ? "pr-28" : "")}>
+            {firstName ? t("birth.ready.title", { name: firstName }) : t("birth.ready.titleNoName")}
+          </h1>
+          {showPlacements ? (
+            <p className="mt-2 text-[0.9375rem] text-muted-foreground">
+              {t("birth.ready.subtitle")}
+            </p>
+          ) : null}
+        </header>
+
+        {showPlacements ? (
+          <dl
+            className="mt-6 grid grid-cols-3 divide-x divide-[color:var(--as-list-separator)] rounded-[1.25rem] bg-card shadow-[var(--as-elevation-1)]"
+            aria-busy={loading || undefined}
+          >
+            {placements.map((item) => (
+              <div key={item.key} className="flex min-w-0 flex-col gap-1.5 px-3.5 py-4">
+                <dt className="truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+                  {item.label}
+                </dt>
+                {item.value ? (
+                  <dd className="truncate text-lg font-semibold text-foreground">{item.value}</dd>
+                ) : (
+                  <dd
+                    className="h-7 w-16 animate-pulse rounded-md bg-foreground/[0.08] motion-reduce:animate-none"
+                    aria-hidden="true"
+                  />
+                )}
+                {item.detail ? (
+                  <dd className="text-[0.8125rem] text-muted-foreground">{item.detail}</dd>
+                ) : null}
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
+        <h2 className="px-4 pb-2 pt-7 text-[0.8125rem] font-semibold text-muted-foreground">
+          {t("birth.ready.tryAsking")}
+        </h2>
+        <ul className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)]">
+          {questions.map((question) => (
+            <li key={question}>
+              <Link
+                to="/chat"
+                search={{ seed: question }}
+                className="tap-press flex min-h-[3.25rem] items-center gap-3 px-4 py-2.5 text-base leading-snug text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              >
+                <span className="min-w-0 flex-1">{question}</span>
+                <ArrowRight
+                  size={18}
+                  strokeWidth={2.2}
+                  className="shrink-0 text-[var(--as-color-action-ask)]"
+                  aria-hidden="true"
+                />
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex flex-col gap-1 bg-gradient-to-t from-background from-85% to-background/0 px-4 pb-[calc(0.75rem+var(--as-safe-bottom))] pt-6 sm:mx-0 sm:px-1 md:static md:mt-8 md:bg-none md:pb-0">
+          <Link
+            to="/chat"
+            className="tap-press flex min-h-[3.375rem] w-full items-center justify-center rounded-full border border-[var(--as-color-solar-saffron-600)] bg-[var(--as-color-action-warm)] px-6 text-[1.0625rem] font-semibold text-[var(--as-color-action-warm-text)] shadow-[var(--as-elevation-glow)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            {t("birth.ready.askFirst")}
+          </Link>
+          <Link
+            to="/home"
+            className="tap-press flex min-h-12 items-center justify-center rounded-full text-base font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("birth.ready.explore")}
+          </Link>
+        </div>
+      </section>
+    </main>
   );
 }

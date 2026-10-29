@@ -150,7 +150,7 @@ const LensTrigger = forwardRef<HTMLButtonElement, LensTriggerProps>(function Len
         )}
       </span>
       <span className="min-w-0">
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
           {label}
         </span>
         <span className="block max-w-28 truncate text-xs font-semibold text-foreground sm:max-w-40">

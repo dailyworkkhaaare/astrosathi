@@ -6,6 +6,7 @@ import {
   Baby,
   Briefcase,
   Building2,
+  Check,
   ChevronDown,
   Download,
   GraduationCap,
@@ -25,10 +26,8 @@ import { useRequireOnboarding } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
 import {
   ConfirmDialog,
-  Divider,
   Group,
-  Row,
-  SegmentedGroup,
+  IconTile,
   SettingsBackHeader,
   Toggle,
 } from "@/components/settings/primitives";
@@ -292,21 +291,43 @@ function MemorySettingsPage() {
   };
 
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
+    <section className="mx-auto max-w-2xl space-y-7">
       <SettingsBackHeader
         title={t("settings.memory.title")}
         backLabel={t("settings.memory.back")}
+        subtitle={t("settings.memory.masterHelp")}
       />
 
       {loading ? (
-        <div className="space-y-4" aria-hidden="true">
-          <div className="h-24 animate-pulse rounded-2xl border border-border bg-card" />
-          <div className="h-40 animate-pulse rounded-2xl border border-border bg-card" />
+        <div className="space-y-7" aria-hidden="true">
+          <div className="h-11 rounded-[0.875rem] bg-card motion-safe:animate-pulse" />
+          <div className="h-40 rounded-[0.875rem] bg-card motion-safe:animate-pulse" />
         </div>
       ) : (
         <>
+          <Group
+            title={t("settings.memory.masterTitle")}
+            footer={t("settings.memory.masterDetail")}
+            delay={1}
+          >
+            <div className="flex min-h-11 items-center justify-between gap-3 py-1.5 pl-4 pr-2">
+              <label
+                htmlFor="memory-enabled"
+                className="min-w-0 text-[1.0625rem] leading-snug text-foreground"
+              >
+                {t("settings.memory.masterLabel")}
+              </label>
+              <Toggle
+                id="memory-enabled"
+                ariaLabel={t("settings.memory.masterLabel")}
+                checked={profile?.memory_enabled ?? false}
+                onChange={onToggleMemoryEnabled}
+              />
+            </div>
+          </Group>
+
           <Group title={t("settings.memory.disclosureTitle")} delay={1}>
-            <div className="space-y-3 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+            <div className="list-hairline text-[0.8125rem] leading-snug text-muted-foreground">
               <DisclosureItem
                 label={t("settings.memory.disclosure.conversationLabel")}
                 description={t("settings.memory.disclosure.conversationDescription")}
@@ -330,75 +351,46 @@ function MemorySettingsPage() {
             </div>
           </Group>
 
-          {/* 1. Master toggle */}
-          <Group title={t("settings.memory.masterTitle")} delay={2}>
-            <div className="flex items-start justify-between gap-3 px-4 py-3 min-h-11">
-              <div className="min-w-0">
-                <label
-                  htmlFor="memory-enabled"
-                  className="block text-sm font-medium text-foreground"
-                >
-                  {t("settings.memory.masterLabel")}
-                </label>
-                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                  {t("settings.memory.masterHelp")}
-                </p>
-                <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                  {t("settings.memory.masterDetail")}
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-col items-end gap-2">
-                <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  {profile?.memory_enabled
-                    ? t("settings.memory.masterStatusOn")
-                    : t("settings.memory.masterStatusOff")}
-                </span>
-                <Toggle
-                  id="memory-enabled"
-                  ariaLabel={t("settings.memory.masterLabel")}
-                  checked={profile?.memory_enabled ?? false}
-                  onChange={onToggleMemoryEnabled}
-                />
-              </div>
+          <Group
+            title={t("settings.memory.retentionTitle")}
+            footer={t("settings.memory.retentionDetail")}
+            delay={2}
+          >
+            <div
+              role="radiogroup"
+              aria-label={t("settings.memory.retentionLabel")}
+              className="list-hairline"
+            >
+              {RETENTION_VALUES.map((r) => {
+                const selected = (profile?.memory_default_retention ?? "forever") === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => void onChangeDefaultRetention(r)}
+                    className={ACTION_ROW + " justify-between gap-3 text-foreground"}
+                  >
+                    <span>{t(`settings.memory.retentionOptions.${r}`)}</span>
+                    {selected ? (
+                      <Check
+                        size={20}
+                        strokeWidth={2.5}
+                        aria-hidden="true"
+                        className="text-accent"
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </Group>
 
-          {/* 2. Default retention */}
-          <Group title={t("settings.memory.retentionTitle")} delay={3}>
-            <div className="flex flex-col gap-3 px-4 py-3 min-h-11">
-              <div>
-                <span className="text-sm font-medium text-foreground">
-                  {t("settings.memory.retentionLabel")}
-                </span>
-                <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                  {t("settings.memory.retentionHelp")}
-                </p>
-                <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                  {t("settings.memory.retentionDetail")}
-                </p>
-              </div>
-              <SegmentedGroup<Retention>
-                name="default-retention"
-                value={profile?.memory_default_retention ?? "forever"}
-                onChange={onChangeDefaultRetention}
-                options={RETENTION_VALUES.map((r) => ({
-                  value: r,
-                  label: t(`settings.memory.retentionOptions.${r}`),
-                }))}
-              />
-            </div>
-          </Group>
-
-          {/* 3. Topic memories */}
           <div className="motion-fade-up motion-delay-3">
-            <h2 className="mb-2.5 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {t("settings.memory.memoriesTitle")}
-            </h2>
-            <p className="-mt-1 mb-2.5 px-1 text-xs leading-snug text-muted-foreground">
-              {t("settings.memory.memoriesHint")}
-            </p>
+            <h2 className={SECTION_LABEL}>{t("settings.memory.memoriesTitle")}</h2>
             {topics.length === 0 ? (
-              <div className="rounded-xl border border-border bg-card p-5 text-center text-sm text-muted-foreground">
+              <div className="rounded-[0.875rem] bg-card px-4 py-6 text-center text-[0.9375rem] text-muted-foreground shadow-[var(--as-elevation-1)]">
                 {t("settings.memory.emptyAll")}
               </div>
             ) : (
@@ -417,40 +409,45 @@ function MemorySettingsPage() {
                 )}
               </div>
             )}
+            <p className="mt-2 px-4 text-[0.8125rem] leading-snug text-muted-foreground">
+              {t("settings.memory.memoriesHint")}
+            </p>
           </div>
 
-          {/* 4. Preferences (read-only) */}
-          <Group title={t("settings.memory.prefsTitle")} delay={4}>
-            <div className="px-4 py-3">
+          <Group
+            title={t("settings.memory.prefsTitle")}
+            footer={t("settings.memory.prefsCaption")}
+            delay={4}
+          >
+            <div className="list-hairline">
               {preferenceEntries.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("settings.memory.prefsEmpty")}</p>
+                <p className="px-4 py-3 text-[0.9375rem] text-muted-foreground">
+                  {t("settings.memory.prefsEmpty")}
+                </p>
               ) : (
-                <div className="flex flex-wrap gap-2">
-                  {preferenceEntries.map(({ key, value }) => (
-                    <span
-                      key={key}
-                      className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1.5 min-h-[32px] text-xs font-medium text-foreground"
-                    >
+                preferenceEntries.map(({ key, value }) => (
+                  <div
+                    key={key}
+                    className="flex min-h-11 items-center justify-between gap-3 px-4 py-2"
+                  >
+                    <span className="min-w-0 text-[0.9375rem] text-foreground">
                       {t(`settings.memory.prefKeys.${key}`)}
-                      {typeof value === "boolean" ? (
-                        <span className="ml-1 text-muted-foreground">
-                          {value ? t("settings.memory.on") : t("settings.memory.off")}
-                        </span>
-                      ) : (
-                        <span className="ml-1 text-muted-foreground">{String(value)}</span>
-                      )}
                     </span>
-                  ))}
-                </div>
+                    <span className="min-w-0 truncate text-right text-[0.9375rem] text-muted-foreground">
+                      {typeof value === "boolean"
+                        ? value
+                          ? t("settings.memory.on")
+                          : t("settings.memory.off")
+                        : String(value)}
+                    </span>
+                  </div>
+                ))
               )}
-              <p className="mt-3 text-[11px] text-muted-foreground">
-                {t("settings.memory.prefsCaption")}
-              </p>
               {preferenceEntries.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setConfirmResetPrefs(true)}
-                  className="tap-press mt-3 inline-flex min-h-11 items-center rounded-md px-1 text-xs font-medium text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={ACTION_ROW + " text-accent"}
                 >
                   {t("settings.memory.resetPrefs")}
                 </button>
@@ -458,36 +455,33 @@ function MemorySettingsPage() {
             </div>
           </Group>
 
-          {/* 5. Current mood */}
           {moodActive && emotional?.state && (
-            <div className="motion-fade-up rounded-2xl border border-accent/30 bg-accent/10 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-foreground">
-                    {t("settings.memory.moodTitle")}
-                  </h2>
-                  <p className="mt-1 text-xs leading-snug text-muted-foreground">
-                    {t("settings.memory.moodCaption")}
-                  </p>
+            <Group
+              title={t("settings.memory.moodTitle")}
+              footer={t("settings.memory.moodCaption")}
+              delay={4}
+            >
+              <div className="list-hairline">
+                <div className="px-4 py-3">
                   {emotional.state.mood && (
-                    <p className="mt-1 text-sm text-foreground">{emotional.state.mood}</p>
+                    <p className="text-[0.9375rem] text-foreground">{emotional.state.mood}</p>
                   )}
                   {emotional.state.sensitivities && emotional.state.sensitivities.length > 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-[0.8125rem] text-muted-foreground">
                       {emotional.state.sensitivities.join(", ")}
                     </p>
                   )}
                   {emotional.state.guidance && emotional.state.guidance.length > 0 && (
                     <ul className="mt-2 space-y-1">
                       {emotional.state.guidance.map((g, i) => (
-                        <li key={i} className="text-xs leading-relaxed text-muted-foreground">
+                        <li key={i} className="text-[0.8125rem] leading-snug text-muted-foreground">
                           {g}
                         </li>
                       ))}
                     </ul>
                   )}
                   {emotional.expires_at && (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {t("settings.memory.expiresIn", {
                         date: formatDate(emotional.expires_at, i18n.language),
                       })}
@@ -497,40 +491,41 @@ function MemorySettingsPage() {
                 <button
                   type="button"
                   onClick={() => setConfirmClearMood(true)}
-                  className="tap-press inline-flex min-h-11 shrink-0 items-center rounded-md px-2 text-xs font-medium text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={ACTION_ROW + " text-accent"}
                 >
                   {t("settings.memory.clearMood")}
                 </button>
               </div>
-            </div>
+            </Group>
           )}
 
-          {/* 6. Danger zone */}
-          <Group title={t("settings.memory.dangerTitle")} delay={4}>
-            <p className="px-4 pt-3 text-xs leading-snug text-muted-foreground">
-              {t("settings.memory.dangerHint")}
-            </p>
-            <button
-              type="button"
-              onClick={onExport}
-              className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-            >
-              <span className="inline-flex items-center gap-2">
-                <Download size={15} aria-hidden="true" className="text-muted-foreground" />
-                {t("settings.memory.export")}
-              </span>
-            </button>
-            <Divider />
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteAllStep(1)}
-              className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent/10 focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-            >
-              <span className="inline-flex items-center gap-2">
-                <Trash2 size={15} aria-hidden="true" className="text-accent" />
-                {t("settings.memory.deleteAll")}
-              </span>
-            </button>
+          <Group
+            title={t("settings.memory.dangerTitle")}
+            footer={t("settings.memory.dangerHint")}
+            delay={4}
+          >
+            <div className="list-hairline [--list-inset:3.75rem]">
+              <button type="button" onClick={onExport} className={ACTION_ROW + " gap-3"}>
+                <IconTile>
+                  <Download size={17} />
+                </IconTile>
+                <span className="text-[1.0625rem] text-foreground">
+                  {t("settings.memory.export")}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteAllStep(1)}
+                className={ACTION_ROW + " gap-3"}
+              >
+                <IconTile tone="warning">
+                  <Trash2 size={17} />
+                </IconTile>
+                <span className="text-[1.0625rem] text-destructive-strong">
+                  {t("settings.memory.deleteAll")}
+                </span>
+              </button>
+            </div>
           </Group>
         </>
       )}
@@ -593,6 +588,11 @@ function MemorySettingsPage() {
   );
 }
 
+const SECTION_LABEL =
+  "mb-2 px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal";
+const ACTION_ROW =
+  "tap-press flex min-h-11 w-full items-center px-4 py-2 text-left text-[1.0625rem] transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
+
 function TopicSection({
   topic,
   items,
@@ -611,48 +611,47 @@ function TopicSection({
   const Icon = TOPIC_ICONS[topic];
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-[var(--shadow-soft)]">
+    <div className="list-hairline overflow-hidden rounded-[0.875rem] bg-card text-card-foreground shadow-[var(--as-elevation-1)] [--list-inset:1rem]">
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
         aria-expanded={expanded}
-        className="tap-press flex w-full items-center justify-between px-4 py-3 min-h-11 text-left focus:outline-none focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="tap-press flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Icon size={15} aria-hidden="true" className="text-accent" />
+        <IconTile>
+          <Icon size={17} />
+        </IconTile>
+        <span className="min-w-0 flex-1 text-[1.0625rem] font-semibold text-foreground">
           {t(`settings.memory.topics.${topic}`)}
-          <span className="text-xs font-normal text-muted-foreground">({items.length})</span>
         </span>
+        <span className="text-[0.9375rem] tabular-nums text-muted-foreground">{items.length}</span>
         <ChevronDown
           size={16}
           aria-hidden="true"
           className={cn(
-            "shrink-0 text-muted-foreground transition-transform",
+            "shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
             expanded && "rotate-180",
           )}
         />
       </button>
-      {expanded && (
-        <div className="motion-fade-up space-y-3 border-t border-border/60 px-4 py-4">
-          {items.map((m) => (
-            <MemoryCard
-              key={m.id}
-              memory={m}
-              lang={lang}
-              onChangeRetention={onChangeRetention}
-              onRequestDelete={onRequestDelete}
-            />
-          ))}
-        </div>
-      )}
+      {expanded &&
+        items.map((m) => (
+          <MemoryCard
+            key={m.id}
+            memory={m}
+            lang={lang}
+            onChangeRetention={onChangeRetention}
+            onRequestDelete={onRequestDelete}
+          />
+        ))}
     </div>
   );
 }
 
 function DisclosureItem({ label, description }: { label: string; description: string }) {
   return (
-    <p>
-      <span className="font-medium text-foreground">{label}</span> {description}
+    <p className="px-4 py-2.5">
+      <span className="font-semibold text-foreground">{label}</span> {description}
     </p>
   );
 }
@@ -674,47 +673,40 @@ function MemoryCard({
     memory.summary && memory.summary.trim().length > 0 ? memory.summary : compactData(memory.data);
 
   return (
-    <div className="rounded-xl border border-border/60 bg-background p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm leading-relaxed text-foreground">{summary}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-muted-foreground">
-              {t("settings.memory.updated", { time: relativeTime(memory.updated_at, t) })}
-            </span>
-            {memory.expires_at && (
-              <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {t("settings.memory.expires", { date: formatDate(memory.expires_at, lang) })}
-              </span>
-            )}
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
-                excluded
-                  ? "border-muted-foreground/30 bg-muted text-muted-foreground"
-                  : "border-accent/30 bg-accent/10 text-accent",
-              )}
-            >
-              {excluded ? t("settings.memory.excludedFromAi") : t("settings.memory.availableToAi")}
-            </span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => onRequestDelete(memory.id)}
-          aria-label={t("settings.memory.deleteCard")}
-          className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-accent/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Trash2 size={15} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="mt-3">
+    <div className="pb-1 pl-4 pr-1.5 pt-3">
+      <p className="pr-2.5 text-[0.9375rem] leading-snug text-foreground">{summary}</p>
+      <p className="mt-1 pr-2.5 text-xs leading-snug text-muted-foreground">
+        {[
+          t("settings.memory.updated", { time: relativeTime(memory.updated_at, t) }),
+          memory.expires_at
+            ? t("settings.memory.expires", { date: formatDate(memory.expires_at, lang) })
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+      <p
+        className={cn(
+          "mt-1 inline-flex items-center gap-1.5 text-xs font-medium",
+          excluded ? "text-muted-foreground" : "text-accent",
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            excluded ? "bg-muted-foreground/50" : "bg-accent",
+          )}
+        />
+        {excluded ? t("settings.memory.excludedFromAi") : t("settings.memory.availableToAi")}
+      </p>
+      <div className="mt-0.5 flex items-center justify-between gap-2">
         <Select
           value={memory.retention}
           onValueChange={(v) => onChangeRetention(memory.id, v as Retention)}
         >
           <SelectTrigger
-            className="h-9 w-full text-xs sm:w-44"
+            className="-ml-1 h-11 w-auto min-w-0 gap-1.5 border-0 bg-transparent px-1 text-[0.8125rem] font-medium text-muted-foreground shadow-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={t("settings.memory.retentionLabel")}
           >
             <SelectValue />
@@ -727,6 +719,14 @@ function MemoryCard({
             ))}
           </SelectContent>
         </Select>
+        <button
+          type="button"
+          onClick={() => onRequestDelete(memory.id)}
+          aria-label={t("settings.memory.deleteCard")}
+          className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-destructive-strong transition-colors hover:bg-destructive/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Trash2 size={17} aria-hidden="true" />
+        </button>
       </div>
     </div>
   );

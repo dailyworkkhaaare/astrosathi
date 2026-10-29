@@ -1,10 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookHeart, Plus, RefreshCw, Tag, Trash2, X } from "lucide-react";
+import {
+  BookHeart,
+  ChevronDown,
+  ChevronLeft,
+  CircleAlert,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  RefreshCw,
+  Search,
+  Sparkles,
+  SquarePen,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { useRequireOnboarding } from "@/lib/require-auth";
-import { Button } from "@/components/ui/button";
 import {
   Drawer,
   DrawerClose,
@@ -15,8 +29,14 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { JourneyAskDialog, type JourneyAskSource } from "@/components/journey/JourneyAskDialog";
-import { ErrorState } from "@/components/states/ErrorState";
-import { LoadingState } from "@/components/states/LoadingState";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { triggerHaptic } from "@/lib/native-device";
 import { ConfirmDialog } from "@/components/settings/primitives";
@@ -27,13 +47,7 @@ import {
   useRestampJournalEntry,
   useUpdateJournalEntry,
 } from "@/lib/queries";
-import {
-  DIFFICULT_MOODS,
-  MOODS,
-  type JournalEntry,
-  type JournalEntryInput,
-  type Mood,
-} from "@/lib/journal";
+import { MOODS, type JournalEntry, type JournalEntryInput, type Mood } from "@/lib/journal";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
@@ -98,35 +112,39 @@ function hasStampedContext(entry: JournalEntry): entry is JournalEntry & {
   );
 }
 
-function buildContextLine(
-  entry: JournalEntry,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string | null {
+/** The day's stamped timing, compact: "Jupiter / Jupiter · Saturn in Meena". */
+function skyLine(entry: JournalEntry, t: (key: string, opts?: Record<string, unknown>) => string) {
   if (!hasStampedContext(entry)) return null;
   const ctx = entry.astro_context;
   const parts: string[] = [];
   if (ctx.dasha.maha) {
-    const lordChain = [ctx.dasha.maha.name, ctx.dasha.antar?.name].filter(Boolean).join("–");
-    parts.push(`${t("journal.context.dasha")}: ${lordChain}`);
+    parts.push([ctx.dasha.maha.name, ctx.dasha.antar?.name].filter(Boolean).join(" / "));
   }
-  const transitParts: string[] = [];
   if (ctx.transits.saturn?.sign) {
-    transitParts.push(t("journal.context.saturnIn", { sign: ctx.transits.saturn.sign }));
+    parts.push(t("journal.context.saturnIn", { sign: ctx.transits.saturn.sign }));
   }
-  if (ctx.transits.jupiter?.sign) {
-    transitParts.push(t("journal.context.jupiterIn", { sign: ctx.transits.jupiter.sign }));
-  }
-  if (transitParts.length > 0) parts.push(transitParts.join(", "));
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-function sadeSatiPhaseLabel(
-  phase: "rising" | "peak" | "setting" | null,
-  t: (key: string) => string,
-): string | null {
-  if (!phase) return null;
-  return t(`journal.context.phase.${phase}`);
+function shortEntryDate(dateStr: string, locale: string): string {
+  const d = parseLocalDate(dateStr);
+  if (!d) return dateStr;
+  return d.toLocaleDateString(locale === "en" ? "en-IN" : locale, {
+    day: "numeric",
+    month: "short",
+  });
 }
+
+const MOOD_DOT: Record<Mood, string> = {
+  happy: "bg-accent",
+  hopeful: "bg-accent",
+  calm: "bg-feedback-success",
+  neutral: "bg-muted-foreground",
+  confused: "bg-feedback-warning",
+  anxious: "bg-feedback-warning",
+  sad: "bg-feedback-warning",
+  angry: "bg-feedback-warning",
+};
 
 function JournalPage() {
   useRequireOnboarding();
@@ -141,21 +159,31 @@ function JournalPage() {
   const [formTarget, setFormTarget] = useState<JournalEntry | "new" | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<JournalEntry | null>(null);
   const [askSource, setAskSource] = useState<JourneyAskSource | null>(null);
+  const [query, setQuery] = useState("");
 
-  const entries = entriesQuery.data ?? [];
+  const entries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data]);
 
   // Group by year+month; entries already come back date-desc, so preserve that
   // order within each group and keep groups sorted by their month key.
   const grouped = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase();
     const byMonth = new Map<string, JournalEntry[]>();
     for (const ev of entries) {
+      if (
+        q &&
+        ![ev.title ?? "", ev.content, ...(ev.tags ?? [])].some((s) =>
+          s.toLocaleLowerCase().includes(q),
+        )
+      ) {
+        continue;
+      }
       const k = monthKey(ev.entry_date);
       const list = byMonth.get(k) ?? [];
       list.push(ev);
       byMonth.set(k, list);
     }
     return [...byMonth.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
-  }, [entries]);
+  }, [entries, query]);
 
   const onRefreshAstrology = async (id: string) => {
     setStampingIds((prev) => new Set(prev).add(id));
@@ -170,111 +198,129 @@ function JournalPage() {
     }
   };
 
+  const hasEntries = !entriesQuery.isLoading && !entriesQuery.isError && entries.length > 0;
+
   return (
-    <section className="mx-auto max-w-2xl space-y-6">
-      <div className="motion-fade-up flex items-center gap-3">
+    <section className="mx-auto max-w-2xl">
+      <nav className="motion-fade-up -mx-2 -mt-2 flex min-h-11 items-center justify-between">
         <Link
           to="/journey"
-          aria-label={t("common.back")}
-          className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="tap-press inline-flex min-h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-[1.0625rem] text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <ArrowLeft size={18} aria-hidden="true" />
+          <ChevronLeft size={22} aria-hidden="true" />
+          {t("nav.journey")}
         </Link>
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {t("journal.eyebrow")}
-          </p>
-          <h1 className="font-display text-2xl leading-tight tracking-tight text-foreground sm:text-3xl">
-            {t("journal.title")}
-          </h1>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            {t("journal.subtitle")}
-          </p>
-        </div>
-      </div>
+        {hasEntries && (
+          <button
+            type="button"
+            onClick={() => setFormTarget("new")}
+            aria-label={t("journal.addEntry")}
+            title={t("journal.addEntry")}
+            className="tap-press grid h-11 w-11 place-items-center rounded-full text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <SquarePen size={20} aria-hidden="true" />
+          </button>
+        )}
+      </nav>
 
-      <section className="motion-fade-up rounded-[1.5rem] border border-accent/20 bg-accent/[0.06] p-5">
-        <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-card text-accent ring-1 ring-accent/20">
-            <BookHeart size={19} aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-foreground">
-              {t("journal.composerTitle")}
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              {t("journal.composerHint")}
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={() => setFormTarget("new")}
-          className="mt-4 w-full gap-2 min-h-11 sm:w-auto"
-        >
-          <Plus size={16} aria-hidden="true" />
-          {t("journal.addEntry")}
-        </Button>
-      </section>
+      <header className="motion-fade-up mt-1">
+        <h1 className="large-title text-foreground">{t("journal.title")}</h1>
+        <p className="mt-1.5 text-[0.9375rem] leading-snug text-muted-foreground">
+          {t("journal.subtitle")}
+        </p>
+      </header>
 
       {entriesQuery.isLoading ? (
-        <LoadingState
-          scope="panel"
-          label={t("journal.loading")}
-          description={t("journal.loadingBody")}
-        />
+        <div role="status" aria-label={t("journal.loading")} className="mt-6 space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-16 motion-safe:animate-pulse rounded-[0.875rem] bg-card" />
+          ))}
+        </div>
       ) : entriesQuery.isError ? (
-        <ErrorState
-          scope="panel"
-          title={t("journal.loadError")}
-          description={t("journal.loadErrorBody")}
-          onRetry={() => void entriesQuery.refetch()}
-        />
-      ) : entries.length === 0 ? (
-        <div className="motion-fade-up rounded-2xl border border-border bg-card p-6 text-center">
-          <div
-            aria-hidden="true"
-            className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent ring-1 ring-accent/25"
-          >
-            <BookHeart size={20} />
+        <div
+          role="alert"
+          data-state="error"
+          className="mt-6 flex items-center gap-3 rounded-[0.875rem] bg-card py-2 pl-4 pr-2 shadow-[var(--as-elevation-1)]"
+        >
+          <CircleAlert size={18} className="shrink-0 text-feedback-warning" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{t("journal.loadError")}</p>
+            <p className="text-xs text-muted-foreground">{t("journal.loadErrorBody")}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => void entriesQuery.refetch()}
+            className="tap-press inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("states.retry")}
+          </button>
+        </div>
+      ) : entries.length === 0 ? (
+        <div
+          data-state="empty"
+          className="motion-fade-up mt-8 flex flex-col items-center gap-1.5 rounded-[1.25rem] bg-card px-6 py-8 text-center shadow-[var(--as-elevation-1)]"
+        >
+          <span className="mb-2 grid h-11 w-11 place-items-center rounded-[0.875rem] bg-accent/12 text-accent">
+            <BookHeart size={20} aria-hidden="true" />
+          </span>
           <p className="text-base font-semibold text-foreground">{t("journal.empty.title")}</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+          <p className="max-w-xs text-[0.8125rem] leading-snug text-muted-foreground">
             {t("journal.empty.body")}
           </p>
+          <button
+            type="button"
+            onClick={() => setFormTarget("new")}
+            className="tap-press mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent/15 px-5 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <SquarePen size={16} aria-hidden="true" />
+            {t("journal.addEntry")}
+          </button>
         </div>
       ) : (
-        <section aria-label={t("journal.timelineAria")} className="relative">
-          <div
-            aria-hidden="true"
-            className="absolute bottom-5 left-[13px] top-5 w-px bg-border sm:left-[15px]"
-          />
-          <div className="relative space-y-8">
-            {grouped.map(([key, monthEntries]) => (
-              <section key={key} aria-labelledby={`journal-month-${key}`} className="relative">
-                <div className="mb-3 flex items-center gap-3">
-                  <span
-                    aria-hidden="true"
-                    className="relative z-10 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-accent/35 bg-background"
-                  >
-                    <span className="h-2 w-2 rounded-full bg-accent" />
-                  </span>
+        <>
+          <div role="search" className="relative mt-4">
+            <label htmlFor="journal-search" className="sr-only">
+              {t("journal.searchLabel")}
+            </label>
+            <Search
+              size={16}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              id="journal-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("journal.searchPlaceholder")}
+              enterKeyHint="search"
+              className="h-11 w-full rounded-xl bg-foreground/[0.07] pl-9 pr-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            />
+          </div>
+
+          {grouped.length === 0 ? (
+            <div role="status" className="flex flex-col gap-1.5 px-8 py-12 text-center">
+              <p className="text-base font-semibold text-foreground">{t("journal.noMatches")}</p>
+              <p className="text-xs text-muted-foreground">{t("journal.noMatchesHint")}</p>
+            </div>
+          ) : (
+            <div role="region" aria-label={t("journal.timelineAria")}>
+              {grouped.map(([key, monthEntries]) => (
+                <section
+                  key={key}
+                  aria-labelledby={`journal-month-${key}`}
+                  className="motion-fade-up mt-6"
+                >
                   <h2
                     id={`journal-month-${key}`}
-                    className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+                    className="mb-2 px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal"
                   >
                     {monthLabel(key, i18n.language)}
                   </h2>
-                </div>
-                <ol className="space-y-3">
-                  {monthEntries.map((entry) => (
-                    <li key={entry.id} className="relative pl-10 sm:pl-12">
-                      <span
-                        aria-hidden="true"
-                        className="absolute left-[9px] top-6 z-10 h-2.5 w-2.5 rounded-full border-2 border-background bg-primary ring-1 ring-primary/30 sm:left-[11px]"
-                      />
-                      <EntryCard
+                  <ul className="list-hairline overflow-hidden rounded-[0.875rem] bg-card shadow-[var(--as-elevation-1)] [--list-inset:2.375rem]">
+                    {monthEntries.map((entry) => (
+                      <EntryRow
+                        key={entry.id}
                         entry={entry}
                         locale={i18n.language}
                         stamping={stampingIds.has(entry.id)}
@@ -294,13 +340,14 @@ function JournalPage() {
                         }}
                         onRefreshAstrology={() => onRefreshAstrology(entry.id)}
                       />
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ))}
-          </div>
-        </section>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+          <p className="mt-4 text-center text-xs text-muted-foreground">{t("journal.privacy")}</p>
+        </>
       )}
 
       {formTarget && (
@@ -340,23 +387,7 @@ function JournalPage() {
   );
 }
 
-function MoodPill({ mood, t }: { mood: Mood; t: (key: string) => string }) {
-  const difficult = DIFFICULT_MOODS.includes(mood);
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-        difficult
-          ? "border-accent/40 bg-accent/10 text-accent"
-          : "border-primary/30 bg-primary/10 text-foreground",
-      )}
-    >
-      {t(`journal.moods.${mood}`)}
-    </span>
-  );
-}
-
-function EntryCard({
+function EntryRow({
   entry,
   locale,
   stamping,
@@ -374,104 +405,83 @@ function EntryCard({
   onRefreshAstrology: () => void;
 }) {
   const { t } = useTranslation();
-  const contextLine = buildContextLine(entry, t);
+  const title = entry.title || t("journey.untitledReflection");
   const stamped = hasStampedContext(entry);
-  const sadeSatiPhase =
-    stamped && entry.astro_context.sade_sati.active
-      ? sadeSatiPhaseLabel(entry.astro_context.sade_sati.phase, t)
-      : null;
-
   return (
-    <article className="motion-fade-up rounded-[1.5rem] border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-      <div className="flex items-start justify-between gap-3">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="min-w-0 flex-1 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            {formatEntryDate(entry.entry_date, locale)}
-          </p>
-          {entry.title && (
-            <p className="mt-1 truncate text-base font-semibold text-foreground">{entry.title}</p>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label={t("journal.delete")}
-          className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/10 hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Trash2 size={15} aria-hidden="true" />
-        </button>
-      </div>
-
-      <p className="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
-        {entry.content}
-      </p>
-
+    <li className="flex items-center pr-1">
+      <button
+        type="button"
+        onClick={onEdit}
+        className="tap-press flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        {entry.mood ? (
+          <span
+            role="img"
+            aria-label={t(`journal.moods.${entry.mood}`)}
+            className={cn("h-2 w-2 shrink-0 rounded-full", MOOD_DOT[entry.mood])}
+          />
+        ) : (
+          <span aria-hidden="true" className="h-2 w-2 shrink-0" />
+        )}
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex items-baseline justify-between gap-2.5">
+            <span className="truncate text-base font-semibold text-foreground">{title}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {shortEntryDate(entry.entry_date, locale)}
+            </span>
+          </span>
+          <span className="truncate text-sm text-muted-foreground">{entry.content}</span>
+        </span>
+      </button>
       <button
         type="button"
         onClick={onAsk}
-        className="tap-press mt-3 inline-flex min-h-9 items-center rounded-lg px-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={t("journey.askContext.reflectionAction")}
+        title={t("journey.askContext.reflectionAction")}
+        className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-[var(--as-color-action-ask)] hover:bg-foreground/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {t("journey.askContext.reflectionAction")}
+        <MessageCircle size={18} aria-hidden="true" />
       </button>
-
-      {(entry.mood || (entry.tags?.length ?? 0) > 0) && (
-        <div className="mt-4 flex flex-wrap items-center gap-1.5">
-          {entry.mood && <MoodPill mood={entry.mood} t={t} />}
-          {entry.tags?.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-            >
-              <Tag size={10} aria-hidden="true" />
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {stamped && contextLine ? (
-        <aside className="mt-4 rounded-2xl border border-accent/20 bg-accent/[0.06] px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {t("journal.context.label")}
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <p className="text-xs leading-relaxed text-muted-foreground">{contextLine}</p>
-            {sadeSatiPhase && (
-              <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
-                {t("journal.context.sadeSati")} · {sadeSatiPhase}
-              </span>
-            )}
-          </div>
-        </aside>
-      ) : (
-        <aside className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-muted/50 px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {t("journal.context.label")}
-          </p>
-          <span className="inline-flex items-center rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {stamping
-              ? t("journal.placingInChart")
-              : entry.context_status === "error"
-                ? t("journal.astrologyError")
-                : t("journal.astrologyPending")}
-          </span>
-          {!stamping && (
-            <button
-              type="button"
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={t("life.rowOptions", { title })}
+            className="tap-press grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <MoreHorizontal size={18} aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="min-w-[12rem] rounded-xl border-border bg-card p-1.5 shadow-[var(--shadow-elevated)]"
+        >
+          <DropdownMenuItem
+            onClick={onEdit}
+            className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm text-foreground"
+          >
+            <Pencil size={15} aria-hidden="true" />
+            {t("journal.editEntry")}
+          </DropdownMenuItem>
+          {!stamped && !stamping && (
+            <DropdownMenuItem
               onClick={onRefreshAstrology}
-              className="tap-press inline-flex min-h-[28px] items-center gap-1 text-[11px] font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm text-foreground"
             >
-              <RefreshCw size={11} aria-hidden="true" />
-              {t("journal.refreshAstrology")}
-            </button>
+              <RefreshCw size={15} aria-hidden="true" />
+              {t("life.refreshAstrology")}
+            </DropdownMenuItem>
           )}
-        </aside>
-      )}
-    </article>
+          <DropdownMenuItem
+            onClick={onDelete}
+            className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm text-destructive-strong"
+          >
+            <Trash2 size={15} aria-hidden="true" />
+            {t("journal.delete")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </li>
   );
 }
 
@@ -554,262 +564,195 @@ function JournalEntryFormDialog({
     }
   };
 
+  const sky = existing ? skyLine(existing, t) : null;
+
   return (
     <Drawer open onOpenChange={(open) => !open && onClose()} shouldScaleBackground={false}>
       <DrawerContent
         aria-describedby="journal-entry-form-note"
-        className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+        className="bg-background sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(44rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
       >
-        <DrawerHeader className="flex flex-row items-start justify-between gap-4 px-5 pb-4 pt-5 text-left sm:px-6">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-accent/12 text-accent ring-1 ring-accent/25">
-              <BookHeart size={19} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {t("journal.form.eyebrow")}
-              </p>
-              <DrawerTitle className="mt-1 font-display text-xl font-semibold tracking-tight text-foreground">
-                {isNew ? t("journal.addEntry") : t("journal.editEntry")}
-              </DrawerTitle>
-            </div>
-          </div>
+        <DrawerHeader className="grid grid-cols-[1fr_auto_1fr] items-center gap-0 px-2 pb-1 pt-1">
           <DrawerClose asChild>
             <button
               type="button"
-              aria-label={t("journal.cancel")}
-              className="tap-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press inline-flex min-h-11 items-center justify-self-start rounded-full px-3 text-[1.0625rem] text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <X size={16} aria-hidden="true" />
+              {t("journal.cancel")}
             </button>
           </DrawerClose>
+          <div className="flex min-w-0 flex-col items-center">
+            <DrawerTitle className="text-[1.0625rem] font-semibold">
+              {isNew ? t("journal.addEntry") : t("journal.editEntry")}
+            </DrawerTitle>
+            <label htmlFor="journal-date" className="sr-only">
+              {t("journal.fields.date")}
+            </label>
+            <input
+              id="journal-date"
+              type="date"
+              value={entryDate}
+              max={todayStr()}
+              onChange={(e) => setEntryDate(e.target.value)}
+              enterKeyHint="next"
+              aria-invalid={!!errors.date}
+              aria-describedby={errors.date ? "journal-date-error" : undefined}
+              className="min-h-7 rounded-md bg-transparent px-1 text-center text-xs text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+          <button
+            type="submit"
+            form="journal-entry-form"
+            disabled={submitting}
+            className="tap-press inline-flex min-h-11 items-center justify-self-end rounded-full px-3 text-[1.0625rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            {submitting ? t("journal.saving") : t("journal.save")}
+          </button>
         </DrawerHeader>
 
         <form
           id="journal-entry-form"
-          className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 pb-5 sm:px-6"
+          className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-2"
           onSubmit={onSubmit}
           noValidate
         >
-          <DrawerDescription
-            id="journal-entry-form-note"
-            className="mb-6 text-sm leading-relaxed text-muted-foreground"
-          >
+          <DrawerDescription id="journal-entry-form-note" className="sr-only">
             {t("journal.form.intro")}
           </DrawerDescription>
+          {errors.date && (
+            <p id="journal-date-error" className="mb-2 text-xs text-feedback-warning">
+              {errors.date}
+            </p>
+          )}
 
-          <section aria-labelledby="journal-reflection-title" className="space-y-4">
-            <div>
-              <h4 id="journal-reflection-title" className="text-sm font-semibold text-foreground">
-                {t("journal.form.reflection")}
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {t("journal.form.reflectionHint")}
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="journal-content"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                {t("journal.fields.content")}
-              </label>
-              <textarea
-                id="journal-content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={7}
-                placeholder={t("journal.fields.contentPlaceholder")}
-                enterKeyHint="enter"
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                spellCheck
-                aria-invalid={!!errors.content}
-                aria-describedby={errors.content ? "journal-content-error" : undefined}
-                className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              {errors.content && (
-                <p id="journal-content-error" className="mt-1 text-xs text-accent">
-                  {errors.content}
-                </p>
-              )}
-            </div>
-            <div>
-              <label
-                htmlFor="journal-title"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                {t("journal.fields.title")}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  {t("journal.fields.optional")}
-                </span>
-              </label>
-              <input
-                id="journal-title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={t("journal.fields.titlePlaceholder")}
-                enterKeyHint="next"
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-          </section>
+          <label htmlFor="journal-title" className="sr-only">
+            {t("journal.fields.title")}
+          </label>
+          <input
+            id="journal-title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("journal.fields.title")}
+            enterKeyHint="next"
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            className="h-12 w-full rounded-lg bg-transparent text-xl font-semibold text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus-visible:bg-foreground/[0.03]"
+          />
 
-          <section aria-labelledby="journal-timing-title" className="space-y-3">
-            <div>
-              <h4 id="journal-timing-title" className="text-sm font-semibold text-foreground">
-                {t("journal.form.timing")}
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {t("journal.form.timingHint")}
-              </p>
-            </div>
-            <div>
-              <label
-                htmlFor="journal-date"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                {t("journal.fields.date")}
-              </label>
-              <input
-                id="journal-date"
-                type="date"
-                value={entryDate}
-                max={todayStr()}
-                onChange={(e) => setEntryDate(e.target.value)}
-                enterKeyHint="next"
-                aria-invalid={!!errors.date}
-                aria-describedby={errors.date ? "journal-date-error" : undefined}
-                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-              {errors.date && (
-                <p id="journal-date-error" className="mt-1 text-xs text-accent">
-                  {errors.date}
-                </p>
-              )}
-            </div>
-          </section>
+          <label htmlFor="journal-content" className="sr-only">
+            {t("journal.fields.content")}
+          </label>
+          <textarea
+            id="journal-content"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={8}
+            placeholder={t("journal.fields.contentPlaceholder")}
+            enterKeyHint="enter"
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            spellCheck
+            aria-invalid={!!errors.content}
+            aria-describedby={errors.content ? "journal-content-error" : undefined}
+            className="mt-1 min-h-48 w-full resize-none rounded-lg bg-transparent text-[1.0625rem] leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:bg-foreground/[0.03]"
+          />
+          {errors.content && (
+            <p id="journal-content-error" className="mt-1 text-xs text-feedback-warning">
+              {errors.content}
+            </p>
+          )}
 
-          <section aria-labelledby="journal-details-title" className="space-y-4">
-            <div>
-              <h4 id="journal-details-title" className="text-sm font-semibold text-foreground">
-                {t("journal.form.details")}
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {t("journal.form.detailsHint")}
-              </p>
-            </div>
-            <div>
-              <span className="mb-2 block text-sm font-medium text-foreground">
-                {t("journal.fields.mood")}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  {t("journal.fields.optional")}
-                </span>
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-[var(--as-list-separator)] pt-3">
+            <Tag size={15} aria-hidden="true" className="mr-0.5 shrink-0 text-muted-foreground" />
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-0.5 rounded-full bg-foreground/[0.07] py-0.5 pl-2.5 pr-0.5 text-[0.8125rem] text-foreground"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => setTags((prev) => prev.filter((x) => x !== tag))}
+                  aria-label={t("journal.removeTag", { tag })}
+                  className="tap-press grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
               </span>
-              <div
-                role="radiogroup"
-                aria-label={t("journal.fields.mood")}
-                className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-              >
-                {MOODS.map((m) => {
-                  const selected = m === mood;
-                  const difficult = DIFFICULT_MOODS.includes(m);
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => setMood(selected ? null : m)}
-                      className={cn(
-                        "min-h-11 rounded-xl border px-3 text-left text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        selected
-                          ? difficult
-                            ? "border-accent/60 bg-accent/10 text-accent"
-                            : "border-primary/60 bg-primary/10 text-primary"
-                          : "border-border bg-background text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {t(`journal.moods.${m}`)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="journal-tags"
-                className="mb-1 block text-sm font-medium text-foreground"
-              >
-                {t("journal.fields.tags")}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  {t("journal.fields.tagsHint")}
-                </span>
-              </label>
-              {tags.length > 0 && (
-                <div className="mb-1.5 flex flex-wrap gap-1.5">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                    >
-                      <Tag size={10} aria-hidden="true" />
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => setTags((prev) => prev.filter((x) => x !== tag))}
-                        aria-label={t("journal.removeTag", { tag })}
-                        className="tap-press ml-0.5 rounded-full p-0.5 text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <X size={10} aria-hidden="true" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <input
-                id="journal-tags"
-                type="text"
-                value={tagDraft}
-                onChange={(e) => setTagDraft(e.target.value)}
-                onKeyDown={onTagKeyDown}
-                onBlur={() => tagDraft.trim() && commitTag(tagDraft)}
-                placeholder={t("journal.fields.tagsPlaceholder")}
-                enterKeyHint="done"
-                autoCapitalize="none"
-                autoCorrect="off"
-                className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </div>
-          </section>
-
-          <div className="rounded-2xl border border-accent/20 bg-accent/[0.06] px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-            {t("journal.form.contextNote")}
+            ))}
+            <label htmlFor="journal-tags" className="sr-only">
+              {t("journal.fields.tags")}
+            </label>
+            <input
+              id="journal-tags"
+              type="text"
+              value={tagDraft}
+              onChange={(e) => setTagDraft(e.target.value)}
+              onKeyDown={onTagKeyDown}
+              onBlur={() => tagDraft.trim() && commitTag(tagDraft)}
+              placeholder={t("journal.fields.tagsPlaceholder")}
+              enterKeyHint="done"
+              autoCapitalize="none"
+              autoCorrect="off"
+              className="h-9 min-w-[8rem] flex-1 rounded-md bg-transparent px-1 text-[0.9375rem] text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:bg-foreground/[0.03]"
+            />
           </div>
         </form>
 
-        <DrawerFooter className="flex-row gap-2 px-5 sm:px-6">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            className="flex-1 border border-border bg-background"
-          >
-            {t("journal.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            form="journal-entry-form"
-            variant="primary"
-            disabled={submitting}
-            className="flex-1"
-          >
-            {submitting ? t("journal.saving") : t("journal.save")}
-          </Button>
+        <DrawerFooter className="flex-row items-center gap-2 border-t border-[var(--as-list-separator)] px-4 py-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`${t("journal.fields.mood")}: ${mood ? t(`journal.moods.${mood}`) : t("journal.moodNone")}`}
+                className="tap-press inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-foreground/[0.07] pl-3 pr-2.5 text-sm font-semibold text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    mood ? MOOD_DOT[mood] : "bg-muted-foreground/40",
+                  )}
+                />
+                {mood ? t(`journal.moods.${mood}`) : t("journal.fields.mood")}
+                <ChevronDown size={15} aria-hidden="true" className="text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              side="top"
+              className="min-w-[11rem] rounded-xl border-border bg-card p-1.5 shadow-[var(--shadow-elevated)]"
+            >
+              <DropdownMenuRadioGroup
+                value={mood ?? ""}
+                onValueChange={(v) => setMood(v ? (v as Mood) : null)}
+              >
+                {MOODS.map((m) => (
+                  <DropdownMenuRadioItem
+                    key={m}
+                    value={m}
+                    className="min-h-11 cursor-pointer gap-2.5 rounded-lg text-sm"
+                  >
+                    <span aria-hidden="true" className={cn("h-2 w-2 rounded-full", MOOD_DOT[m])} />
+                    {t(`journal.moods.${m}`)}
+                  </DropdownMenuRadioItem>
+                ))}
+                <DropdownMenuRadioItem
+                  value=""
+                  className="min-h-11 cursor-pointer gap-2.5 rounded-lg text-sm text-muted-foreground"
+                >
+                  {t("journal.moodNone")}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {sky && (
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <Sparkles size={13} aria-hidden="true" className="shrink-0 text-accent" />
+              <span className="truncate">{sky}</span>
+            </p>
+          )}
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

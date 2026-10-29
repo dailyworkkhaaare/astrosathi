@@ -88,25 +88,118 @@ function Landing() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-20 pb-2 sm:gap-28">
-      <Hero t={t} />
-      <Story t={t} />
-      <FeatureBento t={t} />
-      <TrustLayer t={t} />
-      <footer className="border-t border-border/60 pb-3 pt-6 text-center">
-        <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} {APP_NAME}
-          <span className="mx-2 text-border">·</span>
-          <Link to="/terms" className="hover:text-foreground hover:underline">
-            {t("common.terms")}
-          </Link>
-          <span className="mx-2 text-border">·</span>
-          <Link to="/privacy" className="hover:text-foreground hover:underline">
-            {t("common.privacy")}
+    <>
+      <PhoneWelcome t={t} />
+      <div className="mx-auto hidden w-full max-w-[90rem] flex-col gap-20 pb-2 sm:gap-28 md:flex">
+        <Hero t={t} />
+        <Story t={t} />
+        <FeatureBento t={t} />
+        <TrustLayer t={t} />
+        <footer className="border-t border-border/60 pb-3 pt-6 text-center">
+          <p className="text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} {APP_NAME}
+            <span className="mx-2 text-border">·</span>
+            <Link to="/terms" className="hover:text-foreground hover:underline">
+              {t("common.terms")}
+            </Link>
+            <span className="mx-2 text-border">·</span>
+            <Link to="/privacy" className="hover:text-foreground hover:underline">
+              {t("common.privacy")}
+            </Link>
+          </p>
+        </footer>
+      </div>
+    </>
+  );
+}
+
+/** Phones get a native welcome screen; the full landing stays for md and up. */
+function PhoneWelcome({ t }: { t: ReturnType<typeof useTranslation>["t"] }) {
+  const points = [
+    { key: "heroTrust1", icon: Orbit },
+    { key: "heroTrust2", icon: ShieldCheck },
+    { key: "heroTrust3", icon: Languages },
+  ] as const;
+
+  return (
+    <section className="motion-fade-up flex min-h-[calc(100dvh-var(--as-safe-top)-2rem)] flex-col md:hidden">
+      <div className="flex flex-col gap-3.5 pt-7">
+        <BrandMark withWordmark={false} className="h-14 w-14" />
+        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-accent [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+          {t("landing.eyebrow")}
+        </p>
+        <h1 className="large-title text-balance text-foreground">{t("landing.title")}</h1>
+        <p className="text-[0.9375rem] leading-snug text-muted-foreground">
+          {t("landing.welcomeSubtitle")}
+        </p>
+      </div>
+
+      <div
+        role="img"
+        aria-label={t("landing.previewAria")}
+        data-testid="welcome-preview"
+        className="mt-7 flex items-start gap-3.5 rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)]"
+      >
+        <WelcomeKundli />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--as-color-action-ask)] [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+              {t("landing.previewAnswerLabel")}
+            </span>
+            <span className="text-[0.6875rem] text-muted-foreground">
+              {t("landing.previewIllustrative")}
+            </span>
+          </div>
+          <p className="text-sm leading-snug text-foreground">{t("landing.welcomeAnswer")}</p>
+        </div>
+      </div>
+
+      <ul className="mt-5 flex flex-col gap-3">
+        {points.map(({ key, icon: Icon }) => (
+          <li key={key} className="flex items-center gap-3 text-sm text-muted-foreground">
+            <Icon className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+            {t(`landing.${key}`)}
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-auto flex flex-col gap-1.5 pb-[var(--as-safe-bottom)] pt-8">
+        <Link
+          to="/language"
+          className="tap-press flex min-h-[3.375rem] w-full items-center justify-center rounded-full border border-[var(--as-color-solar-saffron-600)] bg-[var(--as-color-action-warm)] px-6 text-[1.0625rem] font-semibold text-[var(--as-color-action-warm-text)] shadow-[var(--as-elevation-glow)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {t("landing.cta")}
+        </Link>
+        <p className="flex min-h-12 items-center justify-center gap-1.5 text-[0.9375rem] text-muted-foreground">
+          {t("landing.signInPrompt")}
+          <Link
+            to="/auth"
+            className="inline-flex min-h-11 items-center rounded-md px-1 font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t("landing.signIn")}
           </Link>
         </p>
-      </footer>
-    </div>
+      </div>
+    </section>
+  );
+}
+
+/** A small North-Indian kundli frame for the welcome preview card. */
+function WelcomeKundli() {
+  return (
+    <svg
+      viewBox="0 0 68 68"
+      className="h-[4.25rem] w-[4.25rem] shrink-0 text-accent"
+      fill="none"
+      aria-hidden="true"
+    >
+      <g stroke="currentColor" strokeOpacity="0.8" strokeWidth="1.2">
+        <rect x="1" y="1" width="66" height="66" rx="4" />
+        <path d="M1 1 L67 67 M67 1 L1 67 M34 1 L67 34 L34 67 L1 34 Z" />
+      </g>
+      <circle cx="34" cy="17" r="2.5" fill="currentColor" />
+      <circle cx="51" cy="34" r="2" className="text-foreground" fill="currentColor" />
+    </svg>
   );
 }
 

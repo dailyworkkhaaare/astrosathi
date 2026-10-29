@@ -16,7 +16,14 @@ import {
   readChatDraft,
   saveChatDraft,
 } from "../../src/lib/chat-draft.ts";
-import { supportedDeepLinkPath } from "../../src/lib/native-device.ts";
+import { getAppPlatform, supportedDeepLinkPath } from "../../src/lib/native-device.ts";
+import {
+  astroArtSrc,
+  GRAHA_ART,
+  grahaArtByName,
+  SIGN_ART,
+  signArtByIndex,
+} from "../../src/lib/astro-art.ts";
 
 const ROOT = new URL("../../", import.meta.url);
 const readProjectFile = (path) => readFile(new URL(path, ROOT), "utf8");
@@ -234,7 +241,10 @@ test("Ask drafts are private, thread-scoped, and retained until a reply succeeds
   assert.match(chatSource, /setInput\(readChatDraft\(userId, id\)\)/);
   assert.match(chatSource, /onChange=\{updateInput\}/);
   assert.match(chatSource, /sendToBackend\(text, subjectRelatedChartId, conversationId\)/);
-  assert.equal((chatSource.match(/clearChatDraft\(userId, draftConversationId\)/g) ?? []).length, 2);
+  assert.equal(
+    (chatSource.match(/clearChatDraft\(userId, draftConversationId\)/g) ?? []).length,
+    2,
+  );
 });
 
 test("Ask protects typed questions across offline and sign-out boundaries", async () => {
@@ -268,10 +278,12 @@ test("consent keeps its mobile action reachable and provides native feedback", a
   assert.match(consentSource, /triggerHaptic\("success"\)/);
   assert.match(consentSource, /triggerHaptic\("error"\)/);
   assert.match(consentSource, /triggerHaptic\(next \? "selection" : "light"\)/);
-  assert.match(consentSource, /sticky bottom-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
+  // The Continue action lives in the shared onboarding footer, which stays
+  // pinned above the home indicator.
+  assert.match(consentSource, /footer=\{/);
   assert.doesNotMatch(consentSource, /radial-gradient/);
-  assert.match(shellSource, /env\(safe-area-inset-top\)/);
-  assert.match(shellSource, /env\(safe-area-inset-bottom\)/);
+  assert.match(shellSource, /var\(--as-safe-top\)/);
+  assert.match(shellSource, /sticky bottom-0[\s\S]*var\(--as-safe-bottom\)/);
 });
 
 test("native deep links normalize supported worlds and reject unknown destinations", () => {
@@ -369,7 +381,10 @@ test("webview interaction defaults avoid iOS field zoom without reducing accessi
     readProjectFile("src/routes/__root.tsx"),
   ]);
 
-  assert.match(stylesSource, /input,[\s\S]*textarea,[\s\S]*select,[\s\S]*\[contenteditable="true"\][\s\S]*font-size: 1rem/);
+  assert.match(
+    stylesSource,
+    /input,[\s\S]*textarea,[\s\S]*select,[\s\S]*\[contenteditable="true"\][\s\S]*font-size: 1rem/,
+  );
   assert.match(stylesSource, /-webkit-tap-highlight-color: transparent/);
   assert.match(stylesSource, /touch-action: manipulation/);
   assert.doesNotMatch(stylesSource, /user-scalable\s*=\s*(?:"no"|no)/);
@@ -387,7 +402,10 @@ test("mobile fallback surfaces use dynamic viewport height", async () => {
   assert.doesNotMatch(landingSource, /min-h-\[calc\(100vh-8rem\)\]/);
   assert.match(authSource, /min-h-dvh items-center justify-center bg-background/);
   assert.doesNotMatch(authSource, /min-h-screen items-center justify-center bg-background/);
-  assert.equal((rootSource.match(/min-h-dvh items-center justify-center bg-background px-4/g) ?? []).length, 2);
+  assert.equal(
+    (rootSource.match(/min-h-dvh items-center justify-center bg-background px-4/g) ?? []).length,
+    2,
+  );
   assert.doesNotMatch(rootSource, /min-h-screen items-center justify-center bg-background px-4/);
 });
 
@@ -548,9 +566,9 @@ test("Connections list preserves owner-scoped navigation and truthful birth-time
   assert.match(routeSource, /people\.quickActions\.ask/);
   assert.match(routeSource, /subjectRelatedChartId: p\.id/);
   assert.match(routeSource, /p\.birth_time_known\s*\?\s*t\("people\.birthTimeKnown"\)/);
-  assert.match(routeSource, /sm:grid-cols-2/);
-  assert.match(routeSource, /last:border-b-0/);
-  assert.match(routeSource, /min-h-\[4\.75rem\]/);
+  assert.match(routeSource, /list-hairline/);
+  assert.match(routeSource, /border-\[var\(--as-list-separator\)\]/);
+  assert.match(routeSource, /min-h-\[3\.75rem\]/);
 
   const localeNames = ["en", "hi", "mr"];
   const locales = Object.fromEntries(
@@ -653,7 +671,7 @@ test("journal reflection editor uses a native drawer shell and external action f
 test("Cosmos Varga selector keeps desktop selection and adds a mobile chart sheet", async () => {
   const routeSource = await readProjectFile("src/routes/home.tsx");
 
-  assert.match(routeSource, /function VargaExplorer/);
+  assert.match(routeSource, /function VargaControls/);
   assert.match(routeSource, /<Drawer open=\{selectorOpen\}/);
   assert.match(routeSource, /role="listbox"/);
   assert.match(routeSource, /role="option"/);
@@ -767,7 +785,7 @@ test("mobile Today, People and Journey actions keep native interaction affordanc
   assert.match(journeySource, /!empty \?/);
 
   const locales = Object.fromEntries(
-    localeSources.map((source, index) => [ ["en", "hi", "mr"][index], JSON.parse(source) ]),
+    localeSources.map((source, index) => [["en", "hi", "mr"][index], JSON.parse(source)]),
   );
   for (const path of [
     "today.refreshing",
@@ -857,8 +875,8 @@ test("auth entry flows use native phone spacing and tactile feedback", async () 
   assert.match(authSource, /triggerHaptic\("warning"\)/);
   assert.match(authSource, /triggerHaptic\("success"\)/);
   assert.match(authSource, /triggerHaptic\("error"\)/);
-  assert.match(authSource, /lg:rounded-lg/);
-  assert.match(authSource, /env\(safe-area-inset-bottom\)/);
+  assert.match(authSource, /<OnboardingShell[\s\S]*footer=\{/);
+  assert.match(authSource, /var\(--as-safe-top\)/);
   assert.match(resetSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
   assert.match(resetSource, /triggerHaptic\("warning"\)/);
   assert.match(resetSource, /triggerHaptic\("success"\)/);
@@ -877,7 +895,7 @@ test("birth onboarding keeps its final action reachable and recovers from save f
   assert.match(routeSource, /triggerHaptic\("warning"\)/);
   assert.match(routeSource, /triggerHaptic\("success"\)/);
   assert.match(routeSource, /triggerHaptic\("error"\)/);
-  assert.match(routeSource, /sticky bottom-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
+  assert.match(routeSource, /<OnboardingShell[\s\S]*footer=\{/);
   assert.match(routeSource, /try \{[\s\S]*saveBirthProfile[\s\S]*\} catch \{/);
   assert.match(formSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
   assert.match(formSource, /triggerHaptic\("selection"\)/);
@@ -890,26 +908,36 @@ test("language selection uses a native mobile transition and preserves tactile e
   ]);
 
   assert.match(landingSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
-  assert.match(landingSource, /to="\/language" onClick=\{\(\) => void triggerHaptic\("selection"\)\}/);
+  assert.match(
+    landingSource,
+    /to="\/language" onClick=\{\(\) => void triggerHaptic\("selection"\)\}/,
+  );
   assert.match(landingSource, /to="\/auth"[\s\S]*triggerHaptic\("selection"\)/);
   assert.match(languageSource, /import \{ triggerHaptic \} from "@\/lib\/native-device"/);
   assert.match(languageSource, /triggerHaptic\("selection"\)/);
-  assert.match(languageSource, /lg:rounded-lg/);
-  assert.match(languageSource, /env\(safe-area-inset-bottom\)/);
+  assert.match(languageSource, /<OnboardingShell[\s\S]*footer=\{/);
+  assert.match(languageSource, /var\(--as-safe-top\)/);
   assert.doesNotMatch(languageSource, /blur-3xl/);
 });
 
 test("Today detail screens share native back controls and compact reading surfaces", async () => {
-  const [backSource, horoscopeRoute, panchangRoute, marketsRoute, horoscopeSource, panchangSource, marketSource] =
-    await Promise.all([
-      readProjectFile("src/components/TodayBackButton.tsx"),
-      readProjectFile("src/routes/today.horoscope.tsx"),
-      readProjectFile("src/routes/today.panchang.tsx"),
-      readProjectFile("src/routes/today.markets.tsx"),
-      readProjectFile("src/components/DailyHoroscopeSection.tsx"),
-      readProjectFile("src/components/PanchangSection.tsx"),
-      readProjectFile("src/components/MarketOutlookSection.tsx"),
-    ]);
+  const [
+    backSource,
+    horoscopeRoute,
+    panchangRoute,
+    marketsRoute,
+    horoscopeSource,
+    panchangSource,
+    marketSource,
+  ] = await Promise.all([
+    readProjectFile("src/components/TodayBackButton.tsx"),
+    readProjectFile("src/routes/today.horoscope.tsx"),
+    readProjectFile("src/routes/today.panchang.tsx"),
+    readProjectFile("src/routes/today.markets.tsx"),
+    readProjectFile("src/components/DailyHoroscopeSection.tsx"),
+    readProjectFile("src/components/PanchangSection.tsx"),
+    readProjectFile("src/components/MarketOutlookSection.tsx"),
+  ]);
 
   assert.match(backSource, /to="\/today"/);
   assert.match(backSource, /triggerHaptic\("selection"\)/);
@@ -960,16 +988,22 @@ test("Cosmos chart style selector keeps desktop select and adds a mobile sheet",
   assert.match(routeSource, /setOpen\(false\)/);
 });
 
-test("Cosmos primary sections use a native mobile picker with tactile transitions", async () => {
+test("Cosmos primary sections use native chip tabs with tactile transitions", async () => {
   const routeSource = await readProjectFile("src/routes/home.tsx");
 
   assert.match(routeSource, /function Tabs/);
-  assert.match(routeSource, /<Drawer open=\{open\} onOpenChange=\{setOpen\}>/);
-  assert.match(routeSource, /role="listbox" aria-label=\{t\("home\.title"\)\}/);
-  assert.match(routeSource, /role="option"/);
-  assert.match(routeSource, /setOpen\(false\)/);
-  assert.match(routeSource, /const setTab = \(k: TabKey\) => \{[\s\S]*triggerHaptic\("selection"\)/);
-  assert.match(routeSource, /to="\/life"[\s\S]*onClick=\{\(\) => void triggerHaptic\("selection"\)\}/);
+  assert.match(routeSource, /role="tablist"\s+aria-label=\{t\("home\.title"\)\}/);
+  assert.match(routeSource, /role="tab"/);
+  assert.match(routeSource, /tabIndex=\{active \? 0 : -1\}/);
+  assert.match(routeSource, /e\.key === "ArrowRight" \|\| e\.key === "ArrowLeft"/);
+  assert.match(
+    routeSource,
+    /const setTab = \(k: TabKey\) => \{[\s\S]*triggerHaptic\("selection"\)/,
+  );
+  assert.match(
+    routeSource,
+    /to="\/life"[\s\S]*onClick=\{\(\) => void triggerHaptic\("selection"\)\}/,
+  );
 });
 
 test("person chart Varga selector uses the same native mobile sheet", async () => {
@@ -988,7 +1022,7 @@ test("Today daily signal keeps compact mobile space for recovery states", async 
 
   assert.match(source, /compactMobileState/);
   assert.match(source, /query\.isError \|\| data\?\.incomplete \|\| !signal/);
-  assert.match(source, /compactMobileState \? "min-h-0 py-4" : "min-h-\[14rem\] py-5"/);
+  assert.match(source, /compactMobileState \? "py-4" : "pb-4 pt-\[1\.125rem\] sm:py-7"/);
   assert.match(source, /todayOverview\.ask/);
 });
 
@@ -1004,9 +1038,9 @@ test("Today daily signal keeps native sharing and clipboard fallback", async () 
 test("Today timing recovery states stay compact and actionable", async () => {
   const source = await readProjectFile("src/components/TodaySection.tsx");
 
-  assert.match(source, /flex flex-wrap items-center justify-between gap-3 rounded-xl/);
+  assert.match(source, /flex flex-wrap items-center justify-between gap-3 rounded-\[0\.875rem\]/);
   assert.match(source, /sections\.today\.loadError/);
-  assert.match(source, /border-dashed border-border bg-background\/60/);
+  assert.match(source, /border border-dashed border-border px-4 py-3/);
   assert.match(source, /sections\.today\.empty/);
 });
 
@@ -1020,7 +1054,10 @@ test("Today secondary modules keep compact recovery rows and native Ask feedback
   ]);
 
   assert.match(panchang, /const unavailable = !isLoading/);
-  assert.match(panchang, /border-dashed border-border bg-background\/60/);
+  assert.match(
+    panchang,
+    /unavailable\s*\? "text-\[0\.9375rem\] leading-snug text-muted-foreground"/,
+  );
   assert.match(barometer, /const unavailable = !loading/);
   assert.match(barometer, /to="\/today\/markets"/);
   assert.match(glance, /triggerHaptic\("selection"\)/);
@@ -1244,8 +1281,9 @@ test("compatibility overview keeps the selected pair and leads with returned rel
   assert.match(routeSource, /BENEFIC_PLANETS\.has\(match\[1\]\)/);
   assert.match(routeSource, /CONVERSATION_PLANETS\.has\(match\[1\]\)/);
   assert.ok(
-    routeSource.indexOf("<CompatibilityOverview bundle={bundle} partnerName={partnerName} onAsk={askAboutCompatibility} />") <
-      routeSource.indexOf("<GunaMilanCard bundle={bundle} />"),
+    routeSource.indexOf(
+      "<CompatibilityOverview bundle={bundle} partnerName={partnerName} onAsk={askAboutCompatibility} />",
+    ) < routeSource.indexOf("<GunaMilanCard bundle={bundle} />"),
     "relationship patterns must precede the named traditional score",
   );
 
@@ -1348,7 +1386,10 @@ test("compatibility readings support native sharing and a contextual Ask handoff
   assert.match(routeSource, /subjectRelatedChartId: id/);
   assert.match(routeSource, /triggerHaptic\("success"\)/);
   assert.match(nativeSource, /clipboard\.writeText/);
-  assert.match(nativeSource, /A denied clipboard permission should never interrupt the current reading/);
+  assert.match(
+    nativeSource,
+    /A denied clipboard permission should never interrupt the current reading/,
+  );
 
   const locales = Object.fromEntries(
     localeSources.map((source, index) => [["en", "hi", "mr"][index], JSON.parse(source)]),
@@ -1445,7 +1486,7 @@ test("settings subpages share one native back header", async () => {
   ]);
 
   assert.match(primitivesSource, /export function SettingsBackHeader/);
-  assert.match(primitivesSource, /h-11 w-11/);
+  assert.match(primitivesSource, /inline-flex h-11 items-center/);
   for (const source of subpageSources) {
     assert.match(source, /SettingsBackHeader/);
     assert.doesNotMatch(source, /ArrowLeft/);
@@ -1815,4 +1856,52 @@ test("memory settings disclose lifecycle boundaries without changing privacy con
     atPath(locales.en, "settings.memory.deleteAllBody1"),
     /preferences aren't affected/i,
   );
+});
+
+test("astro artwork maps every rashi and graha to a shipped file", async () => {
+  assert.equal(SIGN_ART.length, 12);
+  assert.equal(signArtByIndex(0), "aries");
+  assert.equal(signArtByIndex(1), "taurus");
+  assert.equal(signArtByIndex(11), "pisces");
+  assert.equal(signArtByIndex(12), "aries");
+  assert.equal(signArtByIndex(null), null);
+  assert.equal(signArtByIndex(1.5), null);
+  assert.deepEqual([...GRAHA_ART], PLANETS);
+  assert.equal(grahaArtByName("Jupiter"), "jupiter");
+  assert.equal(grahaArtByName(" RAHU "), "rahu");
+  assert.equal(grahaArtByName("Ascendant"), null);
+  for (const [kind, names] of [
+    ["sign", SIGN_ART],
+    ["graha", GRAHA_ART],
+  ]) {
+    for (const name of names) {
+      for (const px of [256, 512]) {
+        const src = astroArtSrc(kind, name, px);
+        const bytes = await readFile(new URL(`public${src}`, ROOT));
+        assert.equal(bytes.subarray(8, 12).toString("ascii"), "WEBP", src);
+      }
+    }
+  }
+});
+
+test("shell platform follows Capacitor first, then the browser user agent", () => {
+  const root = globalThis;
+  const originalNavigator = Object.getOwnPropertyDescriptor(root, "navigator");
+  const setAgent = (userAgent) =>
+    Object.defineProperty(root, "navigator", { configurable: true, value: { userAgent } });
+  try {
+    setAgent("Mozilla/5.0 (Linux; Android 15; Pixel 9) Chrome/141");
+    assert.equal(getAppPlatform(), "android");
+    setAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) Safari/604.1");
+    assert.equal(getAppPlatform(), "web");
+    root.Capacitor = { getPlatform: () => "ios" };
+    setAgent("Mozilla/5.0 (Linux; Android 15)");
+    assert.equal(getAppPlatform(), "ios");
+    root.Capacitor = { getPlatform: () => "web" };
+    assert.equal(getAppPlatform(), "android");
+  } finally {
+    delete root.Capacitor;
+    if (originalNavigator) Object.defineProperty(root, "navigator", originalNavigator);
+    else delete root.navigator;
+  }
 });

@@ -105,14 +105,14 @@ function Body({ data }: { data: LoShuData }) {
     <div className="space-y-4">
       <nav
         aria-label={t("sections.loshu.jumpNavLabel")}
-        className="sticky top-0 z-10 -mx-1 flex gap-2 overflow-x-auto bg-card/95 px-1 py-2 backdrop-blur [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto bg-background/90 px-4 py-2 backdrop-blur [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] [scrollbar-width:none] [-ms-overflow-style:none] sm:mx-0 sm:px-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden"
       >
         {jumpNavItems.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => jumpTo(item.key)}
-            className="tap-press inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-border/80 bg-card/60 px-3.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-foreground/[0.14] px-3.5 text-[0.8125rem] font-semibold text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {item.label}
           </button>
@@ -194,10 +194,10 @@ function Body({ data }: { data: LoShuData }) {
         >
           <ul className="flex flex-col gap-2">
             {data.repeated_details!.map((r) => (
-              <li key={r.number} className="rounded-lg border border-border bg-background p-3">
+              <li key={r.number} className="rounded-[0.875rem] bg-foreground/[0.04] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-card text-sm font-semibold text-glow-gold"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-glow-gold/10 text-sm font-semibold text-glow-gold"
                     style={{ fontVariantNumeric: "tabular-nums" }}
                   >
                     {r.number}
@@ -208,7 +208,7 @@ function Body({ data }: { data: LoShuData }) {
                   >
                     {r.digits} ({r.count}x)
                   </span>
-                  <span className="rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-wider text-glow-violet border-glow-violet/[33%] bg-glow-violet/10">
+                  <span className="rounded-full bg-glow-violet/10 px-2 py-0.5 text-[0.6875rem] font-medium text-glow-violet">
                     {r.level}
                   </span>
                 </div>
@@ -235,10 +235,10 @@ function Body({ data }: { data: LoShuData }) {
               const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive-strong";
               const pillTone =
                 tone === "gold"
-                  ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
-                  : "text-destructive-strong border-destructive/[33%] bg-destructive/10";
+                  ? "text-glow-gold bg-glow-gold/10"
+                  : "text-destructive-strong bg-destructive/10";
               return (
-                <li key={i} className="rounded-lg border border-border bg-background p-3">
+                <li key={i} className="rounded-[0.875rem] bg-foreground/[0.04] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className={"text-sm font-semibold " + textTone}>{a.name}</p>
@@ -247,7 +247,7 @@ function Body({ data }: { data: LoShuData }) {
                       </p>
                     </div>
                     <span
-                      className={"rounded-md border px-2 py-1 text-xs font-medium " + pillTone}
+                      className={"rounded-full px-2 py-1 text-xs font-medium " + pillTone}
                       style={{ fontVariantNumeric: "tabular-nums" }}
                     >
                       {a.numbers.join("-")}
@@ -318,11 +318,11 @@ function KuaCard({ kua }: { kua?: LoShuKua }) {
       <p className="text-xs text-muted-foreground">{t("sections.loshu.kuaSubtitle")}</p>
 
       {!ready ? (
-        <div className="mt-4 flex flex-col items-start gap-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-5">
+        <div className="mt-3 flex flex-col items-start gap-3 rounded-[0.875rem] bg-foreground/[0.04] p-4">
           <p className="text-sm text-foreground">{t("sections.loshu.kuaUnlockPrompt")}</p>
           <Link
             to="/onboarding/birth"
-            className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            className="tap-press inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("sections.loshu.completeProfile")}
           </Link>
@@ -346,7 +346,7 @@ function KuaBody({ kua }: { kua: Extract<LoShuKua, { available: true }> }) {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <div
-          className="flex h-12 w-12 items-center justify-center rounded-full border text-glow-gold border-glow-gold/[40%] bg-glow-gold/10"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-glow-gold/10 text-glow-gold"
           aria-label={`Kua number ${kua.number}`}
         >
           <span
@@ -356,10 +356,10 @@ function KuaBody({ kua }: { kua: Extract<LoShuKua, { available: true }> }) {
             {kua.number}
           </span>
         </div>
-        <span className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium text-glow-gold border-glow-gold/[33%] bg-glow-gold/10">
+        <span className="inline-flex items-center gap-1 rounded-full bg-glow-gold/10 px-3 py-1 text-xs font-medium text-glow-gold">
           {t("sections.loshu.kuaGroup", { group: kua.group })}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium text-glow-violet border-glow-violet/[33%] bg-glow-violet/10">
+        <span className="inline-flex items-center gap-1 rounded-full bg-glow-violet/10 px-3 py-1 text-xs font-medium text-glow-violet">
           {kua.element}
         </span>
       </div>
@@ -376,7 +376,7 @@ function KuaBody({ kua }: { kua: Extract<LoShuKua, { available: true }> }) {
               <div
                 key="C"
                 role="gridcell"
-                className="flex aspect-square min-h-[44px] flex-col items-center justify-center rounded-xl border border-border bg-card"
+                className="flex aspect-square min-h-[44px] flex-col items-center justify-center rounded-[0.875rem] bg-foreground/[0.05]"
               >
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Kua
@@ -395,8 +395,8 @@ function KuaBody({ kua }: { kua: Extract<LoShuKua, { available: true }> }) {
           const isFav = !!fav;
           const textTone = isFav ? "text-glow-gold" : "text-destructive-strong";
           const pillTone = isFav
-            ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
-            : "text-destructive-strong border-destructive/[33%] bg-destructive/10";
+            ? "text-glow-gold bg-glow-gold/10"
+            : "text-destructive-strong bg-destructive/10";
           const label = fav?.name ?? unfav?.name ?? "";
           return (
             <div
@@ -405,7 +405,7 @@ function KuaBody({ kua }: { kua: Extract<LoShuKua, { available: true }> }) {
               title={fav?.theme ?? unfav?.theme ?? ""}
               aria-label={`${dir} ${isFav ? "favourable" : "unfavourable"}: ${label}`}
               className={
-                "flex aspect-square min-h-[44px] flex-col items-center justify-center gap-1 rounded-xl border px-1 text-center " +
+                "flex aspect-square min-h-[44px] flex-col items-center justify-center gap-1 rounded-[0.875rem] px-1 text-center " +
                 pillTone
               }
             >
@@ -449,12 +449,12 @@ function DirList({
   const textTone = tone === "gold" ? "text-glow-gold" : "text-destructive-strong";
   const badgeTone =
     tone === "gold"
-      ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
-      : "text-destructive-strong border-destructive/[33%] bg-destructive/10";
+      ? "text-glow-gold bg-glow-gold/10"
+      : "text-destructive-strong bg-destructive/10";
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="rounded-[0.875rem] bg-foreground/[0.04] p-3">
       <h4 className={"text-sm font-semibold " + textTone}>{title}</h4>
-      <ul className="mt-2 divide-y divide-border/60">
+      <ul className="mt-2 divide-y divide-[color:var(--as-list-separator)]">
         {items.map((d) => (
           <li
             key={d.direction + d.name}
@@ -462,7 +462,7 @@ function DirList({
           >
             <span
               className={
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-xs font-semibold " +
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold " +
                 badgeTone
               }
               style={{ fontVariantNumeric: "tabular-nums" }}
@@ -493,8 +493,8 @@ function GridCell({ cell, revealIndex }: { cell: LoShuCell; revealIndex: number 
       aria-label={`${cell.number}: ${cell.meaning}${filled ? ` (x${cell.count})` : " — empty"}`}
       style={{ animationDelay: `${revealIndex * 60}ms` }}
       className={
-        "as-loshu-grid-cell group relative flex aspect-square w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 " +
-        (filled ? "border-border bg-background" : "border-dashed border-border/60 bg-muted/20")
+        "as-loshu-grid-cell group relative flex aspect-square w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-[0.875rem] border px-1 " +
+        (filled ? "border-transparent bg-accent/[0.12]" : "border-dashed border-foreground/15")
       }
     >
       <span
@@ -546,9 +546,9 @@ function RemedyCard({ remedy }: { remedy: LoShuMissingRemedy }) {
     { label: t("sections.loshu.practice"), value: remedy.practice },
   ].filter((r) => !!r.value);
   return (
-    <li className="rounded-xl border border-border bg-background p-4">
+    <li className="rounded-[1.25rem] bg-foreground/[0.04] p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-glow-violet border-glow-violet/[33%] bg-glow-violet/10">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-glow-violet/10 text-glow-violet">
           <span
             className="text-lg font-semibold leading-none"
             style={{ fontVariantNumeric: "tabular-nums" }}
@@ -571,7 +571,7 @@ function RemedyCard({ remedy }: { remedy: LoShuMissingRemedy }) {
         </div>
       </div>
       {rows.length > 0 && (
-        <dl className="mt-4 grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2 border-t border-border/60 pt-3 text-sm">
+        <dl className="mt-4 grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2 border-t border-[color:var(--as-list-separator)] pt-3 text-sm">
           {rows.map((r) => (
             <Fragment key={r.label}>
               <dt className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -588,14 +588,11 @@ function RemedyCard({ remedy }: { remedy: LoShuMissingRemedy }) {
 
 function Chip({ label, value, tone }: { label: string; value: number; tone: "gold" | "lavender" }) {
   const pillTone =
-    tone === "gold"
-      ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
-      : "text-glow-violet border-glow-violet/[33%] bg-glow-violet/10";
+    tone === "gold" ? "text-glow-gold bg-glow-gold/10" : "text-glow-violet bg-glow-violet/10";
   return (
     <span
       className={
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium " +
-        pillTone
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium " + pillTone
       }
     >
       {label}: <span style={{ fontVariantNumeric: "tabular-nums" }}>{value}</span>
@@ -615,21 +612,16 @@ function NumberList({
   emptyText: string;
 }) {
   const pillTone =
-    tone === "present"
-      ? "text-glow-gold border-glow-gold/[33%] bg-glow-gold/10"
-      : "text-glow-violet border-glow-violet/[33%] bg-glow-violet/10";
+    tone === "present" ? "text-glow-gold bg-glow-gold/10" : "text-glow-violet bg-glow-violet/10";
   return !numbers || numbers.length === 0 ? (
     <p className="text-sm text-muted-foreground">{emptyText}</p>
   ) : (
     <ul className="flex flex-col gap-2">
       {numbers.map((n) => (
-        <li
-          key={n}
-          className="flex items-start gap-3 rounded-lg border border-border/60 bg-card p-3"
-        >
+        <li key={n} className="flex items-start gap-3 rounded-[0.875rem] bg-foreground/[0.04] p-3">
           <div
             className={
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border " + pillTone
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-full " + pillTone
             }
           >
             <span
@@ -651,22 +643,17 @@ function NumberList({
 // ---------------------------------------------------------------- shell
 
 function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="rounded-2xl border border-border bg-card p-5"
-      style={{ boxShadow: "var(--shadow-soft)" }}
-    >
-      {children}
-    </div>
-  );
+  return <div>{children}</div>;
 }
 
 function Header() {
   const { t } = useTranslation();
   return (
-    <div>
-      <h2 className="text-base font-semibold text-foreground">{t("sections.loshu.title")}</h2>
-      <p className="mt-1 text-xs text-muted-foreground">{t("sections.loshu.subtitle")}</p>
+    <div className="px-1">
+      <h2 className="text-xl font-semibold tracking-tight text-foreground">
+        {t("sections.loshu.title")}
+      </h2>
+      <p className="mt-0.5 text-xs text-muted-foreground">{t("sections.loshu.subtitle")}</p>
     </div>
   );
 }
@@ -677,13 +664,16 @@ function LoadingBody() {
       <div className="flex justify-center">
         <div className="grid w-full max-w-xs grid-cols-3 gap-2 sm:gap-3">
           {Array.from({ length: 9 }).map((_, i) => (
-            <div key={i} className="aspect-square w-full animate-pulse rounded-xl bg-muted" />
+            <div
+              key={i}
+              className="aspect-square w-full animate-pulse rounded-[0.875rem] bg-muted"
+            />
           ))}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="animate-pulse rounded-xl border border-border bg-background p-4">
+          <div key={i} className="animate-pulse rounded-[1.25rem] bg-card p-4">
             <div className="h-4 w-32 rounded bg-muted" />
             <div className="mt-4 space-y-2">
               {Array.from({ length: 3 }).map((_, j) => (
@@ -710,7 +700,7 @@ function ErrorBody({
   return (
     <div
       role="alert"
-      className="mt-6 flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"
+      className="mt-4 flex flex-col items-start gap-2 rounded-[0.875rem] bg-destructive/[0.08] p-4"
     >
       <div className="flex items-center gap-2 text-destructive-strong">
         <AlertTriangle size={18} aria-hidden="true" />
@@ -723,7 +713,7 @@ function ErrorBody({
         {missing && (
           <Link
             to="/onboarding/birth"
-            className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            className="tap-press inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("sections.loshu.completeBirthProfile")}
           </Link>
@@ -731,7 +721,7 @@ function ErrorBody({
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+          className="tap-press inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <RefreshCw size={14} aria-hidden="true" />
           {t("sections.dasha.retry")}
@@ -743,8 +733,8 @@ function ErrorBody({
 
 function EmptyBody({ t }: { t: (k: string) => string }) {
   return (
-    <div className="mt-6 flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/70 bg-muted/30 p-8 text-center">
-      <Sparkles size={22} aria-hidden="true" className="text-primary" />
+    <div className="mt-4 flex flex-col items-center gap-2.5 rounded-[1.25rem] bg-card p-7 text-center shadow-[var(--as-elevation-1)]">
+      <Sparkles size={22} aria-hidden="true" className="text-accent" />
       <p className="text-sm font-medium text-foreground">{t("states.empty")}</p>
     </div>
   );

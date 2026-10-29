@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
@@ -8,15 +8,9 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  Clock,
-  Compass,
-  Flame,
-  Grid,
-  Grid3x3,
-  Hash,
   LayoutGrid,
+  MessageCircle,
   Orbit,
-  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
@@ -32,6 +26,8 @@ import {
 } from "@/components/ui/drawer";
 import { ExpandableSection } from "@/components/ExpandableSection";
 import { ChartFrame } from "@/components/chart/ChartFrame";
+import { AstroArt } from "@/components/AstroArt";
+import { grahaArtByName } from "@/lib/astro-art";
 
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
 import {
@@ -178,10 +174,10 @@ function HomePage() {
   return (
     <section className="space-y-6">
       <header>
-        <p className="text-sm text-muted-foreground">{t("home.greeting", { name })}</p>
-        <h1 className="mt-1 font-display text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
-          {t("home.title")}
-        </h1>
+        <p className="text-[0.8125rem] font-semibold tracking-[0.04em] text-muted-foreground">
+          {t("home.greeting", { name })}
+        </p>
+        <h1 className="large-title mt-0.5 text-foreground">{t("home.title")}</h1>
       </header>
 
       {isProfileIncomplete && <IncompleteProfileHeroCard />}
@@ -205,7 +201,7 @@ function HomePage() {
         <Link
           to="/life"
           onClick={() => void triggerHaptic("selection")}
-          className="tap-press flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+          className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <CalendarClock size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{t("life.entryLabel")}</span>
@@ -215,7 +211,7 @@ function HomePage() {
         <Link
           to="/nudges"
           onClick={() => void triggerHaptic("selection")}
-          className="tap-press flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+          className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <Bell size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{t("nudges.entryLabel")}</span>
@@ -233,7 +229,7 @@ function HomePage() {
         <Link
           to="/journal"
           onClick={() => void triggerHaptic("selection")}
-          className="tap-press col-span-2 flex min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
+          className="tap-press col-span-2 flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <BookHeart size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{t("journal.entryLabel")}</span>
@@ -272,125 +268,59 @@ function IncompleteProfileHeroCard() {
   );
 }
 
-const TAB_CONFIG: {
-  key: TabKey;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}[] = [
-  { key: "overview", icon: Sparkles },
-  { key: "charts", icon: Compass },
-  { key: "details", icon: Clock },
-  { key: "doshas", icon: ShieldAlert },
-  { key: "remedies", icon: Flame },
-  { key: "ashtakavarga", icon: Grid3x3 },
-  { key: "numerology", icon: Hash },
-  { key: "loshu", icon: Grid },
-];
-
 function Tabs({ current, onChange }: { current: TabKey; onChange: (k: TabKey) => void }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const currentConfig = TAB_CONFIG.find(({ key }) => key === current) ?? TAB_CONFIG[0];
-  const CurrentIcon = currentConfig.icon;
-  return (
-    <>
-      <div className="sm:hidden">
-        <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerTrigger asChild>
-            <button
-              type="button"
-              aria-label={t("home.title")}
-              className="tap-press flex h-12 w-full items-center justify-between gap-3 rounded-lg border border-primary/25 bg-card/85 px-4 text-left text-sm font-semibold text-foreground shadow-[var(--shadow-soft)] backdrop-blur focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="flex min-w-0 items-center gap-2.5">
-                <CurrentIcon size={17} aria-hidden="true" className="shrink-0 text-primary" />
-                <span className="truncate">{t(`home.tabs.${current}`)}</span>
-              </span>
-              <ChevronDown size={18} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-            </button>
-          </DrawerTrigger>
-          <DrawerContent aria-label={t("home.title")} className="bg-card">
-            <DrawerHeader className="px-5 pb-4 pt-5 text-left">
-              <DrawerTitle className="font-display text-xl">{t("home.title")}</DrawerTitle>
-            </DrawerHeader>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
-              <div role="listbox" aria-label={t("home.title")} className="space-y-2">
-                {TAB_CONFIG.map(({ key, icon: Icon }) => {
-                  const selected = current === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      role="option"
-                      aria-selected={selected}
-                      onClick={() => {
-                        onChange(key);
-                        setOpen(false);
-                      }}
-                      className={
-                        "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                        (selected
-                          ? "border-primary/45 bg-primary/10 text-foreground"
-                          : "border-border bg-background text-muted-foreground hover:text-foreground")
-                      }
-                    >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <Icon size={17} aria-hidden="true" className="shrink-0 text-accent" />
-                        <span className="truncate">{t(`home.tabs.${key}`)}</span>
-                      </span>
-                      {selected && <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </DrawerContent>
-        </Drawer>
-      </div>
+  const listRef = useRef<HTMLDivElement>(null);
 
-      <div
-        role="tablist"
-        aria-label={t("home.title")}
-        className="hidden gap-2 overflow-x-auto pb-1.5 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] sm:flex [&::-webkit-scrollbar]:hidden"
-      >
-        {TAB_CONFIG.map(({ key: k, icon: Icon }) => {
-          const active = current === k;
-          return (
-            <button
-              key={k}
-              role="tab"
-              aria-selected={active}
-              tabIndex={active ? 0 : -1}
-              onClick={() => onChange(k)}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-                  e.preventDefault();
-                  const keys = TAB_CONFIG.map((c) => c.key);
-                  const i = keys.indexOf(current);
-                  const next =
-                    e.key === "ArrowRight"
-                      ? keys[(i + 1) % keys.length]
-                      : keys[(i - 1 + keys.length) % keys.length];
-                  onChange(next);
-                }
-              }}
-              className={
-                "tap-press inline-flex items-center gap-2 rounded-full border px-4 min-h-[44px] whitespace-nowrap text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                (active
-                  ? "border-primary/60 bg-primary/10 text-primary shadow-sm"
-                  : "border-border/80 bg-card/60 text-muted-foreground hover:bg-card hover:text-foreground")
+  // Keep the active chip in view horizontally only, so the page never jumps.
+  useEffect(() => {
+    const list = listRef.current;
+    const active = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !active) return;
+    const left = active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollTo({ left: Math.max(0, left), behavior: reduce ? "auto" : "smooth" });
+  }, [current]);
+
+  return (
+    <div
+      ref={listRef}
+      role="tablist"
+      aria-label={t("home.title")}
+      className="-mx-4 flex gap-2 overflow-x-auto scroll-smooth px-4 py-0.5 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] [scrollbar-width:none] [-ms-overflow-style:none] sm:mx-0 sm:px-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {TAB_KEYS.map((k) => {
+        const active = current === k;
+        return (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={active}
+            tabIndex={active ? 0 : -1}
+            onClick={() => onChange(k)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                e.preventDefault();
+                const i = TAB_KEYS.indexOf(current);
+                const next =
+                  e.key === "ArrowRight"
+                    ? TAB_KEYS[(i + 1) % TAB_KEYS.length]
+                    : TAB_KEYS[(i - 1 + TAB_KEYS.length) % TAB_KEYS.length];
+                onChange(next);
               }
-            >
-              <Icon
-                size={16}
-                aria-hidden="true"
-                className={active ? "text-primary" : "text-muted-foreground"}
-              />
-              <span>{t(`home.tabs.${k}`)}</span>
-            </button>
-          );
-        })}
-      </div>
-    </>
+            }}
+            className={
+              "tap-press inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              (active
+                ? "border-accent/60 bg-accent/10 text-accent"
+                : "border-foreground/[0.14] text-muted-foreground hover:text-foreground")
+            }
+          >
+            {t(`home.tabs.${k}`)}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -540,35 +470,32 @@ function ChartsTab() {
 
   return (
     <div className="space-y-6">
-      <VargaExplorer current={varga} onSelect={selectVarga} />
-
-      <Card>
-        <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15">
-              <Compass size={15} className="text-accent" aria-hidden="true" />
-            </span>
-            <h2 className="text-base font-semibold text-foreground">{t("home.chartTitle")}</h2>
-          </div>
-          <div className="w-full min-w-0 sm:w-auto">
-            <ChartStylePicker current={style} onSelect={selectChartStyle} />
-          </div>
+      <section
+        aria-labelledby="kundli-chart-heading"
+        className="rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)] sm:p-5"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="kundli-chart-heading" className="text-[1.0625rem] font-semibold text-foreground">
+            {t("home.chartTitle")}
+          </h2>
+          <ChartStylePicker current={style} onSelect={selectChartStyle} />
         </div>
+        <VargaControls current={varga} onSelect={selectVarga} />
         <div
           role="region"
           aria-live="polite"
           aria-label={t(`home.varga.${varga.toLowerCase()}`)}
-          className="relative w-full"
+          className="relative mt-3.5 w-full"
         >
           {loading && <ChartSkeleton />}
           {!loading && errorMessageKey && (
-            <div className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <div className="flex flex-col items-start gap-3 rounded-xl bg-destructive/[0.08] p-4">
               <p className="text-sm text-foreground">{t(errorMessageKey)}</p>
               <div className="flex flex-wrap items-center gap-2">
                 {errorCode === "birth_profile_incomplete" && (
                   <Link
                     to="/onboarding/birth"
-                    className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                    className="tap-press inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {t("home.chartErrors.finishBirth")}
                   </Link>
@@ -576,7 +503,7 @@ function ChartsTab() {
                 <button
                   type="button"
                   onClick={onRetry}
-                  className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                  className="tap-press inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {t("states.retry")}
                 </button>
@@ -623,7 +550,12 @@ function ChartsTab() {
             </ChartFrame>
           )}
         </div>
-      </Card>
+        <p className="mt-2.5 px-0.5 text-xs leading-relaxed text-muted-foreground">
+          {t("home.vargaExplorer.current", {
+            chart: t(`home.varga.${varga.toLowerCase()}`),
+          })}
+        </p>
+      </section>
 
       <ChartSelectionLayer
         houses={displayHouses}
@@ -662,113 +594,95 @@ function ChartsTab() {
           <p className="text-sm text-muted-foreground">{t("home.noPlanetData")}</p>
         )}
         {!tablesLoading && !tablesErrorKey && displayPlanets.length > 0 && (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="list-hairline -mx-5 -mb-1 [--list-inset:4.5rem]">
             {displayPlanets.map((p) => {
               const statesExcludeRetro = p.states.filter((s) => s !== "Retrograde");
+              const art = grahaArtByName(p.key);
+              const sign = p.signKey ? t(`signs.${p.signKey}`) : p.signName || "—";
+              const signLord = p.signLordKey
+                ? t(`home.planets.${p.signLordKey}`)
+                : p.signLordName || "—";
+              const nakLord = p.nakshatraLordKey
+                ? t(`home.planets.${p.nakshatraLordKey}`)
+                : p.nakshatraLordName || "—";
               return (
-                <li
-                  key={p.key}
-                  className="rounded-xl border border-border bg-background p-4 transition-colors hover:border-accent/30"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">
-                        {t(`home.planets.${p.key}`)}
+                <li key={p.key} className="flex gap-3.5 px-5 py-3.5">
+                  {art ? (
+                    <AstroArt kind="graha" name={art} size={40} />
+                  ) : (
+                    <span className="h-10 w-10 shrink-0" aria-hidden="true" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="text-[1.0625rem] font-semibold text-foreground">
+                          {t(`home.planets.${p.key}`)}
+                        </span>
+                        {p.degInSign != null && (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {formatDeg(p.degInSign)}
+                          </span>
+                        )}
+                        {p.retrograde && (
+                          <span
+                            aria-label={t("home.motionRetro")}
+                            className="inline-flex items-center rounded-md bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
+                          >
+                            {t("home.retroShort")}
+                          </span>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-sm text-muted-foreground">
+                        {p.house != null ? t("home.houseLabel", { n: p.house }) : "—"}
                       </span>
-                      {p.degInSign != null && (
-                        <span className="text-xs text-muted-foreground">
-                          {formatDeg(p.degInSign)}
-                        </span>
-                      )}
-                      {p.retrograde && (
-                        <span
-                          aria-label={t("home.motionRetro")}
-                          className="inline-flex items-center rounded-md border border-accent/40 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent"
-                        >
-                          {t("home.retroShort")}
-                        </span>
-                      )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {p.house != null ? t("home.houseLabel", { n: p.house }) : "—"}
-                    </span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {t("home.colSign")}
-                      </div>
-                      <div className="text-foreground">
-                        {p.signKey ? t(`signs.${p.signKey}`) : p.signName || "—"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {t("home.colSignLord")}
-                      </div>
-                      <div className="text-foreground">
-                        {p.signLordKey ? t(`home.planets.${p.signLordKey}`) : p.signLordName || "—"}
-                      </div>
-                    </div>
-                    {!isDivisional && (
-                      <>
-                        <div>
-                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colNakshatra")}
-                          </div>
-                          <div className="text-foreground">{p.nakshatraName || "—"}</div>
-                        </div>
-                        <div>
-                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                            {t("home.colNakshatraLord")}
-                          </div>
-                          <div className="text-foreground">
-                            {p.nakshatraLordKey
-                              ? t(`home.planets.${p.nakshatraLordKey}`)
-                              : p.nakshatraLordName || "—"}
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {statesExcludeRetro.length > 0 && (
-                    <div className="mt-3">
-                      <div className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {t("home.colStates")}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
+                    <p className="mt-0.5 text-sm text-foreground">
+                      {sign}
+                      {!isDivisional && p.nakshatraName ? ` · ${p.nakshatraName}` : ""}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t("home.colSignLord")} {signLord}
+                      {!isDivisional ? ` · ${t("home.colNakshatraLord")} ${nakLord}` : ""}
+                    </p>
+                    {statesExcludeRetro.length > 0 && (
+                      <div
+                        className="mt-1.5 flex flex-wrap gap-1.5"
+                        aria-label={t("home.colStates")}
+                      >
                         {statesExcludeRetro.map((s) => (
                           <span
                             key={s}
-                            className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-foreground"
+                            className="inline-flex items-center rounded-full bg-foreground/[0.08] px-2 py-0.5 text-xs text-muted-foreground"
                           >
                             {planetStateLabel(s, t)}
                           </span>
                         ))}
                       </div>
+                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-x-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlanet((current) => (current === p.key ? null : p.key));
+                          void triggerHaptic("selection");
+                        }}
+                        aria-pressed={selectedPlanet === p.key}
+                        className="tap-press -ml-2 inline-flex min-h-11 items-center rounded-full px-2 text-[0.8125rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {t("home.chartInspector.inspect")}
+                      </button>
+                      {selectedPlanet === p.key && (
+                        <button
+                          type="button"
+                          onClick={() => handlePlanetAsk(p)}
+                          className="tap-press inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[0.8125rem] font-semibold text-[var(--as-color-action-ask)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <MessageCircle size={15} aria-hidden="true" />
+                          {t("home.chartInspector.askPlacementInline")}
+                        </button>
+                      )}
                     </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedPlanet((current) => (current === p.key ? null : p.key));
-                      void triggerHaptic("selection");
-                    }}
-                    aria-pressed={selectedPlanet === p.key}
-                    className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full border border-border bg-card px-3 text-xs font-semibold text-primary transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {t("home.chartInspector.inspect")}
-                  </button>
-                  {selectedPlanet === p.key && (
-                    <button
-                      type="button"
-                      onClick={() => handlePlanetAsk(p)}
-                      className="tap-press mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.08] px-3.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <Sparkles size={14} aria-hidden="true" />
-                      {t("home.chartInspector.askPlacementInline")}
-                    </button>
-                  )}
+                  </div>
                 </li>
               );
             })}
@@ -793,19 +707,19 @@ function ChartsTab() {
           <p className="text-sm text-muted-foreground">{t("home.noPlanetData")}</p>
         )}
         {!tablesLoading && !tablesErrorKey && displayHouses.length > 0 && (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <ul className="grid grid-cols-3 gap-2">
             {displayHouses.map((h) => (
               <li key={h.house}>
                 <Link
                   to="/chat"
                   search={{ seed: buildHouseSeed(t, debounced.varga, h) }}
                   onClick={() => void triggerHaptic("selection")}
-                  className="tap-press block h-full rounded-lg border border-border bg-background px-3 py-3 text-sm transition-colors hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="tap-press flex h-full min-h-[5.5rem] flex-col gap-0.5 rounded-[0.875rem] bg-foreground/[0.05] px-2.5 py-2.5 text-sm transition-colors hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="text-xs text-muted-foreground">
                     {t("home.houseLabel", { n: h.house })}
                   </div>
-                  <div className="font-medium text-foreground">
+                  <div className="truncate text-base font-semibold text-foreground">
                     {h.signKey ? t(`signs.${h.signKey}`) : h.signName || "—"}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -813,7 +727,7 @@ function ChartsTab() {
                     {h.lordKey ? t(`home.planets.${h.lordKey}`) : h.lordName || "—"}
                   </div>
                   {h.planetKeys.length > 0 && (
-                    <div className="mt-1 text-xs text-primary">
+                    <div className="text-xs font-semibold text-accent">
                       {h.planetKeys.map((pk) => t(`home.planets.${pk}`)).join(", ")}
                     </div>
                   )}
@@ -824,9 +738,9 @@ function ChartsTab() {
         )}
       </ExpandableSection>
 
-      <Card>
-        <div className="flex flex-col items-center text-center">
-          <h2 className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      <section className="rounded-[1.25rem] bg-card px-5 py-6 shadow-[var(--as-elevation-1)]">
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
             {t("home.nakshatraTitle")}
           </h2>
           {planetsLoading && <NakshatraSkeleton />}
@@ -842,8 +756,10 @@ function ChartsTab() {
           )}
           {!planetsLoading && !planetsErrorKey && nakName && (
             <>
-              <p className="mt-2 font-display text-2xl text-foreground">{nakName}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="font-display text-[2rem] font-semibold leading-tight text-foreground">
+                {nakName}
+              </p>
+              <p className="text-sm text-muted-foreground">
                 {(nakLordKey || nakLordName) && (
                   <>
                     {t("home.nakshatraLordLabel")}:{" "}
@@ -860,7 +776,7 @@ function ChartsTab() {
             </>
           )}
         </div>
-      </Card>
+      </section>
     </div>
   );
 }
@@ -883,20 +799,11 @@ function ChartStylePicker({
           <DrawerTrigger asChild>
             <button
               type="button"
-              aria-label={t("home.chartStyle.pickerLabel")}
-              className="tap-press flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-left text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`${t("home.chartStyle.pickerLabel")} · ${currentLabel}`}
+              className={PILL_TRIGGER}
             >
-              <span className="min-w-0">
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {t("home.chartStyle.pickerLabel")}
-                </span>
-                <span className="mt-0.5 block truncate">{currentLabel}</span>
-              </span>
-              <ChevronDown
-                size={16}
-                className="shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
+              <span className="truncate">{currentLabel}</span>
+              <ChevronDown size={15} className="shrink-0" aria-hidden="true" />
             </button>
           </DrawerTrigger>
           <DrawerContent
@@ -956,7 +863,7 @@ function ChartStylePicker({
           id="chart-style-select"
           value={current}
           onChange={(event) => onSelect(event.target.value as ChartStyle)}
-          className="h-11 w-full max-w-full truncate rounded-lg border border-border bg-background px-3 text-sm sm:w-auto"
+          className={PILL_SELECT}
         >
           {CHART_STYLES.map((chartStyle) => (
             <option key={chartStyle} value={chartStyle}>
@@ -969,7 +876,7 @@ function ChartStylePicker({
   );
 }
 
-function VargaExplorer({
+function VargaControls({
   current,
   onSelect,
 }: {
@@ -979,152 +886,110 @@ function VargaExplorer({
   const { t } = useTranslation();
   const [selectorOpen, setSelectorOpen] = useState(false);
   const quickChoices: VargaKey[] = ["D1", "D9", "D10"];
-  const currentLabel = t(`home.varga.${current.toLowerCase()}`);
 
   return (
-    <section
-      aria-labelledby="varga-explorer-heading"
-      className="rounded-[1.5rem] border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+    <div
+      role="group"
+      aria-label={t("home.vargaExplorer.title")}
+      className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 py-0.5 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 sm:[mask-image:none] [&::-webkit-scrollbar]:hidden"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {t("home.vargaExplorer.eyebrow")}
-          </p>
-          <h2
-            id="varga-explorer-heading"
-            className="mt-1 text-xl font-semibold tracking-tight text-foreground"
+      {quickChoices.map((key) => {
+        const selected = current === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onSelect(key)}
+            className={
+              "tap-press inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border px-3.5 text-[0.8125rem] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+              (selected
+                ? "border-accent/60 bg-accent/10 text-accent"
+                : "border-foreground/[0.14] text-muted-foreground hover:text-foreground")
+            }
           >
-            {t("home.vargaExplorer.title")}
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            {t("home.vargaExplorer.description")}
-          </p>
-        </div>
-        <div className="w-full shrink-0 sm:w-72">
-          <div className="sm:hidden">
-            <Drawer open={selectorOpen} onOpenChange={setSelectorOpen}>
-              <DrawerTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={t("home.varga.pickerLabel")}
-                  className="tap-press flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-left text-sm font-medium text-foreground shadow-[var(--shadow-soft)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      {t("home.varga.pickerLabel")}
-                    </span>
-                    <span className="mt-0.5 block truncate">{currentLabel}</span>
-                  </span>
-                  <ChevronDown
-                    size={16}
-                    className="shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                </button>
-              </DrawerTrigger>
-              <DrawerContent
-                aria-label={t("home.varga.pickerLabel")}
-                className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
-              >
-                <DrawerHeader className="px-5 pb-4 pt-5 text-left">
-                  <DrawerTitle className="font-display text-xl">
-                    {t("home.varga.pickerLabel")}
-                  </DrawerTitle>
-                  <DrawerDescription className="leading-relaxed">
-                    {t("home.vargaExplorer.description")}
-                  </DrawerDescription>
-                </DrawerHeader>
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
-                  <div
-                    role="listbox"
-                    aria-label={t("home.varga.pickerLabel")}
-                    className="space-y-2"
-                  >
-                    {VARGA_KEYS.map((key) => {
-                      const selected = current === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          role="option"
-                          aria-selected={selected}
-                          onClick={() => {
-                            onSelect(key);
-                            setSelectorOpen(false);
-                          }}
-                          className={
-                            "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                            (selected
-                              ? "border-primary/45 bg-primary/10 text-foreground"
-                              : "border-border bg-background text-muted-foreground hover:text-foreground")
-                          }
-                        >
-                          <span>{t(`home.varga.${key.toLowerCase()}`)}</span>
-                          {selected && (
-                            <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </DrawerContent>
-            </Drawer>
-          </div>
-          <div className="hidden sm:block">
-            <label
-              htmlFor="varga-select"
-              className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-            >
-              {t("home.varga.pickerLabel")}
-            </label>
-            <select
-              id="varga-select"
-              value={current}
-              onChange={(event) => onSelect(event.target.value as VargaKey)}
-              className="mt-1.5 h-11 w-full max-w-full truncate rounded-xl border border-border bg-background px-3 text-sm font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {VARGA_KEYS.map((key) => (
-                <option key={key} value={key}>
-                  {t(`home.varga.${key.toLowerCase()}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-        <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {t("home.vargaExplorer.quickChoices")}
-        </span>
-        {quickChoices.map((key) => {
-          const selected = current === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onSelect(key)}
-              className={
-                "tap-press inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
-                (selected
-                  ? "border-primary/50 bg-primary/10 text-foreground"
-                  : "border-border bg-background text-muted-foreground hover:text-foreground")
-              }
-            >
-              {t(`home.varga.${key.toLowerCase()}`)}
+            {t(`home.varga.${key.toLowerCase()}`)}
+          </button>
+        );
+      })}
+      <div className="shrink-0 sm:hidden">
+        <Drawer open={selectorOpen} onOpenChange={setSelectorOpen}>
+          <DrawerTrigger asChild>
+            <button type="button" className={PILL_TRIGGER}>
+              <span className="truncate">{t("home.varga.pickerLabel")}</span>
+              <ChevronDown size={15} className="shrink-0" aria-hidden="true" />
             </button>
-          );
-        })}
-        <p className="basis-full pt-2 text-xs leading-relaxed text-muted-foreground">
-          {t("home.vargaExplorer.current", { chart: currentLabel })}
-        </p>
+          </DrawerTrigger>
+          <DrawerContent
+            aria-label={t("home.varga.pickerLabel")}
+            className="bg-card sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[min(42rem,calc(100dvh-2rem))] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+          >
+            <DrawerHeader className="px-5 pb-4 pt-5 text-left">
+              <DrawerTitle className="font-display text-xl">
+                {t("home.varga.pickerLabel")}
+              </DrawerTitle>
+              <DrawerDescription className="leading-relaxed">
+                {t("home.vargaExplorer.description")}
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(1rem+var(--as-safe-bottom))]">
+              <div role="listbox" aria-label={t("home.varga.pickerLabel")} className="space-y-2">
+                {VARGA_KEYS.map((key) => {
+                  const selected = current === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => {
+                        onSelect(key);
+                        setSelectorOpen(false);
+                      }}
+                      className={
+                        "tap-press flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        (selected
+                          ? "border-primary/45 bg-primary/10 text-foreground"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground")
+                      }
+                    >
+                      <span>{t(`home.varga.${key.toLowerCase()}`)}</span>
+                      {selected && (
+                        <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
-    </section>
+      <div className="hidden sm:block">
+        <label htmlFor="varga-select" className="sr-only">
+          {t("home.varga.pickerLabel")}
+        </label>
+        <select
+          id="varga-select"
+          value={current}
+          onChange={(event) => onSelect(event.target.value as VargaKey)}
+          className={PILL_SELECT}
+        >
+          {VARGA_KEYS.map((key) => (
+            <option key={key} value={key}>
+              {t(`home.varga.${key.toLowerCase()}`)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }
+
+const PILL_TRIGGER =
+  "tap-press inline-flex min-h-11 max-w-[11rem] items-center gap-1.5 rounded-full bg-foreground/[0.07] px-3.5 text-[0.8125rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const PILL_SELECT =
+  "h-11 max-w-[14rem] truncate rounded-full border-0 bg-foreground/[0.07] pl-3.5 pr-8 text-[0.8125rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 type DisplayPlanet = {
   key: PlanetKey;
@@ -1181,22 +1046,20 @@ function ChartSelectionLayer({
   return (
     <section
       aria-labelledby="chart-selection-heading"
-      className="rounded-[1.5rem] border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+      className="rounded-[1.25rem] bg-card p-4 shadow-[var(--as-elevation-1)] sm:p-5"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {t("home.chartSelection.eyebrow")}
-          </p>
-          <h2 id="chart-selection-heading" className="mt-1 text-lg font-semibold text-foreground">
-            {t("home.chartSelection.title")}
-          </h2>
-        </div>
+        <h2
+          id="chart-selection-heading"
+          className="pt-2.5 text-[1.0625rem] font-semibold text-foreground"
+        >
+          {t("home.chartSelection.title")}
+        </h2>
         {selected && (
           <button
             type="button"
             onClick={() => onSelectHouse(null)}
-            className="tap-press inline-flex min-h-11 items-center rounded-full border border-border bg-background px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press -mr-2 inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("home.chartSelection.clear")}
           </button>
@@ -1216,11 +1079,11 @@ function ChartSelectionLayer({
       ) : (
         <>
           {selected ? (
-            <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/[0.06] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            <div className="mt-3 rounded-[0.875rem] bg-accent/[0.08] px-4 py-3.5">
+              <p className="text-xs font-semibold text-accent">
                 {t("home.chartSelection.selected")}
               </p>
-              <h3 className="mt-1 text-lg font-semibold text-foreground">
+              <h3 className="mt-0.5 text-lg font-semibold text-foreground">
                 {t("home.houseLabel", { n: selected.house })} · {sign}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -1232,8 +1095,9 @@ function ChartSelectionLayer({
               <button
                 type="button"
                 onClick={() => onAsk(selected)}
-                className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="tap-press mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[var(--as-color-action-ask)] px-4 py-2 text-center text-sm font-semibold leading-snug text-white sm:w-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
               >
+                <MessageCircle size={16} aria-hidden="true" />
                 {t("home.chartInspector.askHouse", {
                   varga: t(`home.varga.${varga.toLowerCase()}`),
                 })}
@@ -1245,11 +1109,9 @@ function ChartSelectionLayer({
             </p>
           )}
 
-          <div className="mt-5 border-t border-border pt-4">
-            <h3 className="text-sm font-semibold text-foreground">
-              {t("home.chartSelection.accessibleList")}
-            </h3>
-            <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-4">
+            <h3 className="sr-only">{t("home.chartSelection.accessibleList")}</h3>
+            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {houses.map((house) => {
                 const houseSign = house.signKey
                   ? t(`signs.${house.signKey}`)
@@ -1262,14 +1124,18 @@ function ChartSelectionLayer({
                       aria-pressed={isSelected}
                       onClick={() => onSelectHouse(house.house)}
                       className={
-                        "tap-press flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                        "tap-press flex min-h-[3.25rem] w-full flex-col items-start justify-center rounded-[0.75rem] border px-2.5 py-1.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
                         (isSelected
-                          ? "border-primary/50 bg-primary/10 text-foreground"
-                          : "border-border bg-background text-foreground hover:bg-muted")
+                          ? "border-accent/60 bg-accent/10"
+                          : "border-transparent bg-foreground/[0.05] hover:bg-foreground/[0.08]")
                       }
                     >
-                      <span>{t("home.houseLabel", { n: house.house })}</span>
-                      <span className="text-xs text-muted-foreground">{houseSign}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t("home.houseLabel", { n: house.house })}
+                      </span>
+                      <span className="w-full truncate text-sm font-semibold text-foreground">
+                        {houseSign}
+                      </span>
                     </button>
                   </li>
                 );
@@ -1429,17 +1295,6 @@ function ErrorInline({
           {t("states.retry")}
         </button>
       </div>
-    </div>
-  );
-}
-
-function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <div
-      className={`rounded-2xl border border-border bg-card p-5 ${className}`}
-      style={{ boxShadow: "var(--shadow-soft)" }}
-    >
-      {children}
     </div>
   );
 }

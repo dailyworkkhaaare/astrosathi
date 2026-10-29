@@ -18,13 +18,13 @@ const glyphClasses: Record<StateTone, string> = {
   empty:
     "border-action-warm/30 bg-action-warm/15 text-action-warm shadow-[0_16px_36px_-22px_var(--as-color-action-warm)]",
   error:
-    "border-feedback-danger/25 bg-feedback-danger/10 text-feedback-danger shadow-[0_16px_36px_-22px_var(--as-color-feedback-danger)]",
+    "border-feedback-warning/25 bg-feedback-warning/10 text-feedback-warning shadow-[0_16px_36px_-22px_var(--as-color-feedback-warning)]",
 };
 
 const edgeClasses: Record<StateTone, string> = {
   loading: "bg-[var(--as-gradient-aurora-live)]",
   empty: "bg-[var(--as-gradient-solar-reveal)]",
-  error: "bg-feedback-danger/65",
+  error: "bg-feedback-warning/65",
 };
 
 export function StateFrame({
@@ -84,7 +84,7 @@ export function StateFrame({
       >
         {icon}
       </div>
-      <div className={cn("min-w-0", inline ? "flex-1" : "max-w-md")}>
+      <div className={cn("min-w-0", inline ? "min-w-[10rem] flex-1" : "max-w-md")}>
         <h2
           id={titleId}
           className={cn(
@@ -106,7 +106,11 @@ export function StateFrame({
           </p>
         )}
       </div>
-      {action && <div className={cn("shrink-0", inline ? "ml-auto" : "mt-1")}>{action}</div>}
+      {action && (
+        <div className={cn("shrink-0", inline ? "ml-auto max-sm:ml-0 max-sm:basis-full" : "mt-1")}>
+          {action}
+        </div>
+      )}
     </div>
   );
 }

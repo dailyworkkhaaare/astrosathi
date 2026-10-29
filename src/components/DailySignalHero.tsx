@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Check, MessageCircle, Share2, Sparkles } from "lucide-react";
+import { ArrowRight, MessageCircle, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -41,124 +42,89 @@ export function DailySignalHero() {
     <section
       aria-labelledby="daily-signal-heading"
       className={cn(
-        "relative isolate overflow-hidden rounded-[1.5rem] border border-accent/20 bg-card px-4 shadow-[var(--shadow-elevated)] sm:min-h-72 sm:rounded-[1.75rem] sm:px-7 sm:py-8",
-        compactMobileState ? "min-h-0 py-4" : "min-h-[14rem] py-5",
+        "rounded-[1.25rem] bg-card px-[1.125rem] shadow-[var(--as-elevation-1)] sm:px-7",
+        compactMobileState ? "py-4" : "pb-4 pt-[1.125rem] sm:py-7",
       )}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-16 -top-20 -z-10 h-52 w-52 rounded-full bg-[radial-gradient(circle,rgba(242,153,29,0.19),rgba(242,153,29,0)_68%)]"
-      />
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-accent">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-accent/15">
-            <Sparkles size={15} aria-hidden="true" />
-          </span>
+      <div className="flex min-h-6 items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
           {t("todayOverview.personalized")}
         </p>
-        {!compactMobileState && (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-            <Check size={13} className="text-accent" aria-hidden="true" />
-            {t("todayOverview.chartGrounded")}
-          </span>
-        )}
+        {signal && !compactMobileState ? (
+          <button
+            type="button"
+            onClick={() => void shareToday()}
+            aria-label={t("todayOverview.share")}
+            title={t("todayOverview.share")}
+            className="tap-press -my-2.5 -mr-2.5 grid h-11 w-11 place-items-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Share2 size={19} aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
 
       {query.isPending ? (
         <DailySignalSkeleton label={t("todayOverview.loading")} />
       ) : query.isError ? (
-        <div className="mt-5 max-w-xl sm:mt-7">
-          <h2
-            id="daily-signal-heading"
-            className={cn(
-              "font-display text-2xl text-foreground",
-              compactMobileState && "text-xl leading-tight",
-            )}
+        <SignalState
+          title={t("todayOverview.unavailableTitle")}
+          body={t("sections.horoscope.loadError")}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => query.refetch()}
           >
-            {t("todayOverview.unavailableTitle")}
-          </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            {t("sections.horoscope.loadError")}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={() => query.refetch()}>
-              {t("states.retry")}
-            </Button>
-            <Button type="button" variant="ghost" className="gap-2" onClick={askAboutToday}>
-              <MessageCircle size={16} aria-hidden="true" />
-              {t("todayOverview.ask")}
-            </Button>
-          </div>
-        </div>
+            {t("states.retry")}
+          </Button>
+          <AskButton onClick={askAboutToday} label={t("todayOverview.ask")} />
+        </SignalState>
       ) : data?.incomplete ? (
-        <div className="mt-5 max-w-xl sm:mt-7">
-          <h2
-            id="daily-signal-heading"
-            className={cn(
-              "font-display text-2xl text-foreground",
-              compactMobileState && "text-xl leading-tight",
-            )}
-          >
-            {t("todayOverview.completeTitle")}
-          </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            {t("sections.horoscope.completeProfile")}
-          </p>
+        <SignalState
+          title={t("todayOverview.completeTitle")}
+          body={t("sections.horoscope.completeProfile")}
+        >
           <Link
             to="/onboarding/birth"
-            className="tap-press mt-4 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="tap-press inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t("sections.horoscope.completeCta")}
           </Link>
-        </div>
+        </SignalState>
       ) : !signal ? (
-        <div className="mt-5 max-w-xl sm:mt-7">
-          <h2
-            id="daily-signal-heading"
-            className={cn(
-              "font-display text-2xl text-foreground",
-              compactMobileState && "text-xl leading-tight",
-            )}
-          >
-            {t("todayOverview.emptyTitle")}
-          </h2>
-          <p className="mt-1.5 text-sm text-muted-foreground">{t("sections.horoscope.empty")}</p>
-          <Button type="button" className="mt-4 gap-2 rounded-full px-5" onClick={askAboutToday}>
-            <MessageCircle size={16} aria-hidden="true" />
-            {t("todayOverview.ask")}
-          </Button>
-        </div>
+        <SignalState title={t("todayOverview.emptyTitle")} body={t("sections.horoscope.empty")}>
+          <AskButton onClick={askAboutToday} label={t("todayOverview.ask")} />
+        </SignalState>
       ) : (
-        <div className="mt-7">
+        <div className="mt-3.5">
           <h2
             id="daily-signal-heading"
-            className="max-w-3xl font-display text-2xl leading-[1.2] tracking-tight text-foreground sm:text-4xl"
+            className="max-w-3xl font-display text-[1.625rem] font-semibold leading-[1.2] text-foreground sm:text-4xl"
           >
             {signal.theme}
           </h2>
           {signal.context ? (
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="mt-2.5 max-w-2xl text-[0.9375rem] leading-[1.45] text-muted-foreground sm:text-base">
               {signal.context}
             </p>
           ) : null}
 
           {data?.focus ? (
-            <div className="mt-6 max-w-2xl rounded-2xl border border-accent/20 bg-accent/[0.06] px-4 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+            <div className="mt-3.5 max-w-2xl rounded-xl bg-foreground/[0.05] px-3.5 py-3">
+              <p className="text-xs font-semibold text-muted-foreground">
                 {t("sections.horoscope.focusLabel")}
               </p>
-              <p className="mt-1.5 text-sm font-medium leading-relaxed text-foreground">
-                {data.focus}
-              </p>
+              <p className="mt-1 text-[0.9375rem] text-foreground">{data.focus}</p>
             </div>
           ) : null}
 
           {reasons.length > 0 ? (
-            <div className="mt-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <div className="mt-3.5">
+              <p className="text-xs font-semibold text-muted-foreground">
                 {t("todayOverview.evidence")}
               </p>
-              <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+              <ul className="mt-2 grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
                 {reasons.map((reason, index) => (
                   <EvidenceItem key={`${reason.kind}-${index}`} reason={reason} />
                 ))}
@@ -166,34 +132,69 @@ export function DailySignalHero() {
             </div>
           ) : null}
 
-          <div className="mt-6 flex flex-wrap items-center gap-2 sm:mt-7 sm:gap-3">
-            <Button type="button" onClick={askAboutToday} className="gap-2 rounded-full px-5">
-              <MessageCircle size={16} aria-hidden="true" />
-              {t("todayOverview.ask")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void shareToday()}
-              className="gap-2 rounded-full px-4"
-            >
-              <Share2 size={16} aria-hidden="true" />
-              {t("todayOverview.share")}
-            </Button>
+          <div className="mt-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+            <AskButton onClick={askAboutToday} label={t("todayOverview.ask")} wide />
             <Link
               to="/today/horoscope"
-              className="tap-press inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="tap-press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 text-[0.9375rem] font-semibold text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {t("todayOverview.readFull")}
               <ArrowRight size={16} aria-hidden="true" />
             </Link>
           </div>
-          <p className="mt-3 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">
             {t("sections.horoscope.disclaimer")}
           </p>
         </div>
       )}
     </section>
+  );
+}
+
+function AskButton({
+  onClick,
+  label,
+  wide = false,
+}: {
+  onClick: () => void;
+  label: string;
+  wide?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "tap-press inline-flex min-h-[2.875rem] items-center justify-center gap-2 rounded-full bg-[var(--as-color-action-ask)] px-5 text-[0.9375rem] font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
+        wide && "w-full sm:w-auto",
+      )}
+    >
+      <MessageCircle size={17} aria-hidden="true" />
+      {label}
+    </button>
+  );
+}
+
+function SignalState({
+  title,
+  body,
+  children,
+}: {
+  title: string;
+  body: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mt-3 max-w-xl">
+      <h2
+        id="daily-signal-heading"
+        className="font-display text-xl font-semibold leading-tight text-foreground sm:text-2xl"
+      >
+        {title}
+      </h2>
+      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{body}</p>
+      <div className="mt-3.5 flex flex-wrap gap-2">{children}</div>
+    </div>
   );
 }
 
@@ -207,18 +208,18 @@ function splitDailySummary(summary: string) {
 function EvidenceItem({ reason }: { reason: DailyHoroscopeReason }) {
   const { t } = useTranslation();
   return (
-    <li className="rounded-xl border border-border/70 bg-background/65 px-3.5 py-3">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+    <li className="col-span-2 grid grid-cols-subgrid items-center">
+      <span className="rounded-full bg-foreground/[0.08] px-2.5 py-1 text-center text-xs text-muted-foreground">
         {t(`todayOverview.reasonKinds.${reason.kind}`)}
       </span>
-      <p className="mt-1 text-xs leading-relaxed text-foreground">{reason.text}</p>
+      <p className="text-sm leading-snug text-foreground">{reason.text}</p>
     </li>
   );
 }
 
 function DailySignalSkeleton({ label }: { label: string }) {
   return (
-    <div className="mt-6 space-y-3 sm:mt-7 sm:space-y-4" aria-busy="true" role="status">
+    <div className="mt-3.5 space-y-3 sm:space-y-4" aria-busy="true" role="status">
       <h2 id="daily-signal-heading" className="sr-only">
         {label}
       </h2>

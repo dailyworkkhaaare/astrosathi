@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 
+import { AstroArt } from "@/components/AstroArt";
+import { grahaArtByName } from "@/lib/astro-art";
 import { SIGN_KEYS_BY_INDEX } from "@/lib/charts";
 import { usePlanets, useTodayTransits, useCurrentUserId } from "@/lib/queries";
 import { findAscendantSignIndex, houseFor, PLANET_KEY_BY_CODE } from "@/lib/todayTransits";
@@ -115,7 +117,7 @@ export function TransitHighlightBand() {
 
   if (hasError) {
     return (
-      <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/[0.05] px-3 py-2.5">
+      <div className="flex min-h-11 items-center justify-between gap-3 rounded-[0.875rem] bg-card py-2 pl-4 pr-2 shadow-[var(--as-elevation-1)]">
         <span className="text-sm text-muted-foreground">{t("sections.today.bandLoadError")}</span>
         <button
           type="button"
@@ -123,7 +125,7 @@ export function TransitHighlightBand() {
             void transitsQuery.refetch();
             void planetsQuery.refetch();
           }}
-          className="tap-press inline-flex min-h-11 w-fit shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="tap-press inline-flex min-h-11 w-fit shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <RefreshCw size={14} aria-hidden="true" />
           {t("states.retry")}
@@ -178,57 +180,59 @@ export function TransitHighlightBand() {
       ? `${t(`home.planets.${highlight.planetKey}`)} → ${t(`signs.${highlight.signKey}`)}`
       : t("sections.today.bandMoonEvidence", { house: highlight.house });
 
+  const artPlanet = grahaArtByName(highlight.kind === "ingress" ? highlight.planetKey : "moon");
+
   return (
     <article
       aria-labelledby="transit-highlight-heading"
-      className="motion-fade-up relative isolate overflow-hidden rounded-2xl border border-accent/20 bg-card p-4 shadow-[var(--shadow-soft)] sm:p-5"
+      className="motion-fade-up rounded-[0.875rem] bg-card py-3 pl-4 pr-1.5 shadow-[var(--as-elevation-1)]"
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-16 -top-20 -z-10 h-48 w-48 rounded-full bg-[radial-gradient(circle,rgba(242,153,29,0.16),rgba(242,153,29,0)_70%)]"
-      />
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
-            <Sparkles size={14} aria-hidden="true" />
-            {t("sections.today.currentTiming")}
-          </p>
+      <div className="flex items-center gap-3">
+        {artPlanet ? (
+          <AstroArt kind="graha" name={artPlanet} size={40} />
+        ) : (
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/12 text-accent">
+            <Sparkles size={18} aria-hidden="true" />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
           <h3
             id="transit-highlight-heading"
-            className="mt-2 text-base font-semibold leading-snug text-foreground"
+            className="text-[0.9375rem] font-semibold leading-snug text-foreground"
           >
             {text}
           </h3>
+          <div
+            className="mt-1.5 flex flex-wrap gap-1.5"
+            aria-label={t("sections.today.evidenceLabel")}
+          >
+            <span className="rounded-full bg-foreground/[0.08] px-2.5 py-0.5 text-xs text-muted-foreground">
+              {evidence}
+            </span>
+            {highlight.kind === "ingress" && highlight.house != null ? (
+              <span className="rounded-full bg-foreground/[0.08] px-2.5 py-0.5 text-xs text-muted-foreground">
+                {t("home.houseLabel", { n: highlight.house })}
+              </span>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={handleTap}
+            className="tap-press -ml-2 mt-0.5 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[0.8125rem] font-semibold text-[var(--as-color-action-ask)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <MessageCircle size={15} aria-hidden="true" />
+            {t("sections.today.askHighlight")}
+          </button>
         </div>
         <button
           type="button"
           onClick={handleDismiss}
           aria-label={t("sections.today.bandDismiss")}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid h-11 w-11 shrink-0 self-start place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <X size={16} aria-hidden="true" />
         </button>
       </div>
-
-      <div className="mt-4 flex flex-wrap gap-2" aria-label={t("sections.today.evidenceLabel")}>
-        <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-medium text-foreground">
-          {evidence}
-        </span>
-        {highlight.kind === "ingress" && highlight.house != null ? (
-          <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-medium text-foreground">
-            {t("home.houseLabel", { n: highlight.house })}
-          </span>
-        ) : null}
-      </div>
-
-      <button
-        type="button"
-        onClick={handleTap}
-        className="tap-press mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-accent/30 bg-accent/[0.08] px-4 text-sm font-semibold text-foreground hover:bg-accent/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <MessageCircle size={16} className="text-accent" aria-hidden="true" />
-        {t("sections.today.askHighlight")}
-      </button>
     </article>
   );
 }

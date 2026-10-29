@@ -99,12 +99,19 @@ for (const device of deviceCases) {
       geometry.viewportWidth + 1,
     );
     expect(geometry.overflowing, `${device.name} overflowing elements`).toEqual([]);
-    expect(geometry.navBottom, `${device.name} bottom nav is visible`).toBeLessThanOrEqual(
-      device.viewport.height + 1,
-    );
-    expect(geometry.navWidth, `${device.name} bottom nav spans viewport`).toBe(
-      device.viewport.width,
-    );
+    if (device.path === "/chat") {
+      // Chat is a full-screen sheet: no tab bar, the composer owns the bottom edge.
+      expect(geometry.navBottom, `${device.name} chat hides the tab bar`).toBeNull();
+      const composer = await page.locator("textarea").count();
+      expect(composer, `${device.name} chat composer is present`).toBe(1);
+    } else {
+      expect(geometry.navBottom, `${device.name} bottom nav is visible`).toBeLessThanOrEqual(
+        device.viewport.height + 1,
+      );
+      expect(geometry.navWidth, `${device.name} bottom nav spans viewport`).toBe(
+        device.viewport.width,
+      );
+    }
   });
 }
 

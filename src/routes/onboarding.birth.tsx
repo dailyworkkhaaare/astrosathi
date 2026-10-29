@@ -217,7 +217,7 @@ function BirthPage() {
         title={t("birth.castingTitle")}
         subtitle={t("birth.castingSubtitle", {
           place: form.place.trim(),
-          date: formatBirthDate(form.dob, i18n.language),
+          date: formatBirthDate(form.dob, i18n.language === "en" ? "en-IN" : i18n.language),
         })}
       />
     );

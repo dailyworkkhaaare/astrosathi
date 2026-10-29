@@ -85,7 +85,11 @@ function parseLocalDate(dateStr: string): Date | null {
 function formatEntryDate(dateStr: string, locale: string): string {
   const d = parseLocalDate(dateStr);
   if (!d) return dateStr;
-  return d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString(locale === "en" ? "en-IN" : locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function monthKey(dateStr: string): string {

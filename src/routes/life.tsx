@@ -102,7 +102,11 @@ function formatEventDate(dateStr: string, precision: DatePrecision, locale: stri
   if (precision === "month") {
     return d.toLocaleDateString(locale, { month: "long", year: "numeric" });
   }
-  return d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString(locale === "en" ? "en-IN" : locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function formatEventDateForAsk(event: LifeEvent, locale: string, approximate: string): string {

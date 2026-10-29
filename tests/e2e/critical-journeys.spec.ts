@@ -730,7 +730,7 @@ test.describe("authenticated critical journeys", () => {
     await page.goto("/today/panchang");
 
     const localDate = await page.evaluate(() =>
-      new Intl.DateTimeFormat("en", {
+      new Intl.DateTimeFormat("en-IN", {
         weekday: "long",
         day: "numeric",
         month: "long",

@@ -114,7 +114,7 @@ function relativeTime(iso: string, t: ReturnType<typeof useTranslation>["t"]): s
 
 function formatDate(iso: string, lang: string): string {
   try {
-    return new Date(iso).toLocaleDateString(lang, {
+    return new Date(iso).toLocaleDateString(lang === "en" ? "en-IN" : lang, {
       year: "numeric",
       month: "short",
       day: "numeric",

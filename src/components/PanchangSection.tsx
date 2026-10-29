@@ -19,7 +19,7 @@ export function PanchangSection() {
   const tz = data?.timezone ?? "Asia/Kolkata";
   const times =
     data && data.lat != null && data.lon != null ? computeDayTimes(data.lat, data.lon, tz) : null;
-  const dayLabel = new Intl.DateTimeFormat(i18n.language, {
+  const dayLabel = new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
     weekday: "long",
     day: "numeric",
     month: "long",

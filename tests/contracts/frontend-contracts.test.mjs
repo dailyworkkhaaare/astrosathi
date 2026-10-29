@@ -358,11 +358,10 @@ test("native back behavior delegates to browser history without root exits", asy
 });
 
 test("native shell keeps focused fields and mobile drawers clear of device edges", async () => {
-  const [stylesSource, drawerSource, shellSource, dockSource] = await Promise.all([
+  const [stylesSource, drawerSource, shellSource] = await Promise.all([
     readProjectFile("src/styles.css"),
     readProjectFile("src/components/ui/drawer.tsx"),
     readProjectFile("src/components/layout/AppShell.tsx"),
-    readProjectFile("src/components/layout/ContextDock.tsx"),
   ]);
 
   assert.match(stylesSource, /scroll-padding-top: calc\(1rem \+ var\(--as-safe-top\)\)/);
@@ -372,7 +371,6 @@ test("native shell keeps focused fields and mobile drawers clear of device edges
   assert.match(drawerSource, /rounded-t-lg/);
   assert.doesNotMatch(drawerSource, /rounded-t-\[1\.75rem\]/);
   assert.match(shellSource, /DrawerContent className="rounded-t-lg/);
-  assert.match(dockSource, /DrawerContent className="rounded-t-lg/);
 });
 
 test("webview interaction defaults avoid iOS field zoom without reducing accessibility", async () => {

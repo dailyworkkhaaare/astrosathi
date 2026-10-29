@@ -370,7 +370,7 @@ test.describe("authenticated critical journeys", () => {
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chrome", "The profile launcher is mobile-only.");
-    await page.goto("/settings/memory");
+    await page.goto("/today");
 
     const launcher = page.getByRole("button", { name: "Profile and settings" });
     const initialBox = await launcher.boundingBox();
@@ -445,45 +445,12 @@ test.describe("authenticated critical journeys", () => {
     }
   });
 
-  test("context lenses stay truthful to route ownership", async ({ page }) => {
-    await page.goto("/today");
-
-    const context = page.getByRole("region", { name: "Current chart context" });
-    await expect(context.getByRole("button", { name: "Subject: My chart" })).toBeVisible();
-    await expect(context.getByRole("button", { name: "Time: Today" })).toBeVisible();
-
-    await context.getByRole("button", { name: "Subject: My chart" }).click();
-    await expect(page.getByRole("heading", { name: "Whose chart" })).toBeVisible();
-    await page.keyboard.press("Escape");
-
-    await page.goto("/home");
-    await expect(
-      page
-        .getByRole("region", { name: "Current chart context" })
-        .getByRole("button", { name: "Time: Not applied" }),
-    ).toBeVisible();
-
-    await page.goto(`/people/${TEST_PERSON_ID}/compatibility`);
-    await expect(
-      page
-        .getByRole("region", { name: "Current chart context" })
-        .getByRole("button", { name: "Subject: Me + Vihaan Journey" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: "Current chart context" }).getByText("TIME"),
-    ).toHaveCount(0);
-
-    await page.goto("/today");
-    await expect(
-      page
-        .getByRole("region", { name: "Current chart context" })
-        .getByRole("button", { name: "Subject: My chart" }),
-    ).toBeVisible();
-    await expect(
-      page
-        .getByRole("region", { name: "Current chart context" })
-        .getByRole("button", { name: "Time: Today" }),
-    ).toBeVisible();
+  test("world screens no longer show the Subject/Time context bar", async ({ page }) => {
+    for (const path of ["/today", "/home", "/journey", "/people"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+      await expect(page.getByRole("region", { name: "Current chart context" })).toHaveCount(0);
+    }
   });
 
   test("Today overview leads with one personalized daily signal", async ({ page }) => {

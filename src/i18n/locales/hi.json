@@ -819,6 +819,8 @@
     "back": "होम पर वापस",
     "versionLabel": "ऐप संस्करण",
     "version": "संस्करण {{v}}",
+    "valueOn": "चालू",
+    "valueOff": "बंद",
     "profile": {
       "title": "आपकी प्रोफ़ाइल",
       "emailLabel": "ईमेल",

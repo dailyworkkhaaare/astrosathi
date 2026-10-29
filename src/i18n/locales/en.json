@@ -820,6 +820,8 @@
     "back": "Back to home",
     "versionLabel": "App version",
     "version": "Version {{v}}",
+    "valueOn": "On",
+    "valueOff": "Off",
     "profile": {
       "title": "Your profile",
       "emailLabel": "Email",

@@ -819,6 +819,8 @@
     "back": "होमवर परत",
     "versionLabel": "अ‍ॅप आवृत्ती",
     "version": "आवृत्ती {{v}}",
+    "valueOn": "चालू",
+    "valueOff": "बंद",
     "profile": {
       "title": "तुमची प्रोफाइल",
       "emailLabel": "ईमेल",

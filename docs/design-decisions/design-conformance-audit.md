@@ -21,12 +21,12 @@ Those screens were checked through their loading, empty and error states plus a 
 | Area | Matches the design | Fixed in this pass | Deliberate differences |
 | --- | --- | --- | --- |
 | Welcome & onboarding | Welcome, language, consent, birth "about you", casting, chart ready | Birth casting date in Indian order | Auth options + email sheet → inline form; date/time/place use native inputs |
-| Today | Header, daily signal card, sky list, Panchang row, mantra, market lens | Date in Indian order without year; "Current timing" label no longer shows with nothing under it | Context dock above the header; refresh button instead of share |
+| Today | Header, daily signal card, sky list, Panchang row, mantra, market lens | Date in Indian order without year; "Current timing" label no longer shows with nothing under it | Refresh button instead of share |
 | Cosmos | Large title, chip tabs, overview placements, Kundli card, timing, explore, Ask card | Removed leftover Life Timeline / Nudges / Journal buttons under every tab; varga labels "D1 · Rashi" without em dashes; Indian-order dates in Doshas | Kundli uses a style picker + varga chips and collapsible Planets/Houses lists |
 | Ask | Shell, empty state, prompts, bubbles, no AI avatar, actions, composer, history sheet | History dates in Indian order ("17 Oct") | No regenerate, "Came true?" chips or swipe actions (deferred, need approval) |
 | Journey | Hub, chapter, timeline grouped by Mahadasha, journal months, Guidance list, sheets | Indian-order dates in Life and Journal | None of note |
 | People | Your chart row, saved list, person profile, compatibility, kuta sheet | None | Saved rows carry Chart / Ask / Compare quick actions |
-| Settings | Overview, Preferences, Voice, Memory, Guidance, WhatsApp, Legal | Trailing values on the overview (People count, Guidance frequency, language, WhatsApp On/Off); Indian-order memory dates | Inline memory switch on the overview; no Delete account (no backend) |
+| Settings | Overview, Preferences, Voice, Memory, Guidance, WhatsApp, Legal | Trailing values on the overview (People count, Memory On/Off, Guidance frequency, language, WhatsApp On/Off); Indian-order memory dates | No Delete account (no backend) |
 
 ## Fixed in this pass
 
@@ -48,16 +48,15 @@ Those screens were checked through their loading, empty and error states plus a 
 
 - **Sign-in:** an inline sign-in/sign-up form instead of the options screen and email sheet. Sign in with Apple is deferred.
 - **Birth details:** native date and time inputs and an inline place search instead of the custom date sheet and place-search page.
-- **Context dock:** the Subject/Time dock on Today, Cosmos, Journey and People is an existing feature the canvas does not show.
 - **Kundli:** a chart-style picker with varga chips and collapsible lists, which keeps the 400 ms debounce and the existing table columns.
 - **Guidance settings:** "Maximum" and Start/End pickers instead of a weekly segment and a "Pause overnight" switch. Same data, no backend change.
 - **Memory:** topic cards instead of a flat list, keeping per-memory retention controls.
 
-## Needs a decision
+## Decided after the audit
 
-- **Context dock:** keep it, or follow the canvas and move Subject/Time into Ask only?
-- **Inline "Remember our conversations" switch on Settings:** the design shows only "Memory & privacy · On". Remove the switch and show the value instead?
-- **Deferred items (need backend or approval):**
+- **Subject/Time context bar:** removed from Today, Cosmos, Journey and People, as in the design. The profile avatar now shows only beside the Today, Cosmos and Journey titles, so People and sub-pages keep their own trailing action.
+- **Inline "Remember our conversations" switch:** removed from the Settings overview. The Memory & Privacy row shows On/Off instead.
+- **Still deferred (need backend or approval):**
   - regenerate;
   - "Came true?" chips;
   - swipe/long-press menus;

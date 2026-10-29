@@ -1000,10 +1000,6 @@ test("Cosmos primary sections use native chip tabs with tactile transitions", as
     routeSource,
     /const setTab = \(k: TabKey\) => \{[\s\S]*triggerHaptic\("selection"\)/,
   );
-  assert.match(
-    routeSource,
-    /to="\/life"[\s\S]*onClick=\{\(\) => void triggerHaptic\("selection"\)\}/,
-  );
 });
 
 test("person chart Varga selector uses the same native mobile sheet", async () => {

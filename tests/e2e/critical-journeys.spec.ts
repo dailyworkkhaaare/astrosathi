@@ -1663,7 +1663,7 @@ test.describe("authenticated critical journeys", () => {
     await selection.getByRole("button", { name: /House 3.*Gemini/ }).click();
     await selection.getByRole("button", { name: /Ask about this D1.*house/ }).click();
     await expect(page.getByRole("textbox", { name: "Message AstroSaathi" })).toHaveValue(
-      "Tell me about house 3 in my D1 — Rashi (birth) chart — it's in Gemini, ruled by Mercury, with Sun placed there. What does this mean for me?",
+      "Tell me about house 3 in my D1 · Rashi (birth) chart — it's in Gemini, ruled by Mercury, with Sun placed there. What does this mean for me?",
     );
 
     await page.goto("/home?tab=charts");
@@ -1674,7 +1674,7 @@ test.describe("authenticated critical journeys", () => {
     await expect(sunCard.getByRole("button", { name: "Ask about this placement" })).toBeVisible();
     await sunCard.getByRole("button", { name: "Ask about this placement" }).click();
     await expect(page.getByRole("textbox", { name: "Message AstroSaathi" })).toHaveValue(
-      "Tell me about Sun in my D1 — Rashi (birth) chart — it is in Gemini, house 3, with nakshatra Ardra. What does this placement mean for me?",
+      "Tell me about Sun in my D1 · Rashi (birth) chart — it is in Gemini, house 3, with nakshatra Ardra. What does this placement mean for me?",
     );
   });
 
@@ -1716,10 +1716,10 @@ test.describe("authenticated critical journeys", () => {
     const isMobile = testInfo.project.name === "mobile-chrome";
     const picker = page.getByRole("combobox", { name: "Divisional chart", exact: true });
     if (!isMobile) await expect(picker.locator("option")).toHaveCount(VARGA_KEYS.length);
-    await page.getByRole("button", { name: "D9 — Navamsa" }).click();
+    await page.getByRole("button", { name: "D9 · Navamsa" }).click();
     if (isMobile) {
       await page.getByRole("button", { name: "Divisional chart" }).click();
-      await page.getByRole("option", { name: "D9 — Navamsa" }).click();
+      await page.getByRole("option", { name: "D9 · Navamsa" }).click();
     } else {
       await expect(picker).toHaveValue("D9");
     }
@@ -1728,7 +1728,7 @@ test.describe("authenticated critical journeys", () => {
     for (const varga of VARGA_KEYS) {
       if (isMobile) {
         await page.getByRole("button", { name: /Divisional chart/ }).click();
-        await page.getByRole("option", { name: new RegExp(`^${varga} —`) }).click();
+        await page.getByRole("option", { name: new RegExp(`^${varga} ·`) }).click();
       } else {
         await picker.selectOption(varga);
       }
@@ -1736,7 +1736,7 @@ test.describe("authenticated critical journeys", () => {
     }
 
     await expect(
-      page.getByText("Currently viewing: D60 — Shashtyamsa (overall karma)"),
+      page.getByText("Currently viewing: D60 · Shashtyamsa (overall karma)"),
     ).toBeVisible();
   });
 
@@ -1926,8 +1926,8 @@ test.describe("authenticated critical journeys", () => {
     expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewportHeight - 12);
     expect(geometry.top).toBeGreaterThan(geometry.viewportHeight * 0.1);
 
-    await sheet.getByRole("option", { name: "D9 — Navamsa" }).click();
+    await sheet.getByRole("option", { name: "D9 · Navamsa" }).click();
     await expect(sheet).toBeHidden();
-    await expect(picker).toContainText("D9 — Navamsa");
+    await expect(picker).toContainText("D9 · Navamsa");
   });
 });

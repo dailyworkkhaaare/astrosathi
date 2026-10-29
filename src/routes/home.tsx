@@ -2,9 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Bell,
-  BookHeart,
-  CalendarClock,
   Check,
   ChevronDown,
   ChevronRight,
@@ -45,7 +42,7 @@ import {
   type NormalizedPlanet,
   type VargaTable,
 } from "@/lib/charts";
-import { useChart, usePlanets, useUnreadNudgeCount } from "@/lib/queries";
+import { useChart, usePlanets } from "@/lib/queries";
 import { NumerologySection } from "@/components/NumerologySection";
 import { DoshasSection } from "@/components/DoshasSection";
 import { AshtakavargaSection } from "@/components/AshtakavargaSection";
@@ -169,7 +166,6 @@ function HomePage() {
     void navigate({ search: { tab: k }, replace: true });
   };
   const isProfileIncomplete = profileLoaded && (!profile || !profile.dob);
-  const unreadNudges = useUnreadNudgeCount();
 
   return (
     <section className="space-y-6">
@@ -195,46 +191,6 @@ function HomePage() {
         {tab === "ashtakavarga" && <AshtakavargaSection />}
         {tab === "numerology" && <NumerologySection />}
         {tab === "loshu" && <LoShuSection />}
-      </div>
-
-      <div className="motion-fade-up grid grid-cols-2 gap-3 border-t border-border/70 pt-5">
-        <Link
-          to="/life"
-          onClick={() => void triggerHaptic("selection")}
-          className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
-        >
-          <CalendarClock size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate">{t("life.entryLabel")}</span>
-          <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-        </Link>
-
-        <Link
-          to="/nudges"
-          onClick={() => void triggerHaptic("selection")}
-          className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
-        >
-          <Bell size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate">{t("nudges.entryLabel")}</span>
-          {unreadNudges > 0 && (
-            <span
-              className="inline-flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground"
-              aria-label={String(unreadNudges)}
-            >
-              {unreadNudges > 99 ? "99+" : unreadNudges}
-            </span>
-          )}
-          <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-        </Link>
-
-        <Link
-          to="/journal"
-          onClick={() => void triggerHaptic("selection")}
-          className="tap-press col-span-2 flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
-        >
-          <BookHeart size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate">{t("journal.entryLabel")}</span>
-          <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-        </Link>
       </div>
     </section>
   );

@@ -16,6 +16,7 @@ import {
   saveBirthProfile,
   type BirthProfile,
 } from "@/lib/birth-profile";
+import { triggerHaptic } from "@/lib/native-device";
 import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
 
 export const Route = createFileRoute("/onboarding/birth")({
@@ -120,74 +121,91 @@ function BirthPage() {
 
   const onSubmit = async (ev: FormEvent) => {
     ev.preventDefault();
-    if (!validate()) return;
+    if (!validate()) {
+      void triggerHaptic("warning");
+      return;
+    }
     setSubmitting(true);
-    const [res] = await Promise.all([
-      saveBirthProfile({
-        name: form.name.trim(),
-        gender: form.gender ?? null,
-        dob: form.dob,
-        birth_time: form.timeUnknown ? null : form.time,
-        time_unknown: form.timeUnknown,
-        place_label: form.place.trim(),
-        latitude: form.placeCoords?.latitude ?? null,
-        longitude: form.placeCoords?.longitude ?? null,
-        birth_timezone: form.placeCoords?.timezone ?? null,
-      }),
-      new Promise((resolve) => setTimeout(resolve, 1000)),
-    ]);
+    try {
+      const [res] = await Promise.all([
+        saveBirthProfile({
+          name: form.name.trim(),
+          gender: form.gender ?? null,
+          dob: form.dob,
+          birth_time: form.timeUnknown ? null : form.time,
+          time_unknown: form.timeUnknown,
+          place_label: form.place.trim(),
+          latitude: form.placeCoords?.latitude ?? null,
+          longitude: form.placeCoords?.longitude ?? null,
+          birth_timezone: form.placeCoords?.timezone ?? null,
+        }),
+        new Promise((resolve) => setTimeout(resolve, 1000)),
+      ]);
 
-    if (res.error) {
+      if (res.error) {
+        void triggerHaptic("error");
+        setSubmitting(false);
+        setErrors((prev) => ({
+          ...prev,
+          name: t("birth.errors.saveFailed", "Could not save. Please try again."),
+        }));
+        return;
+      }
+      // Only regenerate + disturb the cache when something that actually feeds
+      // chart/report generation changed. A pure no-op resave (same details) must
+      // do NOTHING here — no prime-charts fan-out, no cache churn — and just move
+      // on. This is exactly what was needlessly firing 31 gateway jobs on save.
+      const prev = originalRef.current;
+      const savedTime = form.timeUnknown ? null : form.time ? form.time.slice(0, 5) : null;
+      const prevTime =
+        prev && !prev.time_unknown && prev.birth_time ? prev.birth_time.slice(0, 5) : null;
+      const birthDataChanged =
+        !prev ||
+        prev.name !== form.name.trim() ||
+        (prev.gender ?? null) !== (form.gender ?? null) ||
+        prev.dob !== form.dob ||
+        prev.time_unknown !== form.timeUnknown ||
+        prevTime !== savedTime ||
+        (prev.latitude ?? null) !== (form.placeCoords?.latitude ?? null) ||
+        (prev.longitude ?? null) !== (form.placeCoords?.longitude ?? null) ||
+        (prev.birth_timezone ?? null) !== (form.placeCoords?.timezone ?? null);
+
+      if (birthDataChanged) {
+        // Eagerly pre-generate ALL charts/reports in the background so the whole
+        // app and the AI have this person's full picture up front. Changed birth
+        // data yields new input-hashes, so chart-gateway regenerates and
+        // overwrites both chart_artifacts and chart_facts. Fire-and-forget — it
+        // must never block the onboarding flow.
+        void supabase.functions.invoke("prime-charts", { body: {} });
+        // Soft-invalidate (mark stale) instead of clear() so we don't wipe the
+        // persisted cache and unleash a herd of refetches that race the
+        // background prime-charts run. Active views refetch fresh data; the rest
+        // stays warm until next viewed.
+        cache.invalidate();
+      }
+      void triggerHaptic("success");
+      if (firstRunRef.current) {
+        setStage("ready");
+        setSubmitting(false);
+        return;
+      }
+      navigate({ to: "/home" });
+    } catch {
+      void triggerHaptic("error");
       setSubmitting(false);
       setErrors((prev) => ({
         ...prev,
         name: t("birth.errors.saveFailed", "Could not save. Please try again."),
       }));
-      return;
     }
-    // Only regenerate + disturb the cache when something that actually feeds
-    // chart/report generation changed. A pure no-op resave (same details) must
-    // do NOTHING here — no prime-charts fan-out, no cache churn — and just move
-    // on. This is exactly what was needlessly firing 31 gateway jobs on save.
-    const prev = originalRef.current;
-    const savedTime = form.timeUnknown ? null : form.time ? form.time.slice(0, 5) : null;
-    const prevTime =
-      prev && !prev.time_unknown && prev.birth_time ? prev.birth_time.slice(0, 5) : null;
-    const birthDataChanged =
-      !prev ||
-      prev.name !== form.name.trim() ||
-      (prev.gender ?? null) !== (form.gender ?? null) ||
-      prev.dob !== form.dob ||
-      prev.time_unknown !== form.timeUnknown ||
-      prevTime !== savedTime ||
-      (prev.latitude ?? null) !== (form.placeCoords?.latitude ?? null) ||
-      (prev.longitude ?? null) !== (form.placeCoords?.longitude ?? null) ||
-      (prev.birth_timezone ?? null) !== (form.placeCoords?.timezone ?? null);
-
-    if (birthDataChanged) {
-      // Eagerly pre-generate ALL charts/reports in the background so the whole
-      // app and the AI have this person's full picture up front. Changed birth
-      // data yields new input-hashes, so chart-gateway regenerates and
-      // overwrites both chart_artifacts and chart_facts. Fire-and-forget — it
-      // must never block the onboarding flow.
-      void supabase.functions.invoke("prime-charts", { body: {} });
-      // Soft-invalidate (mark stale) instead of clear() so we don't wipe the
-      // persisted cache and unleash a herd of refetches that race the
-      // background prime-charts run. Active views refetch fresh data; the rest
-      // stays warm until next viewed.
-      cache.invalidate();
-    }
-    if (firstRunRef.current) {
-      setStage("ready");
-      setSubmitting(false);
-      return;
-    }
-    navigate({ to: "/home" });
   };
 
   const continueToBirthDetails = () => {
     if (validate("identity")) {
+      void triggerHaptic("selection");
       setStage("birth");
+    } else {
+      void triggerHaptic("warning");
     }
   };
 
@@ -214,7 +232,14 @@ function BirthPage() {
         eyebrow={identity ? t("birth.stageIdentity") : t("birth.stageBirth")}
         title={t("birth.title")}
         // From identity, back leaves the page (consent, or Settings when editing).
-        onBack={identity ? undefined : () => setStage("identity")}
+        onBack={
+          identity
+            ? undefined
+            : () => {
+                void triggerHaptic("selection");
+                setStage("identity");
+              }
+        }
         subtitle={identity ? t("birth.identitySubtitle") : t("birth.subtitle")}
         footer={
           identity ? (

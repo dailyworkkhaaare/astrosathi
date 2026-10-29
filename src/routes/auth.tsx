@@ -8,6 +8,7 @@ import { LoadingState } from "@/components/states/LoadingState";
 import { Button } from "@/components/ui/button";
 import { mockAuth, useAuthSession } from "@/lib/auth";
 import { getOnboardingState, routeForOnboardingState } from "@/lib/birth-profile";
+import { triggerHaptic } from "@/lib/native-device";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -64,6 +65,7 @@ function AuthPage() {
     setValues((current) => ({ ...current, [key]: event.target.value }));
 
   const switchMode = (next: Mode) => {
+    void triggerHaptic("selection");
     setMode(next);
     setErrors({});
     setFormError(null);
@@ -90,14 +92,19 @@ function AuthPage() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setFormError(null);
-    if (!validate()) return;
+    if (!validate()) {
+      void triggerHaptic("warning");
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "signin") {
         const result = await mockAuth.signIn(values.email.trim(), values.password);
-        if ("error" in result)
+        if ("error" in result) {
+          void triggerHaptic("error");
           setFormError(t(`auth.errors.${result.error}`, t("auth.errors.generic")));
-        else {
+        } else {
+          void triggerHaptic("success");
           const state = await getOnboardingState();
           navigate({ to: routeForOnboardingState(state) });
         }
@@ -107,20 +114,29 @@ function AuthPage() {
           values.email.trim(),
           values.password,
         );
-        if ("error" in result)
+        if ("error" in result) {
+          void triggerHaptic("error");
           setFormError(t(`auth.errors.${result.error}`, t("auth.errors.generic")));
-        else if (result.needsConfirmation) setConfirmSent(values.email.trim());
-        else {
+        } else if (result.needsConfirmation) {
+          void triggerHaptic("success");
+          setConfirmSent(values.email.trim());
+        } else {
+          void triggerHaptic("success");
           const state = await getOnboardingState();
           navigate({ to: routeForOnboardingState(state) });
         }
       } else {
         const result = await mockAuth.resetPassword(values.email.trim());
-        if ("error" in result)
+        if ("error" in result) {
+          void triggerHaptic("error");
           setFormError(t(`auth.errors.${result.error}`, t("auth.errors.generic")));
-        else setResetSent(true);
+        } else {
+          void triggerHaptic("success");
+          setResetSent(true);
+        }
       }
     } catch {
+      void triggerHaptic("error");
       setFormError(t("auth.errors.generic"));
     } finally {
       setLoading(false);
@@ -128,19 +144,23 @@ function AuthPage() {
   };
 
   const onGoogle = async () => {
+    void triggerHaptic("selection");
     setFormError(null);
     setGoogleLoading(true);
     try {
       const result = await mockAuth.signInWithGoogle();
       if (result.error) {
+        void triggerHaptic("error");
         setFormError(t(`auth.errors.${result.error}`, t("auth.errors.generic")));
         setGoogleLoading(false);
         return;
       }
       if (result.redirected) return;
+      void triggerHaptic("success");
       const state = await getOnboardingState();
       navigate({ to: routeForOnboardingState(state) });
     } catch {
+      void triggerHaptic("error");
       setFormError(t("auth.errors.generic"));
       setGoogleLoading(false);
     }
@@ -148,7 +168,7 @@ function AuthPage() {
 
   if (sessionLoading || user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-dvh items-center justify-center bg-background">
         <LoadingState />
       </div>
     );

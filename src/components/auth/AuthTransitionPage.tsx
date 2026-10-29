@@ -8,7 +8,7 @@ import { APP_NAME } from "@/lib/brand";
 export function AuthTransitionPage({ children }: { children: ReactNode }) {
   return (
     <main
-      className="relative isolate flex min-h-dvh flex-col overflow-hidden p-4 text-on-night sm:p-6"
+      className="relative isolate flex min-h-dvh flex-col overflow-hidden px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-on-night sm:p-6"
       style={{ background: "var(--gradient-night)" }}
     >
       <TransitionCosmos />
@@ -26,7 +26,7 @@ export function AuthTransitionPage({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="relative mx-auto flex w-full max-w-xl flex-1 items-center py-10 sm:py-14">
+      <div className="relative mx-auto flex w-full max-w-xl flex-1 items-center py-8 sm:py-14">
         {children}
       </div>
 

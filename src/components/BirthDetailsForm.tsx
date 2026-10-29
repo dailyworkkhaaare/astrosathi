@@ -4,6 +4,7 @@ import { Check, MapPin, Search } from "lucide-react";
 
 import type { Gender } from "@/lib/birth-profile";
 import { searchPlaces, type PlaceHit } from "@/lib/geocode";
+import { triggerHaptic } from "@/lib/native-device";
 
 export type PlaceCoords = { latitude: number; longitude: number; timezone: string };
 
@@ -147,7 +148,10 @@ export function BirthDetailsForm({
                     type="button"
                     role="radio"
                     aria-checked={selected}
-                    onClick={() => onChange({ gender: opt.value })}
+                    onClick={() => {
+                      void triggerHaptic("selection");
+                      onChange({ gender: opt.value });
+                    }}
                     className={`tap-press rounded-xl border px-4 py-3 min-h-11 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       selected
                         ? "border-accent/60 bg-accent/10 text-accent font-semibold"
@@ -161,7 +165,10 @@ export function BirthDetailsForm({
             </div>
             <button
               type="button"
-              onClick={() => onChange({ gender: null })}
+              onClick={() => {
+                void triggerHaptic("selection");
+                onChange({ gender: null });
+              }}
               aria-pressed={value.gender === null}
               className={`mt-2 text-xs underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm ${
                 value.gender === null ? "text-foreground font-medium" : "text-muted-foreground"
@@ -209,6 +216,7 @@ export function BirthDetailsForm({
                   type="checkbox"
                   checked={value.timeUnknown}
                   onChange={(e) => {
+                    void triggerHaptic("selection");
                     onChange({
                       timeUnknown: e.target.checked,
                       ...(e.target.checked ? { time: "" } : {}),
@@ -278,6 +286,7 @@ export function BirthDetailsForm({
                         className="flex cursor-pointer items-center gap-2.5 px-4 py-3 text-sm min-h-11 hover:bg-muted/80 transition-colors"
                         onMouseDown={(ev) => {
                           ev.preventDefault();
+                          void triggerHaptic("selection");
                           onChange({
                             place: r.label,
                             placeCoords: {

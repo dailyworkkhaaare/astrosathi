@@ -2,6 +2,7 @@ import { AlertCircle, ChevronDown, Coins, Minus, TrendingDown, TrendingUp } from
 import { useTranslation } from "react-i18next";
 
 import { useMarketOutlook, type MarketMetalOutlook } from "@/lib/queries";
+import { triggerHaptic } from "@/lib/native-device";
 import { SIGN_KEYS_BY_INDEX } from "@/lib/charts";
 
 export function MarketOutlookSection() {
@@ -79,7 +80,10 @@ export function MarketOutlookSection() {
             <p className="text-sm text-foreground">{t("sections.market.loadError")}</p>
             <button
               type="button"
-              onClick={() => void query.refetch()}
+              onClick={() => {
+                void triggerHaptic("selection");
+                void query.refetch();
+              }}
               className="inline-flex min-h-11 items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {t("states.retry")}

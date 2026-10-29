@@ -5,6 +5,7 @@ import { Brain, ChevronDown, LockKeyhole, ShieldCheck, UserCheck } from "lucide-
 import { useRequireAuth } from "@/lib/require-auth";
 import { OnboardingShell } from "@/components/OnboardingShell";
 import { Button } from "@/components/ui/button";
+import { triggerHaptic } from "@/lib/native-device";
 
 import { saveConsent } from "@/lib/consent";
 
@@ -55,9 +56,11 @@ function ConsentPage() {
     });
     setSaving(false);
     if (res.error) {
+      void triggerHaptic("error");
       setSaveError(t("auth.errors.generic"));
       return;
     }
+    void triggerHaptic("success");
     navigate({ to: "/onboarding/birth" });
   };
 
@@ -231,7 +234,11 @@ function SwitchRow({
           <input
             type="checkbox"
             checked={checked}
-            onChange={(event) => onChange(event.target.checked)}
+            onChange={(event) => {
+              const next = event.target.checked;
+              void triggerHaptic(next ? "selection" : "light");
+              onChange(next);
+            }}
             className="peer absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-full bg-foreground/[0.16] transition-colors duration-[var(--motion-micro)] checked:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card motion-reduce:transition-none"
             aria-required={required || undefined}
             aria-describedby={status ? statusId : undefined}

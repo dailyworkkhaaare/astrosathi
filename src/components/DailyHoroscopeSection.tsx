@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useDailyHoroscope, type DailyHoroscopeReason } from "@/lib/queries";
+import { triggerHaptic } from "@/lib/native-device";
 import { cn } from "@/lib/utils";
 
 const AREA_ICON: Record<string, typeof Sparkles> = {
@@ -40,7 +41,7 @@ export function DailyHoroscopeSection() {
 
       {isLoading ? (
         <div
-          className="rounded-[1.75rem] border border-border bg-card p-6 shadow-[var(--shadow-soft)]"
+          className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
           aria-busy="true"
         >
           <div className="h-8 w-3/4 animate-pulse rounded-lg bg-muted" />
@@ -49,11 +50,11 @@ export function DailyHoroscopeSection() {
           <div className="mt-6 h-28 animate-pulse rounded-2xl bg-muted" />
         </div>
       ) : isError ? (
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]">
+        <div className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-soft)]">
           <p className="text-sm text-muted-foreground">{t("sections.horoscope.loadError")}</p>
         </div>
       ) : data?.incomplete ? (
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]">
+        <div className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-soft)]">
           <p className="text-sm text-foreground">{t("sections.horoscope.completeProfile")}</p>
           <Link
             to="/onboarding/birth"
@@ -68,11 +69,7 @@ export function DailyHoroscopeSection() {
         </div>
       ) : (
         <div className="space-y-6">
-          <article className="relative isolate overflow-hidden rounded-[1.75rem] border border-accent/20 bg-card p-6 shadow-[var(--shadow-elevated)] sm:p-8">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-20 -top-24 -z-10 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(242,153,29,0.17),rgba(242,153,29,0)_68%)]"
-            />
+          <article className="rounded-lg border border-accent/20 bg-card p-5 shadow-[var(--shadow-elevated)] sm:p-8">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
               {t("todayOverview.chartGrounded")}
             </p>
@@ -82,7 +79,7 @@ export function DailyHoroscopeSection() {
             <ReasonsDisclosure reasons={data.reasons?.summary} />
 
             {data.focus && (
-              <div className="mt-6 max-w-2xl rounded-2xl border border-accent/20 bg-accent/[0.06] px-4 py-4">
+              <div className="mt-6 max-w-2xl rounded-lg border border-accent/20 bg-accent/[0.06] px-4 py-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
                   {t("sections.horoscope.focusLabel")}
                 </p>
@@ -107,7 +104,7 @@ export function DailyHoroscopeSection() {
                   return (
                     <li
                       key={area.key}
-                      className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+                      className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
                     >
                       <div className="flex items-start gap-3">
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
@@ -133,7 +130,7 @@ export function DailyHoroscopeSection() {
           {data.lucky && (data.lucky.color || data.lucky.number || data.lucky.direction) && (
             <section
               aria-labelledby="daily-horoscope-notes"
-              className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
+              className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
             >
               <h2
                 id="daily-horoscope-notes"
@@ -178,7 +175,10 @@ function ReasonsDisclosure({ reasons }: { reasons: DailyHoroscopeReason[] | unde
     <div className="mt-4">
       <button
         type="button"
-        onClick={() => setOpen((open) => !open)}
+        onClick={() => {
+          void triggerHaptic("selection");
+          setOpen((open) => !open);
+        }}
         aria-expanded={open}
         aria-controls={contentId}
         className="tap-press inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -193,7 +193,7 @@ function ReasonsDisclosure({ reasons }: { reasons: DailyHoroscopeReason[] | unde
       {open && (
         <div
           id={contentId}
-          className="motion-fade-up mt-3 space-y-3 rounded-2xl border border-border/70 bg-background/65 p-4"
+          className="motion-fade-up mt-3 space-y-3 rounded-lg border border-border/70 bg-background/65 p-4"
         >
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             {t("sections.horoscope.whyTitle")}

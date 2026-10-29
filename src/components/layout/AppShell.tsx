@@ -512,7 +512,7 @@ function MobileProfileLauncher({ user }: { user: MockUser }) {
             <MoonSignAvatar avatar={avatar} size="mobile" />
           </button>
         </DrawerTrigger>
-        <DrawerContent className="rounded-t-[1.75rem] border-border bg-background px-4 pb-[calc(1rem+var(--as-safe-bottom))]">
+        <DrawerContent className="rounded-t-lg border-border bg-background px-4 pb-[calc(1rem+var(--as-safe-bottom))]">
           <DrawerHeader className="px-1 pb-4 pt-6 text-left">
             <DrawerTitle>{t("nav.profileSettings")}</DrawerTitle>
             <DrawerDescription asChild>

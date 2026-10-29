@@ -22,6 +22,12 @@ import {
 } from "@/components/ui/select";
 import { useProactiveSettings, useSaveProactiveSettings } from "@/lib/queries";
 import { NUDGE_KINDS, PROACTIVE_SETTINGS_DEFAULTS, type ProactiveSettings } from "@/lib/proactive";
+import {
+  getDeviceNotificationPermission,
+  requestDeviceNotificationPermission,
+  triggerHaptic,
+  type DeviceNotificationPermission,
+} from "@/lib/native-device";
 
 export const Route = createFileRoute("/settings/proactive")({
   head: () => ({
@@ -56,10 +62,23 @@ function ProactiveSettingsPage() {
   // load / after invalidation, but writes flow through here so the UI reacts
   // instantly (matching settings.memory.tsx's onToggle/onChange pattern).
   const [local, setLocal] = useState<ProactiveSettings>(PROACTIVE_SETTINGS_DEFAULTS);
+  const [notificationPermission, setNotificationPermission] =
+    useState<DeviceNotificationPermission>("unavailable");
+  const [requestingNotificationPermission, setRequestingNotificationPermission] = useState(false);
 
   useEffect(() => {
     if (settingsQuery.data) setLocal(settingsQuery.data);
   }, [settingsQuery.data]);
+
+  useEffect(() => {
+    let active = true;
+    void getDeviceNotificationPermission().then((permission) => {
+      if (active) setNotificationPermission(permission);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const persist = async (patch: Partial<ProactiveSettings>, prev: ProactiveSettings) => {
     const res = await saveMutation.mutateAsync(patch);
@@ -111,6 +130,20 @@ function ProactiveSettingsPage() {
       : Array.from(new Set([...local.muted_kinds, kind]));
     setLocal((s) => ({ ...s, muted_kinds: nextMuted }));
     void persist({ muted_kinds: nextMuted }, prev);
+  };
+
+  const onEnableDeviceAlerts = async () => {
+    setRequestingNotificationPermission(true);
+    const permission = await requestDeviceNotificationPermission();
+    setNotificationPermission(permission);
+    setRequestingNotificationPermission(false);
+    if (permission === "granted") {
+      void triggerHaptic("success");
+      toast.success(t("settings.proactive.toasts.alertsEnabled"));
+    } else if (permission === "denied") {
+      void triggerHaptic("warning");
+      toast.message(t("settings.proactive.toasts.alertsBlocked"));
+    }
   };
 
   const disabled = !local.enabled;
@@ -168,6 +201,30 @@ function ProactiveSettingsPage() {
           disabled && "pointer-events-none opacity-50",
         )}
       >
+        <Group
+          title={t("settings.proactive.deviceAlerts")}
+          footer={t(`settings.proactive.deviceAlertHint.${notificationPermission}`)}
+          delay={2}
+        >
+          <div className="flex min-h-11 items-center justify-between gap-3 py-1.5 pl-4 pr-2">
+            <span className="min-w-0 text-[1.0625rem] leading-snug text-foreground">
+              {t(`settings.proactive.deviceAlertStatus.${notificationPermission}`)}
+            </span>
+            {notificationPermission === "prompt" ? (
+              <button
+                type="button"
+                disabled={requestingNotificationPermission}
+                onClick={() => void onEnableDeviceAlerts()}
+                className="tap-press inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-[0.9375rem] font-semibold text-accent transition-colors hover:bg-accent/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              >
+                {requestingNotificationPermission
+                  ? t("settings.proactive.deviceAlertsRequesting")
+                  : t("settings.proactive.deviceAlertsEnable")}
+              </button>
+            ) : null}
+          </div>
+        </Group>
+
         <Group
           title={t("settings.proactive.frequency")}
           footer={

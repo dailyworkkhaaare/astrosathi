@@ -124,7 +124,7 @@ function TodayPage() {
               : t("today.pullToRefresh")}
         </div>
       </div>
-      <p className="sr-only" role="status" aria-live="polite">
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
         {refreshing ? t("today.refreshing") : ""}
       </p>
       <header className="motion-fade-up flex items-end justify-between gap-3">

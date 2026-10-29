@@ -62,11 +62,7 @@ export function PanchangSection() {
         <StateCard>{t("sections.panchang.empty")}</StateCard>
       ) : (
         <div className="space-y-6">
-          <article className="relative isolate overflow-hidden rounded-[1.75rem] border border-accent/20 bg-card p-6 shadow-[var(--shadow-elevated)] sm:p-8">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-20 -top-24 -z-10 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(242,153,29,0.17),rgba(242,153,29,0)_68%)]"
-            />
+          <article className="rounded-lg border border-accent/20 bg-card p-5 shadow-[var(--shadow-elevated)] sm:p-8">
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <CalendarDays size={15} className="text-accent" aria-hidden="true" />
@@ -136,7 +132,7 @@ export function PanchangSection() {
 function LoadingState() {
   return (
     <div
-      className="rounded-[1.75rem] border border-border bg-card p-6 shadow-[var(--shadow-soft)]"
+      className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-soft)]"
       aria-busy="true"
     >
       <div className="h-5 w-2/3 animate-pulse rounded-lg bg-muted" />
@@ -151,7 +147,7 @@ function LoadingState() {
 
 function StateCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-soft)]">
+    <div className="rounded-lg border border-border bg-card p-5 shadow-[var(--shadow-soft)]">
       <p className="text-sm text-muted-foreground">{children}</p>
     </div>
   );
@@ -159,7 +155,7 @@ function StateCard({ children }: { children: React.ReactNode }) {
 
 function ValueCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-background/65 px-4 py-3.5">
+    <div className="rounded-lg border border-border/70 bg-background/65 px-4 py-3.5">
       <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </dt>
@@ -178,7 +174,7 @@ function TimingCard({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)]">
+    <div className="rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-soft)]">
       <dt className="flex items-center gap-2 text-sm text-muted-foreground">
         <Icon size={16} className="text-accent" aria-hidden="true" />
         {label}

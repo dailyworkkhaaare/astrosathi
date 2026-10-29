@@ -1032,6 +1032,21 @@
       "enabledStatusOff": "Guidance off",
       "controlsPaused": "Turn proactive guidance on to adjust its schedule and topics.",
       "saving": "Saving changes…",
+      "deviceAlerts": "Device alerts",
+      "deviceAlertsEnable": "Allow alerts",
+      "deviceAlertsRequesting": "Opening…",
+      "deviceAlertStatus": {
+        "granted": "Alerts permitted",
+        "denied": "Alerts blocked",
+        "prompt": "Alerts not set up",
+        "unavailable": "Available in the installed app"
+      },
+      "deviceAlertHint": {
+        "granted": "This device can receive alerts once delivery is enabled in the installed app.",
+        "denied": "Enable alerts in your device settings whenever you are ready.",
+        "prompt": "Allow alerts to see approved nudges outside the app.",
+        "unavailable": "This browser cannot request device alerts. Your nudge feed still works here."
+      },
       "frequency": "How often",
       "frequencyLabel": "Maximum",
       "settingsAria": "Guidance settings",
@@ -1063,7 +1078,9 @@
       },
       "toasts": {
         "saved": "Saved",
-        "error": "Couldn't save. Please try again."
+        "error": "Couldn't save. Please try again.",
+        "alertsEnabled": "Device alert permission allowed",
+        "alertsBlocked": "Alerts remain blocked. You can enable them later in device settings."
       }
     }
   },

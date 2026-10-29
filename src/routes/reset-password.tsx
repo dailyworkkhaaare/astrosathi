@@ -7,6 +7,7 @@ import { AuthTransitionPage } from "@/components/auth/AuthTransitionPage";
 import { StateFrame } from "@/components/states/StateFrame";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { triggerHaptic } from "@/lib/native-device";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
@@ -38,10 +39,12 @@ function ResetPasswordPage() {
     e.preventDefault();
     setError(null);
     if (password.length < 8) {
+      void triggerHaptic("warning");
       setError(t("auth.errors.passwordShort"));
       return;
     }
     if (password !== confirm) {
+      void triggerHaptic("warning");
       setError(t("auth.errors.confirmMismatch"));
       return;
     }
@@ -49,9 +52,11 @@ function ResetPasswordPage() {
     const { error: err } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (err) {
+      void triggerHaptic("error");
       setError(t("auth.errors.generic"));
       return;
     }
+    void triggerHaptic("success");
     setDone(true);
     setTimeout(() => navigate({ to: "/home", replace: true }), 900);
   };
@@ -81,9 +86,9 @@ function ResetPasswordPage() {
         <div
           role="status"
           aria-live="polite"
-          className="motion-local-enter w-full rounded-[1.75rem] border border-white/15 bg-background/95 p-7 text-center text-foreground shadow-2xl backdrop-blur-xl sm:p-10"
+          className="motion-local-enter w-full rounded-lg border border-white/15 bg-background/95 p-7 text-center text-foreground shadow-2xl backdrop-blur-xl sm:p-10"
         >
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
             <ShieldCheck className="h-6 w-6" aria-hidden />
           </div>
           <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
@@ -97,8 +102,8 @@ function ResetPasswordPage() {
           </p>
         </div>
       ) : ready ? (
-        <section className="motion-local-enter w-full rounded-[1.75rem] border border-white/15 bg-background/95 p-6 text-foreground shadow-2xl backdrop-blur-xl sm:p-9">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+        <section className="motion-local-enter w-full rounded-lg border border-white/15 bg-background/95 p-6 text-foreground shadow-2xl backdrop-blur-xl sm:p-9">
+          <div className="grid h-12 w-12 place-items-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
             <KeyRound className="h-5 w-5" aria-hidden />
           </div>
           <p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-accent">

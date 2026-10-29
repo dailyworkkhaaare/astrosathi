@@ -126,11 +126,15 @@ test("offline mode shows a native-style network banner without replacing the scr
   await page.goto("/today");
   await expect(page.getByRole("heading", { name: "Today", level: 1 })).toBeVisible();
   await context.setOffline(true);
-  await expect(page.getByRole("status")).toContainText("You're offline");
+  await expect(page.getByRole("status").filter({ hasText: "You're offline" })).toContainText(
+    "You're offline",
+  );
   await expect(page.getByRole("heading", { name: "Today", level: 1 })).toBeVisible();
 
   await context.setOffline(false);
-  await expect(page.getByRole("status")).toContainText("Connection restored");
+  await expect(page.getByRole("status").filter({ hasText: "Connection restored" })).toContainText(
+    "Connection restored",
+  );
   await expect(page.getByRole("heading", { name: "Today", level: 1 })).toBeVisible();
 });
 

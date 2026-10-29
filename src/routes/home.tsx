@@ -164,7 +164,10 @@ function HomePage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const { tab: tabParam } = Route.useSearch();
   const tab: TabKey = tabParam ?? "overview";
-  const setTab = (k: TabKey) => void navigate({ search: { tab: k }, replace: true });
+  const setTab = (k: TabKey) => {
+    void triggerHaptic("selection");
+    void navigate({ search: { tab: k }, replace: true });
+  };
   const isProfileIncomplete = profileLoaded && (!profile || !profile.dob);
   const unreadNudges = useUnreadNudgeCount();
 
@@ -197,6 +200,7 @@ function HomePage() {
       <div className="motion-fade-up grid grid-cols-2 gap-3 border-t border-border/70 pt-5">
         <Link
           to="/life"
+          onClick={() => void triggerHaptic("selection")}
           className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <CalendarClock size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
@@ -206,6 +210,7 @@ function HomePage() {
 
         <Link
           to="/nudges"
+          onClick={() => void triggerHaptic("selection")}
           className="tap-press flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <Bell size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
@@ -223,6 +228,7 @@ function HomePage() {
 
         <Link
           to="/journal"
+          onClick={() => void triggerHaptic("selection")}
           className="tap-press col-span-2 flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-3 min-h-11 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"
         >
           <BookHeart size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />

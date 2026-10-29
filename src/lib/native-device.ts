@@ -1,4 +1,5 @@
 type HapticKind = "selection" | "light" | "success" | "warning" | "error";
+export type DeviceNotificationPermission = "granted" | "denied" | "prompt" | "unavailable";
 
 export const HAPTICS_STORAGE_KEY = "astrosaathi.haptics";
 
@@ -22,6 +23,14 @@ type CapacitorPlugins = {
   NavigationBar?: {
     setColor?: (options: { color: string; darkButtons: boolean }) => Promise<void>;
     setNavigationBarColor?: (options: { color: string; darkButtons: boolean }) => Promise<void>;
+  };
+  PushNotifications?: {
+    checkPermissions?: () => Promise<{ receive?: string }>;
+    requestPermissions?: () => Promise<{ receive?: string }>;
+    addListener?: (
+      eventName: "pushNotificationActionPerformed",
+      callback: (event: { notification?: { data?: Record<string, unknown> } }) => void,
+    ) => CapacitorListener | Promise<CapacitorListener>;
   };
 };
 
@@ -66,6 +75,41 @@ function hapticsEnabled() {
 
 function ignoreNativeError(operation: Promise<void> | void | undefined) {
   void Promise.resolve(operation).catch(() => {});
+}
+
+function notificationPermission(value: unknown): DeviceNotificationPermission {
+  if (value === "granted" || value === "denied" || value === "prompt") return value;
+  return "unavailable";
+}
+
+export async function getDeviceNotificationPermission(): Promise<DeviceNotificationPermission> {
+  try {
+    const nativeNotifications = plugins().PushNotifications;
+    if (nativeNotifications?.checkPermissions) {
+      const result = await nativeNotifications.checkPermissions();
+      return notificationPermission(result.receive);
+    }
+    if (typeof Notification !== "undefined") return notificationPermission(Notification.permission);
+  } catch {
+    // A missing or restricted native plugin must leave the web experience intact.
+  }
+  return "unavailable";
+}
+
+export async function requestDeviceNotificationPermission(): Promise<DeviceNotificationPermission> {
+  try {
+    const nativeNotifications = plugins().PushNotifications;
+    if (nativeNotifications?.requestPermissions) {
+      const result = await nativeNotifications.requestPermissions();
+      return notificationPermission(result.receive);
+    }
+    if (typeof Notification !== "undefined") {
+      return notificationPermission(await Notification.requestPermission());
+    }
+  } catch {
+    // Permission prompts are optional device affordances, never a blocking flow.
+  }
+  return "unavailable";
 }
 
 export function syncNativeSystemBars(isDark: boolean) {
@@ -212,12 +256,40 @@ export function onNativeBack(callback: (canGoBack: boolean) => void) {
   };
 }
 
+export function onNativeNotificationOpen(callback: (path: string) => void) {
+  let disposed = false;
+  let appListener: CapacitorListener | null = null;
+  const listener = plugins().PushNotifications?.addListener?.(
+    "pushNotificationActionPerformed",
+    (event) => {
+      const data = event.notification?.data ?? {};
+      const candidates = [data.url, data.deepLink, data.path];
+      for (const candidate of candidates) {
+        if (typeof candidate !== "string") continue;
+        const path = supportedDeepLinkPath(candidate);
+        if (path && !disposed) callback(path);
+        if (path) return;
+      }
+    },
+  );
+  void Promise.resolve(listener).then((sub) => {
+    if (!sub) return;
+    if (disposed) void sub.remove();
+    else appListener = sub;
+  });
+  return () => {
+    disposed = true;
+    void appListener?.remove();
+  };
+}
+
 const NATIVE_ROUTE_ALIASES: Record<string, string> = {
   "/ask": "/chat",
   "/cosmos": "/home",
   "/connections": "/people",
 };
-const NATIVE_NUDGE_PATH = /^\/nudges\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const NATIVE_NUDGE_PATH =
+  /^\/nudges\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 export function supportedDeepLinkPath(rawUrl: string) {
   try {
@@ -233,8 +305,7 @@ export function supportedDeepLinkPath(rawUrl: string) {
     const allowed =
       ["/chat", "/today", "/home", "/journey", "/people", "/life", "/journal", "/nudges"].includes(
         normalizedPath,
-      ) ||
-      /^\/people\/[^/]+(?:\/(?:edit|compatibility))?$/.test(normalizedPath);
+      ) || /^\/people\/[^/]+(?:\/(?:edit|compatibility))?$/.test(normalizedPath);
     return allowed ? `${normalizedPath}${url.search}${url.hash}` : null;
   } catch {
     return null;

@@ -1431,7 +1431,9 @@ test("settings overview groups utility controls and keeps every destination reac
     assert.match(settingsSource, new RegExp(destination));
   }
   assert.match(settingsSource, /to="\/settings\/preferences"/);
-  assert.match(settingsSource, /updatePreferences\(\{ memory_opt_in \}\)/);
+  // Memory is changed on its own page; the overview only shows its state.
+  assert.match(settingsSource, /prefs\.memory_opt_in \? t\("settings\.valueOn"\)/);
+  assert.doesNotMatch(settingsSource, /id="pref-memory"/);
   assert.match(settingsSource, /APP_VERSION/);
   assert.match(settingsSource, /t\("settings\.version", \{ v: APP_VERSION \}\)/);
   assert.match(settingsSource, /await mockAuth\.signOut\(\)/);

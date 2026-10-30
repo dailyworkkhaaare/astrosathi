@@ -18,7 +18,7 @@ export function MarketOutlookSection() {
   const isEmpty = !loading && !hasError && !gold && !silver;
 
   const dateLabel = data?.tradeDate
-    ? new Intl.DateTimeFormat(i18n.language, {
+    ? new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
         weekday: "long",
         day: "numeric",
         month: "long",

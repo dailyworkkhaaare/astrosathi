@@ -44,11 +44,10 @@ function TodayPage() {
   const touchStartYRef = useRef<number | null>(null);
   const timezone = transitsQuery.data?.timezone;
 
-  const dateLabel = new Intl.DateTimeFormat(i18n.language, {
+  const dateLabel = new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: "numeric",
     ...(timezone ? { timeZone: timezone } : {}),
   }).format(new Date());
 
@@ -153,10 +152,13 @@ function TodayPage() {
 
       <div className="motion-fade-up motion-delay-2 space-y-4">
         <TodayAtAGlance />
-        <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
-          {t("todayOverview.currentTiming")}
-        </p>
-        <TransitHighlightBand />
+        <TransitHighlightBand
+          label={
+            <p className="px-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground [:lang(hi)_&]:tracking-normal [:lang(mr)_&]:tracking-normal">
+              {t("todayOverview.currentTiming")}
+            </p>
+          }
+        />
         <TodaySection />
       </div>
 

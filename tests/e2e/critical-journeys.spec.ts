@@ -370,7 +370,7 @@ test.describe("authenticated critical journeys", () => {
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chrome", "The profile launcher is mobile-only.");
-    await page.goto("/settings/memory");
+    await page.goto("/today");
 
     const launcher = page.getByRole("button", { name: "Profile and settings" });
     const initialBox = await launcher.boundingBox();
@@ -445,45 +445,12 @@ test.describe("authenticated critical journeys", () => {
     }
   });
 
-  test("context lenses stay truthful to route ownership", async ({ page }) => {
-    await page.goto("/today");
-
-    const context = page.getByRole("region", { name: "Current chart context" });
-    await expect(context.getByRole("button", { name: "Subject: My chart" })).toBeVisible();
-    await expect(context.getByRole("button", { name: "Time: Today" })).toBeVisible();
-
-    await context.getByRole("button", { name: "Subject: My chart" }).click();
-    await expect(page.getByRole("heading", { name: "Whose chart" })).toBeVisible();
-    await page.keyboard.press("Escape");
-
-    await page.goto("/home");
-    await expect(
-      page
-        .getByRole("region", { name: "Current chart context" })
-        .getByRole("button", { name: "Time: Not applied" }),
-    ).toBeVisible();
-
-    await page.goto(`/people/${TEST_PERSON_ID}/compatibility`);
-    await expect(
-      page
-        .getByRole("region", { name: "Current chart context" })
-        .getByRole("button", { name: "Subject: Me + Vihaan Journey" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("region", { name: "Current chart context" }).getByText("TIME"),
-    ).toHaveCount(0);
-
-    await page.goto("/today");
-    await expect(
-      page
-        .getByRole("region", { name: "Current chart context" })
-        .getByRole("button", { name: "Subject: My chart" }),
-    ).toBeVisible();
-    await expect(
-      page
-        .getByRole("region", { name: "Current chart context" })
-        .getByRole("button", { name: "Time: Today" }),
-    ).toBeVisible();
+  test("world screens no longer show the Subject/Time context bar", async ({ page }) => {
+    for (const path of ["/today", "/home", "/journey", "/people"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+      await expect(page.getByRole("region", { name: "Current chart context" })).toHaveCount(0);
+    }
   });
 
   test("Today overview leads with one personalized daily signal", async ({ page }) => {
@@ -730,7 +697,7 @@ test.describe("authenticated critical journeys", () => {
     await page.goto("/today/panchang");
 
     const localDate = await page.evaluate(() =>
-      new Intl.DateTimeFormat("en", {
+      new Intl.DateTimeFormat("en-IN", {
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -1663,7 +1630,7 @@ test.describe("authenticated critical journeys", () => {
     await selection.getByRole("button", { name: /House 3.*Gemini/ }).click();
     await selection.getByRole("button", { name: /Ask about this D1.*house/ }).click();
     await expect(page.getByRole("textbox", { name: "Message AstroSaathi" })).toHaveValue(
-      "Tell me about house 3 in my D1 — Rashi (birth) chart — it's in Gemini, ruled by Mercury, with Sun placed there. What does this mean for me?",
+      "Tell me about house 3 in my D1 · Rashi (birth) chart — it's in Gemini, ruled by Mercury, with Sun placed there. What does this mean for me?",
     );
 
     await page.goto("/home?tab=charts");
@@ -1674,7 +1641,7 @@ test.describe("authenticated critical journeys", () => {
     await expect(sunCard.getByRole("button", { name: "Ask about this placement" })).toBeVisible();
     await sunCard.getByRole("button", { name: "Ask about this placement" }).click();
     await expect(page.getByRole("textbox", { name: "Message AstroSaathi" })).toHaveValue(
-      "Tell me about Sun in my D1 — Rashi (birth) chart — it is in Gemini, house 3, with nakshatra Ardra. What does this placement mean for me?",
+      "Tell me about Sun in my D1 · Rashi (birth) chart — it is in Gemini, house 3, with nakshatra Ardra. What does this placement mean for me?",
     );
   });
 
@@ -1716,10 +1683,10 @@ test.describe("authenticated critical journeys", () => {
     const isMobile = testInfo.project.name === "mobile-chrome";
     const picker = page.getByRole("combobox", { name: "Divisional chart", exact: true });
     if (!isMobile) await expect(picker.locator("option")).toHaveCount(VARGA_KEYS.length);
-    await page.getByRole("button", { name: "D9 — Navamsa" }).click();
+    await page.getByRole("button", { name: "D9 · Navamsa" }).click();
     if (isMobile) {
       await page.getByRole("button", { name: "Divisional chart" }).click();
-      await page.getByRole("option", { name: "D9 — Navamsa" }).click();
+      await page.getByRole("option", { name: "D9 · Navamsa" }).click();
     } else {
       await expect(picker).toHaveValue("D9");
     }
@@ -1728,7 +1695,7 @@ test.describe("authenticated critical journeys", () => {
     for (const varga of VARGA_KEYS) {
       if (isMobile) {
         await page.getByRole("button", { name: /Divisional chart/ }).click();
-        await page.getByRole("option", { name: new RegExp(`^${varga} —`) }).click();
+        await page.getByRole("option", { name: new RegExp(`^${varga} ·`) }).click();
       } else {
         await picker.selectOption(varga);
       }
@@ -1736,7 +1703,7 @@ test.describe("authenticated critical journeys", () => {
     }
 
     await expect(
-      page.getByText("Currently viewing: D60 — Shashtyamsa (overall karma)"),
+      page.getByText("Currently viewing: D60 · Shashtyamsa (overall karma)"),
     ).toBeVisible();
   });
 
@@ -1926,8 +1893,8 @@ test.describe("authenticated critical journeys", () => {
     expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewportHeight - 12);
     expect(geometry.top).toBeGreaterThan(geometry.viewportHeight * 0.1);
 
-    await sheet.getByRole("option", { name: "D9 — Navamsa" }).click();
+    await sheet.getByRole("option", { name: "D9 · Navamsa" }).click();
     await expect(sheet).toBeHidden();
-    await expect(picker).toContainText("D9 — Navamsa");
+    await expect(picker).toContainText("D9 · Navamsa");
   });
 });

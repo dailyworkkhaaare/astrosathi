@@ -13,20 +13,25 @@ import {
   MessageCircle,
   Palette,
   ShieldCheck,
-  Sparkles,
   Trash2,
   Users,
 } from "lucide-react";
 import { useRequireOnboarding } from "@/lib/require-auth";
 import { AstroArt } from "@/components/AstroArt";
-import { ConfirmDialog, Group, IconTile, Toggle } from "@/components/settings/primitives";
+import { ConfirmDialog, Group, IconTile } from "@/components/settings/primitives";
 import { clearSession, getSession, mockAuth } from "@/lib/auth";
 import { getBirthProfile, type BirthProfile } from "@/lib/birth-profile";
-import { useChartGatewayCacheControls, usePlanets } from "@/lib/queries";
+import {
+  useChartGatewayCacheControls,
+  usePlanets,
+  useProactiveSettings,
+  useRelatedCharts,
+  useWhatsAppPrefs,
+} from "@/lib/queries";
+import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "@/i18n";
 import {
   getPreferences,
   loadPreferencesFromProfile,
-  updatePreferences,
   APP_VERSION,
   type Preferences,
 } from "@/lib/preferences";
@@ -51,7 +56,12 @@ export const Route = createFileRoute("/settings/")({
 
 function SettingsPage() {
   useRequireOnboarding();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { data: people } = useRelatedCharts();
+  const { data: proactive } = useProactiveSettings();
+  const { data: whatsapp } = useWhatsAppPrefs();
+  const languagePrefix = i18n.language.split("-")[0] as SupportedLanguage;
+  const languageKey = SUPPORTED_LANGUAGES.includes(languagePrefix) ? languagePrefix : "en";
   const navigate = useNavigate();
   const cache = useChartGatewayCacheControls();
   const planetsQuery = usePlanets();
@@ -73,10 +83,6 @@ function SettingsPage() {
     cache.clear();
     await mockAuth.signOut();
     navigate({ to: "/auth" });
-  };
-
-  const onMemoryOptInChange = (memory_opt_in: boolean) => {
-    setPrefs(updatePreferences({ memory_opt_in }));
   };
 
   const onDelete = () => {
@@ -142,30 +148,25 @@ function SettingsPage() {
             to="/people"
             icon={<Users size={17} />}
             label={t("settings.profile.people")}
+            value={people ? String(people.length) : null}
           />
           <SettingsLink
             to="/settings/memory"
             icon={<Brain size={17} />}
             label={t("settings.profile.memory")}
+            value={prefs.memory_opt_in ? t("settings.valueOn") : t("settings.valueOff")}
           />
-          <div className="flex min-h-12 items-center gap-3.5 py-1 pl-4 pr-2">
-            <IconTile>
-              <Sparkles size={17} />
-            </IconTile>
-            <label htmlFor="pref-memory" className="min-w-0 flex-1 text-base text-foreground">
-              {t("settings.prefs.memory")}
-            </label>
-            <Toggle
-              id="pref-memory"
-              ariaLabel={t("settings.prefs.memory")}
-              checked={prefs.memory_opt_in}
-              onChange={onMemoryOptInChange}
-            />
-          </div>
           <SettingsLink
             to="/settings/proactive"
             icon={<Bell size={17} />}
             label={t("settings.profile.proactive")}
+            value={
+              proactive
+                ? proactive.enabled && proactive.max_per_week > 0
+                  ? t("settings.proactive.frequencyPerWeek", { n: proactive.max_per_week })
+                  : t("settings.valueOff")
+                : null
+            }
           />
         </div>
       </div>
@@ -176,6 +177,7 @@ function SettingsPage() {
             to="/settings/preferences"
             icon={<Palette size={17} />}
             label={t("settings.prefs.title")}
+            value={t(`languages.${languageKey}`)}
           />
           <SettingsLink
             to="/settings/voice"
@@ -186,6 +188,13 @@ function SettingsPage() {
             to="/settings/whatsapp"
             icon={<MessageCircle size={17} />}
             label={t("settings.whatsapp.title")}
+            value={
+              whatsapp === undefined
+                ? null
+                : whatsapp?.opt_in
+                  ? t("settings.valueOn")
+                  : t("settings.valueOff")
+            }
           />
         </div>
       </Group>
@@ -263,6 +272,7 @@ function SettingsLink({
   to,
   icon,
   label,
+  value,
 }: {
   to:
     | "/onboarding/birth"
@@ -276,11 +286,18 @@ function SettingsLink({
     | "/privacy";
   icon: ReactNode;
   label: string;
+  /** Current setting, shown muted before the chevron. */
+  value?: string | null;
 }) {
   return (
     <Link to={to} className={ROW_BUTTON}>
       <IconTile>{icon}</IconTile>
       <span className="min-w-0 flex-1 text-base text-foreground">{label}</span>
+      {value ? (
+        <span className="max-w-[40%] shrink-0 truncate text-[0.9375rem] text-muted-foreground">
+          {value}
+        </span>
+      ) : null}
       <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
     </Link>
   );

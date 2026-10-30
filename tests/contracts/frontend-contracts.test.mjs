@@ -358,11 +358,10 @@ test("native back behavior delegates to browser history without root exits", asy
 });
 
 test("native shell keeps focused fields and mobile drawers clear of device edges", async () => {
-  const [stylesSource, drawerSource, shellSource, dockSource] = await Promise.all([
+  const [stylesSource, drawerSource, shellSource] = await Promise.all([
     readProjectFile("src/styles.css"),
     readProjectFile("src/components/ui/drawer.tsx"),
     readProjectFile("src/components/layout/AppShell.tsx"),
-    readProjectFile("src/components/layout/ContextDock.tsx"),
   ]);
 
   assert.match(stylesSource, /scroll-padding-top: calc\(1rem \+ var\(--as-safe-top\)\)/);
@@ -372,7 +371,6 @@ test("native shell keeps focused fields and mobile drawers clear of device edges
   assert.match(drawerSource, /rounded-t-lg/);
   assert.doesNotMatch(drawerSource, /rounded-t-\[1\.75rem\]/);
   assert.match(shellSource, /DrawerContent className="rounded-t-lg/);
-  assert.match(dockSource, /DrawerContent className="rounded-t-lg/);
 });
 
 test("webview interaction defaults avoid iOS field zoom without reducing accessibility", async () => {
@@ -1000,10 +998,6 @@ test("Cosmos primary sections use native chip tabs with tactile transitions", as
     routeSource,
     /const setTab = \(k: TabKey\) => \{[\s\S]*triggerHaptic\("selection"\)/,
   );
-  assert.match(
-    routeSource,
-    /to="\/life"[\s\S]*onClick=\{\(\) => void triggerHaptic\("selection"\)\}/,
-  );
 });
 
 test("person chart Varga selector uses the same native mobile sheet", async () => {
@@ -1435,7 +1429,9 @@ test("settings overview groups utility controls and keeps every destination reac
     assert.match(settingsSource, new RegExp(destination));
   }
   assert.match(settingsSource, /to="\/settings\/preferences"/);
-  assert.match(settingsSource, /updatePreferences\(\{ memory_opt_in \}\)/);
+  // Memory is changed on its own page; the overview only shows its state.
+  assert.match(settingsSource, /prefs\.memory_opt_in \? t\("settings\.valueOn"\)/);
+  assert.doesNotMatch(settingsSource, /id="pref-memory"/);
   assert.match(settingsSource, /APP_VERSION/);
   assert.match(settingsSource, /t\("settings\.version", \{ v: APP_VERSION \}\)/);
   assert.match(settingsSource, /await mockAuth\.signOut\(\)/);

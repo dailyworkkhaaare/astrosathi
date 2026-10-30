@@ -127,7 +127,7 @@ function SadeSatiCard() {
     i == null ? null : t(`signs.${SIGN_KEYS_BY_INDEX[i]}`);
 
   const formatDate = (iso: string) =>
-    new Intl.DateTimeFormat(i18n.language, {
+    new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -189,7 +189,7 @@ function SadeSatiCard() {
   const formatDay = (iso: string) => {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return new Intl.DateTimeFormat(i18n.language, {
+    return new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -423,7 +423,7 @@ function SadeSatiTimelineBar({
   const end = new Date(episode.endTs).getTime();
   const span = Math.max(1, end - start);
 
-  const monthFmt = new Intl.DateTimeFormat(i18n.language, {
+  const monthFmt = new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
     year: "numeric",
     month: "short",
   });

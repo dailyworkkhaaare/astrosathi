@@ -2325,7 +2325,8 @@ function Sidebar({
   const [query, setQuery] = useState("");
 
   const filteredGroups = useMemo(
-    () => groupConversations(conversations, query, t, i18n.language),
+    () =>
+      groupConversations(conversations, query, t, i18n.language === "en" ? "en-IN" : i18n.language),
     [conversations, query, t, i18n.language],
   );
 

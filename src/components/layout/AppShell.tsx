@@ -14,7 +14,6 @@ import { useTranslation } from "react-i18next";
 
 import { AstroArt } from "@/components/AstroArt";
 import { BrandMark } from "@/components/BrandMark";
-import { ContextDock } from "@/components/layout/ContextDock";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -169,10 +168,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           {hydrated ? (
             <>
-              {showNav && user && !isChat && <MobileProfileLauncher user={user} />}
-              {showNav && !isChat && supportsContextDock(pathname) ? (
-                <ContextDock pathname={pathname} />
-              ) : null}
+              {/* As in the design, the avatar sits beside the Today, Cosmos and
+                  Journey titles; People and sub-pages keep their own trailing
+                  action there. */}
+              {showNav && user && showsProfileAvatar(pathname) && (
+                <MobileProfileLauncher user={user} />
+              )}
               {children}
             </>
           ) : (
@@ -205,6 +206,11 @@ function HydrationSkeleton() {
   );
 }
 
+function showsProfileAvatar(pathname: string) {
+  const path = pathname.replace(/\/$/, "") || "/";
+  return path === "/today" || path === "/home" || path === "/journey";
+}
+
 function isActive(pathname: string, to: string) {
   if (to === "/home") return pathname === "/home" || pathname.startsWith("/home/");
   if (to === "/settings") return pathname === "/settings" || pathname.startsWith("/settings/");
@@ -221,23 +227,6 @@ function isActive(pathname: string, to: string) {
     );
   if (to === "/people") return pathname === "/people" || pathname.startsWith("/people/");
   return false;
-}
-
-function supportsContextDock(pathname: string) {
-  return (
-    pathname === "/home" ||
-    pathname.startsWith("/home/") ||
-    pathname === "/today" ||
-    pathname.startsWith("/today/") ||
-    pathname === "/journey" ||
-    pathname.startsWith("/journey/") ||
-    pathname === "/life" ||
-    pathname.startsWith("/life/") ||
-    pathname === "/journal" ||
-    pathname === "/nudges" ||
-    pathname === "/people" ||
-    pathname.startsWith("/people/")
-  );
 }
 
 function DesktopRail({ pathname }: { pathname: string }) {

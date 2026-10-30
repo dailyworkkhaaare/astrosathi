@@ -57,7 +57,7 @@ export function BradleySection() {
   } satisfies ChartConfig;
 
   const fmtFullDate = (iso: string) =>
-    new Intl.DateTimeFormat(i18n.language, {
+    new Intl.DateTimeFormat(i18n.language === "en" ? "en-IN" : i18n.language, {
       day: "numeric",
       month: "short",
     }).format(new Date(iso + "T00:00:00"));
